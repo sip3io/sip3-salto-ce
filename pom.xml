@@ -22,6 +22,19 @@
             <artifactId>sip3-commons</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- Mongo -->
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-mongo-client</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>de.flapdoodle.embed</groupId>
+            <artifactId>de.flapdoodle.embed.mongo</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
