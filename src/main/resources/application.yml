@@ -5,6 +5,12 @@ name: sip3-salto
 #vertx:
 #  instances: 1
 
+#! Mongo
+#mongo:
+#  uri: mongodb://127.0.0.1:27017
+#  db: sip3
+#  bulk-size: 1
+
 #! Server
 server:
   uri: udp://0.0.0.0:15060
@@ -27,3 +33,7 @@ server:
 #    port: 8125
 #    step: 1000
 #    flavour: datadog
+#  elastic:
+#    host: 127.0.0.1:9200
+#    index: sip3
+#    step: 1000
