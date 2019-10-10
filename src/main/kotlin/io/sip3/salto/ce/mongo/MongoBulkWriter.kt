@@ -22,14 +22,14 @@ import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.BulkOperation
 import io.vertx.ext.mongo.BulkWriteOptions
 import io.vertx.ext.mongo.MongoClient
-import mu.KLogging
+import mu.KotlinLogging
 
 /**
  * Writes bulks of documents to MongoDB
  */
 class MongoBulkWriter : AbstractVerticle() {
 
-    companion object : KLogging()
+    private val logger = KotlinLogging.logger {}
 
     private var client: MongoClient? = null
     private var bulkSize = 0

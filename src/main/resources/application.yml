@@ -10,6 +10,7 @@ name: sip3-salto
 #  uri: mongodb://127.0.0.1:27017
 #  db: sip3
 #  bulk-size: 1
+#  update-period: 300000
 
 #! Server
 server:
@@ -18,6 +19,9 @@ server:
 #  ssl:
 #    key-store: ...
 #    key-store-password: ...
+
+#! Application
+#time-suffix: yyyyMMdd
 
 #! Metrics
 #metrics:
