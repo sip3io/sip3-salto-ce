@@ -29,6 +29,12 @@
             <artifactId>vertx-mongo-client</artifactId>
         </dependency>
 
+        <!-- Util -->
+        <dependency>
+            <groupId>commons-net</groupId>
+            <artifactId>commons-net</artifactId>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>de.flapdoodle.embed</groupId>

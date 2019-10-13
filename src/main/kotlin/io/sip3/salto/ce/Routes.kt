@@ -25,6 +25,9 @@ object Routes {
     // Router
     const val router = "router"
 
+    // SIP
+    const val sip = "sip"
+
     // Mongo
     const val mongo_bulk_writer = "mongo_bulk_writer"
 }
