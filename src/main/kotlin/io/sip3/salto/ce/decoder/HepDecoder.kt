@@ -29,7 +29,7 @@ import mu.KotlinLogging
 import java.sql.Timestamp
 
 /**
- * Decodes packets in HEP3 protocol
+ * Decodes packets in HEP2 and HEP3 protocols
  */
 class HepDecoder : AbstractVerticle() {
 
@@ -42,21 +42,63 @@ class HepDecoder : AbstractVerticle() {
     }
 
     private val packetsDecoded = Counter.builder("packets_decoded")
-            .tag("proto", "hep3")
+            .tag("proto", "hep")
             .register(Metrics.globalRegistry)
 
     override fun start() {
+        vertx.eventBus().localConsumer<Buffer>(Routes.hep2) { event ->
+            try {
+                val buffer = event.body()
+                decodeHep2(buffer)
+            } catch (e: Exception) {
+                logger.error("HepDecoder 'decodeHep2()' failed.", e)
+            }
+        }
+
         vertx.eventBus().localConsumer<Buffer>(Routes.hep3) { event ->
             try {
                 val buffer = event.body()
-                decode(buffer)
+                decodeHep3(buffer)
             } catch (e: Exception) {
-                logger.error("HepDecoder 'decode()' failed.", e)
+                logger.error("HepDecoder 'decodeHep3()' failed.", e)
             }
         }
     }
 
-    fun decode(buffer: Buffer) {
+    fun decodeHep2(buffer: Buffer) {
+        val packetLength = buffer.length()
+        if (packetLength < 31) {
+            logger.warn("HEP2 payload is to short: $packetLength")
+            return
+        }
+
+        val srcPort: Int = buffer.getUnsignedShort(4)
+        val dstPort: Int = buffer.getUnsignedShort(6)
+        val srcAddr: ByteArray = buffer.getBytes(8, 12)
+        val dstAddr: ByteArray = buffer.getBytes(12, 16)
+        val seconds: Long = buffer.getUnsignedIntLE(16)
+        val uSeconds: Long = buffer.getUnsignedIntLE(20)
+        val payload: ByteArray = buffer.getBytes(28, packetLength)
+
+        val packet = Packet().apply {
+            this.timestamp = Timestamp(seconds * 1000 + uSeconds / 1000).apply { nanos += (uSeconds % 1000).toInt() }
+            this.srcAddr = Address().apply {
+                addr = IpUtil.convertToString(srcAddr)
+                port = srcPort
+            }
+            this.dstAddr = Address().apply {
+                addr = IpUtil.convertToString(dstAddr)
+                port = dstPort
+            }
+            this.protocolCode = Packet.TYPE_SIP
+            this.payload = payload
+        }
+
+        packetsDecoded.increment()
+        vertx.eventBus().send(Routes.router, packet, USE_LOCAL_CODEC)
+    }
+
+    fun decodeHep3(buffer: Buffer) {
         var seconds: Long? = null
         var uSeconds: Long? = null
         var srcAddr: ByteArray? = null

@@ -29,8 +29,17 @@ class HepDecoderTest : VertxTest() {
 
     companion object {
 
-        // Payload: HEPv3
+        // Payload: HEPv2
         val PACKET_1 = byteArrayOf(
+                0x02.toByte(), 0x10.toByte(), 0x02.toByte(), 0x11.toByte(), 0x13.toByte(), 0xc4.toByte(), 0x13.toByte(),
+                0xc6.toByte(), 0x0a.toByte(), 0x00.toByte(), 0x00.toByte(), 0x04.toByte(), 0x0a.toByte(), 0x00.toByte(),
+                0x00.toByte(), 0x04.toByte(), 0x2e.toByte(), 0x6f.toByte(), 0xa7.toByte(), 0x5d.toByte(), 0x94.toByte(),
+                0xad.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(),
+                0x53.toByte(), 0x49.toByte(), 0x50.toByte(), 0x2f.toByte(), 0x32.toByte(), 0x2e.toByte(), 0x30.toByte()
+        )
+
+        // Payload: HEPv3
+        val PACKET_2 = byteArrayOf(
                 0x48.toByte(), 0x45.toByte(), 0x50.toByte(), 0x33.toByte(), 0x02.toByte(), 0x20.toByte(), 0x00.toByte(),
                 0x00.toByte(), 0x00.toByte(), 0x01.toByte(), 0x00.toByte(), 0x07.toByte(), 0x02.toByte(), 0x00.toByte(),
                 0x00.toByte(), 0x00.toByte(), 0x02.toByte(), 0x00.toByte(), 0x07.toByte(), 0x11.toByte(), 0x00.toByte(),
@@ -55,13 +64,42 @@ class HepDecoderTest : VertxTest() {
     }
 
     @Test
+    fun `Decode HEPv2 SIP packet`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(HepDecoder::class)
+                },
+                execute = {
+                    vertx.eventBus().send(Routes.hep2, Buffer.buffer(PACKET_1), USE_LOCAL_CODEC)
+                },
+                assert = {
+                    vertx.eventBus().consumer<Packet>(Routes.router) { event ->
+                        val packet = event.body()
+                        context.verify {
+                            assertEquals(1571254062044, packet.timestamp.time)
+                            assertEquals(44000436, packet.timestamp.nanos)
+                            val src = packet.srcAddr
+                            assertEquals("10.0.0.4", src.addr)
+                            assertEquals(5060, src.port)
+                            val dst = packet.dstAddr
+                            assertEquals("10.0.0.4", dst.addr)
+                            assertEquals(5062, dst.port)
+                            assertEquals("SIP/2.0", packet.payload.toString(Charset.defaultCharset()))
+                        }
+                        context.completeNow()
+                    }
+                }
+        )
+    }
+
+    @Test
     fun `Decode HEPv3 SIP packet`() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(HepDecoder::class)
                 },
                 execute = {
-                    vertx.eventBus().send(Routes.hep3, Buffer.buffer(PACKET_1), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(Routes.hep3, Buffer.buffer(PACKET_2), USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().consumer<Packet>(Routes.router) { event ->

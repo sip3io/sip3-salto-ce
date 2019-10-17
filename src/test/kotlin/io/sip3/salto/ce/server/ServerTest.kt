@@ -22,6 +22,7 @@ import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.datagram.sendAwait
 import io.vertx.kotlin.core.net.connectAwait
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.nio.charset.Charset
@@ -32,6 +33,7 @@ class ServerTest : VertxTest() {
 
         const val MESSAGE_1 = "SIP3 is awesome!"
         const val MESSAGE_2 = "HEP3 is awesome!"
+        val MESSAGE_3 = byteArrayOf(0x02, 0x10, 0x02, 0x42)
     }
 
     @Test
@@ -77,6 +79,31 @@ class ServerTest : VertxTest() {
                         val buffer = event.body()
                         context.verify {
                             assertEquals(MESSAGE_2, buffer.toString(Charset.defaultCharset()))
+                        }
+                        context.completeNow()
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Retrieve HEP2 packet via TCP`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(Server::class, JsonObject().apply {
+                        put("server", JsonObject().apply {
+                            put("uri", "tcp://127.0.0.1:15061")
+                        })
+                    })
+                },
+                execute = {
+                    vertx.createNetClient().connectAwait(15061, "127.0.0.1").write(Buffer.buffer(MESSAGE_3))
+                },
+                assert = {
+                    vertx.eventBus().consumer<Buffer>(Routes.hep2) { event ->
+                        val buffer = event.body()
+                        context.verify {
+                            Assertions.assertArrayEquals(MESSAGE_3, buffer.bytes)
                         }
                         context.completeNow()
                     }

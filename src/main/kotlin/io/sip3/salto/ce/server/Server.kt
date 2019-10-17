@@ -40,6 +40,7 @@ class Server : AbstractVerticle() {
 
         const val PROTO_SIP3 = "SIP3"
         const val PROTO_HEP3 = "HEP3"
+        val PROTO_HEP2 = byteArrayOf(0x02, 0x10, 0x02)
     }
 
     private lateinit var uri: URI
@@ -114,9 +115,16 @@ class Server : AbstractVerticle() {
         packetsReceived.increment()
 
         if (buffer.length() >= 4) {
+            // SIP3 and HEP3
             when (buffer.getString(0, 4)) {
                 PROTO_SIP3 -> vertx.eventBus().send(Routes.sip3, buffer, USE_LOCAL_CODEC)
                 PROTO_HEP3 -> vertx.eventBus().send(Routes.hep3, buffer, USE_LOCAL_CODEC)
+            }
+
+            // HEP2
+            val prefix = buffer.getBytes(0, 3)
+            if (prefix.contentEquals(PROTO_HEP2)) {
+                vertx.eventBus().send(Routes.hep2, buffer, USE_LOCAL_CODEC)
             }
         }
     }

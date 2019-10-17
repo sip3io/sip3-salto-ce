@@ -20,6 +20,7 @@ object Routes {
 
     // Decoder
     const val sip3 = "sip3"
+    const val hep2 = "hep2"
     const val hep3 = "hep3"
 
     // Router

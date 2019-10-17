@@ -31,7 +31,7 @@ class DecoderTest : VertxTest() {
 
         // Payload: SIP3
         val PACKET_1 = byteArrayOf(
-                0x83.toByte(), 0x73.toByte(), 0x80.toByte(), 0x51.toByte(), 0x00.toByte(), 0x01.toByte(), 0x01.toByte(),
+                0x53.toByte(), 0x49.toByte(), 0x50.toByte(), 0x33.toByte(), 0x00.toByte(), 0x01.toByte(), 0x01.toByte(),
                 0x00.toByte(), 0x3b.toByte(), 0x01.toByte(), 0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x00.toByte(),
                 0x01.toByte(), 0x68.toByte(), 0xdc.toByte(), 0x0f.toByte(), 0xaa.toByte(), 0xd4.toByte(), 0x02.toByte(),
                 0x00.toByte(), 0x07.toByte(), 0x32.toByte(), 0xc8.toByte(), 0x7d.toByte(), 0x00.toByte(), 0x03.toByte(),
