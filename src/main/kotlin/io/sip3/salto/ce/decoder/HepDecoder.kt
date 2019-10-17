@@ -37,8 +37,8 @@ class HepDecoder : AbstractVerticle() {
 
     companion object {
 
-        const val HEADER_LENGTH = 6
-        const val TYPE_SIP: Byte = 1
+        const val HEP3_HEADER_LENGTH = 6
+        const val HEP3_TYPE_SIP: Byte = 1
     }
 
     private val packetsDecoded = Counter.builder("packets_decoded")
@@ -108,7 +108,7 @@ class HepDecoder : AbstractVerticle() {
         var protocolType: Byte? = null
         var payload: ByteArray? = null
 
-        var offset = HEADER_LENGTH
+        var offset = HEP3_HEADER_LENGTH
         while (offset < buffer.length()) {
             // Type
             offset += 2
@@ -142,7 +142,7 @@ class HepDecoder : AbstractVerticle() {
                 port = dstPort!!
             }
             when (protocolType) {
-                TYPE_SIP -> this.protocolCode = Packet.TYPE_SIP
+                HEP3_TYPE_SIP -> this.protocolCode = Packet.TYPE_SIP
                 else -> throw NotImplementedError("Unknown HEPv3 protocol type: $protocolType")
             }
             this.payload = payload!!
