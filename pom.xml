@@ -29,6 +29,12 @@
             <artifactId>vertx-mongo-client</artifactId>
         </dependency>
 
+        <!-- SIP -->
+        <dependency>
+            <groupId>javax.sip</groupId>
+            <artifactId>jain-sip-ri</artifactId>
+        </dependency>
+
         <!-- Util -->
         <dependency>
             <groupId>commons-net</groupId>

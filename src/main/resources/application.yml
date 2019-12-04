@@ -22,6 +22,9 @@ server:
 
 #! Application
 #time-suffix: yyyyMMdd
+#sip:
+#  message:
+#    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
 
 #! Metrics
 #metrics:

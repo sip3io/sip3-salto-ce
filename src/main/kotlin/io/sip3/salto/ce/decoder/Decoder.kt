@@ -16,7 +16,6 @@
 
 package io.sip3.salto.ce.decoder
 
-import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Metrics
 import io.sip3.commons.util.IpUtil
 import io.sip3.salto.ce.Routes
@@ -40,9 +39,7 @@ class Decoder : AbstractVerticle() {
         const val HEADER_LENGTH = 4
     }
 
-    private val packetsDecoded = Counter.builder("packets_decoded")
-            .tag("proto", "sip3")
-            .register(Metrics.globalRegistry)
+    private val packetsDecoded = Metrics.counter("packets_decoded", "proto", "sip3")
 
     override fun start() {
         vertx.eventBus().localConsumer<Buffer>(Routes.sip3) { event ->

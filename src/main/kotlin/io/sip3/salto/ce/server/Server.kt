@@ -16,7 +16,6 @@
 
 package io.sip3.salto.ce.server
 
-import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Metrics
 import io.sip3.salto.ce.Routes
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -47,7 +46,7 @@ class Server : AbstractVerticle() {
     private var bufferSize: Int? = null
     private var sslConfig: JsonObject? = null
 
-    private val packetsReceived = Counter.builder("packets_received").register(Metrics.globalRegistry)
+    private val packetsReceived = Metrics.counter("packets_received", "proto", "hep")
 
     override fun start() {
         config().getJsonObject("server").let { config ->
