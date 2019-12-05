@@ -21,7 +21,7 @@ import gov.nist.javax.sip.parser.StringMsgParser
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
-class SIPMessageExtTest {
+class SIPMessageUtilTest {
 
     companion object {
 
