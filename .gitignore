@@ -2,5 +2,7 @@
 *.iml
 *.ipr
 
+.vertx
+
 *.class
 target

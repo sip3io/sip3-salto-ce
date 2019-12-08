@@ -23,6 +23,16 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Vert.x -->
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-lang-groovy</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-lang-js</artifactId>
+        </dependency>
+
         <!-- Mongo -->
         <dependency>
             <groupId>io.vertx</groupId>

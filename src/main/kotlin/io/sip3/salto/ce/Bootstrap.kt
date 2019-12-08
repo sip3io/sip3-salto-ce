@@ -22,11 +22,16 @@ import io.sip3.salto.ce.decoder.HepDecoder
 import io.sip3.salto.ce.server.Server
 import io.sip3.salto.ce.sip.SipMessageHandler
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.deploymentOptionsOf
 import io.vertx.kotlin.core.eventbus.deliveryOptionsOf
+import mu.KotlinLogging
+import java.io.File
 
 val USE_LOCAL_CODEC = deliveryOptionsOf(codecName = "local", localOnly = true)
 
 open class Bootstrap : AbstractBootstrap() {
+
+    private val logger = KotlinLogging.logger {}
 
     override val configLocations = listOf("config.location")
 
@@ -34,9 +39,23 @@ open class Bootstrap : AbstractBootstrap() {
         // Read `vertx.instances`
         val instances = config.getJsonObject("vertx")?.getInteger("instances") ?: 1
         // Deploy verticles
+        deployUdfVerticles(config)
         vertx.deployVerticle(SipMessageHandler::class, config, instances)
         vertx.deployVerticle(HepDecoder::class, config, instances)
         vertx.deployVerticle(Decoder::class, config, instances)
         vertx.deployVerticle(Server::class, config)
+    }
+
+    open fun deployUdfVerticles(config: JsonObject) {
+        val folder = System.getProperty("udf.location")
+
+        File(folder).walkTopDown().filter(File::isFile).forEach { file ->
+            logger.info("Deploying UDF from `$file`")
+            vertx.deployVerticle(file.absolutePath, deploymentOptionsOf(config)) { asr ->
+                if (asr.failed()) {
+                    logger.error("Vertx 'deployVerticle()' failed. File: $file", asr.cause())
+                }
+            }
+        }
     }
 }
