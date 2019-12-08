@@ -85,7 +85,7 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun handle(packet: Packet) {
         packetsProcessed.increment()
 
-        var message: SIPMessage? = try {
+        val message: SIPMessage? = try {
             StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         } catch (e: Exception) {
             logger.debug("StringMsgParser `parseSIPMessage()` failed.\n $packet")
@@ -142,12 +142,12 @@ open class SipMessageHandler : AbstractVerticle() {
                 .apply {
                     packet.srcAddr.host?.let { tag("src_host", it) }
                     packet.dstAddr.host?.let { tag("dst_host", it) }
-                    message.cseqMethod()?.let { tag("cseq_method", it) }
-                    message.method()?.let { tag("method", it) }
                     message.statusCode()?.let {
                         tag("status_type", "${it / 100}xx")
                         tag("status_code", it.toString())
                     }
+                    message.method()?.let { tag("method", it) }
+                    message.cseqMethod()?.let { tag("cseq_method", it) }
                 }
                 .register(Metrics.globalRegistry)
                 .increment()
