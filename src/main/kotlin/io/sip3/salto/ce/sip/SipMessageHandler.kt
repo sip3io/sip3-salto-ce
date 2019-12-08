@@ -95,16 +95,13 @@ open class SipMessageHandler : AbstractVerticle() {
         if (message != null && validate(message)) {
             val cseqMethod = message.cseqMethod()
 
-            if (SIP_METHODS.contains(cseqMethod)) {
+            if (SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
                 val prefix = prefix(cseqMethod!!)
+                writeToDatabase(prefix, packet, message)
                 calculateMetrics(prefix, packet, message)
 
-                if (!exclusions.contains(cseqMethod)) {
-                    writeToDatabase(prefix, packet, message)
-
-                    val route = route(prefix, message)
-                    vertx.eventBus().send(route, Pair(packet, message), USE_LOCAL_CODEC)
-                }
+                val route = route(prefix, message)
+                vertx.eventBus().send(route, Pair(packet, message), USE_LOCAL_CODEC)
             }
         }
     }
