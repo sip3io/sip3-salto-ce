@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.router
 
+import io.sip3.commons.PacketTypes
 import io.sip3.salto.ce.Routes
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
@@ -71,7 +72,7 @@ open class Router : AbstractVerticle() {
         (hostMap[dst.addr] ?: hostMap["${dst.addr}:${dst.port}"])?.let { dst.host = it }
 
         val route = when (packet.protocolCode) {
-            Packet.TYPE_SIP -> Routes.sip
+            PacketTypes.SIP -> Routes.sip
             else -> null
         }
 

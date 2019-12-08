@@ -21,16 +21,6 @@ import java.sql.Timestamp
 
 class Packet {
 
-    companion object {
-
-        const val TYPE_RTCP: Byte = 1
-        const val TYPE_RTP: Byte = 2
-        const val TYPE_SIP: Byte = 3
-        const val TYPE_ICMP: Byte = 4
-        const val TYPE_RTPR: Byte = 5
-        const val TYPE_SMPP: Byte = 6
-    }
-
     lateinit var timestamp: Timestamp
 
     lateinit var srcAddr: Address

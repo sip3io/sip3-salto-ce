@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.decoder
 
 import io.micrometer.core.instrument.Metrics
+import io.sip3.commons.PacketTypes
 import io.sip3.commons.util.IpUtil
 import io.sip3.salto.ce.Routes
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -87,7 +88,7 @@ class HepDecoder : AbstractVerticle() {
                 addr = IpUtil.convertToString(dstAddr)
                 port = dstPort
             }
-            this.protocolCode = Packet.TYPE_SIP
+            this.protocolCode = PacketTypes.SIP
             this.payload = payload
         }
 
@@ -139,7 +140,7 @@ class HepDecoder : AbstractVerticle() {
                 port = dstPort!!
             }
             when (protocolType) {
-                HEP3_TYPE_SIP -> this.protocolCode = Packet.TYPE_SIP
+                HEP3_TYPE_SIP -> this.protocolCode = PacketTypes.SIP
                 else -> throw NotImplementedError("Unknown HEPv3 protocol type: $protocolType")
             }
             this.payload = payload!!
