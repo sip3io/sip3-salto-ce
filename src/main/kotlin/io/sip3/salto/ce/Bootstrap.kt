@@ -39,19 +39,24 @@ open class Bootstrap : AbstractBootstrap() {
         // Read `vertx.instances`
         val instances = config.getJsonObject("vertx")?.getInteger("instances") ?: 1
         // Deploy verticles
-        deployUdfVerticles(config)
+        deployUdfVerticles(config, instances)
         vertx.deployVerticle(SipMessageHandler::class, config, instances)
         vertx.deployVerticle(HepDecoder::class, config, instances)
         vertx.deployVerticle(Decoder::class, config, instances)
         vertx.deployVerticle(Server::class, config)
     }
 
-    open fun deployUdfVerticles(config: JsonObject) {
+    open fun deployUdfVerticles(config: JsonObject, instances: Int = 1) {
+        val options = deploymentOptionsOf().apply {
+            this.config = config
+            this.instances = instances
+        }
+
         val folder = System.getProperty("udf.location")
 
         File(folder).walkTopDown().filter(File::isFile).forEach { file ->
             logger.info("Deploying UDF from `$file`")
-            vertx.deployVerticle(file.absolutePath, deploymentOptionsOf(config)) { asr ->
+            vertx.deployVerticle(file.absolutePath, options) { asr ->
                 if (asr.failed()) {
                     logger.error("Vertx 'deployVerticle()' failed. File: $file", asr.cause())
                 }

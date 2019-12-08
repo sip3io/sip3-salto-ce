@@ -18,7 +18,8 @@ package io.sip3.salto.ce.util
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class SIPMessageUtilTest {
@@ -90,37 +91,47 @@ class SIPMessageUtilTest {
 
     @Test
     fun `Check callId() method extension`() {
-        Assertions.assertEquals("2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e", REQUEST.callId())
-        Assertions.assertEquals("2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e", RESPONSE.callId())
+        assertEquals("2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e", REQUEST.callId())
+        assertEquals("2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e", RESPONSE.callId())
     }
 
     @Test
     fun `Check fromUri() method extension`() {
-        Assertions.assertEquals("sip:000260971282@demo.sip3.io", REQUEST.fromUri())
-        Assertions.assertEquals("sip:000260971282@demo.sip3.io", RESPONSE.fromUri())
+        assertEquals("sip:000260971282@demo.sip3.io", REQUEST.fromUri())
+        assertEquals("sip:000260971282@demo.sip3.io", RESPONSE.fromUri())
     }
 
     @Test
     fun `Check toUri() method extension`() {
-        Assertions.assertEquals("sip:000155917690@demo.sip3.io:5060", REQUEST.toUri())
-        Assertions.assertEquals("sip:000155917690@demo.sip3.io:5060", RESPONSE.toUri())
+        assertEquals("sip:000155917690@demo.sip3.io:5060", REQUEST.toUri())
+        assertEquals("sip:000155917690@demo.sip3.io:5060", RESPONSE.toUri())
     }
 
     @Test
     fun `Check cseqMethod() method extension`() {
-        Assertions.assertEquals("INVITE", REQUEST.cseqMethod())
-        Assertions.assertEquals("INVITE", RESPONSE.cseqMethod())
+        assertEquals("INVITE", REQUEST.cseqMethod())
+        assertEquals("INVITE", RESPONSE.cseqMethod())
     }
 
     @Test
     fun `Check method() method extension`() {
-        Assertions.assertEquals("INVITE", REQUEST.method())
-        Assertions.assertNull(RESPONSE.method())
+        assertEquals("INVITE", REQUEST.method())
+        assertNull(RESPONSE.method())
     }
 
     @Test
     fun `Check statusCode() method extension`() {
-        Assertions.assertNull(REQUEST.statusCode())
-        Assertions.assertEquals(183, RESPONSE.statusCode())
+        assertNull(REQUEST.statusCode())
+        assertEquals(183, RESPONSE.statusCode())
+    }
+
+    @Test
+    fun `Check headersMap() method extension`() {
+        var headersMap = REQUEST.headersMap()
+        assertEquals(16, headersMap.size)
+        assertEquals("1 INVITE", headersMap["cseq"])
+        headersMap = RESPONSE.headersMap()
+        assertEquals(11, headersMap.size)
+        assertEquals("100rel,precondition,timer", headersMap["supported"])
     }
 }

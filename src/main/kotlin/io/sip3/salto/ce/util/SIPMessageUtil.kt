@@ -43,3 +43,9 @@ fun SIPMessage.method(): String? {
 fun SIPMessage.statusCode(): Int? {
     return (this as? SIPResponse)?.statusCode
 }
+
+fun SIPMessage.headersMap() : Map<String, String> {
+    return mutableMapOf<String, String>().apply {
+        headers.forEach { header -> put(header.headerName.toLowerCase(), header.headerValue) }
+    }
+}

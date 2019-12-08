@@ -14,23 +14,14 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.domain
+vertx.eventBus().localConsumer("sip_message_udf", { event ->
+    def packet = event.body()
 
-import java.sql.Timestamp
-
-class Packet {
-
-    lateinit var timestamp: Timestamp
-
-    lateinit var srcAddr: Address
-    lateinit var dstAddr: Address
-
-    var protocolCode: Byte = 0
-    lateinit var payload: ByteArray
-
-    var attributes = mutableMapOf<String, Any>()
-
-    override fun toString(): String {
-        return "Packet(timestamp=$timestamp, srcAddr=$srcAddr, dstAddr=$dstAddr, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"
+    def payload = packet['payload']
+    if (payload['user-agent'] == 'Android Application') {
+        def attributes = packet['attributes']
+        attributes['os'] = 'android'
     }
-}
+
+    event.reply(true)
+})

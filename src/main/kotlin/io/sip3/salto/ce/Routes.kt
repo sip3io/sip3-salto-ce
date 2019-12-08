@@ -28,6 +28,7 @@ object Routes {
 
     // SIP
     const val sip = "sip"
+    const val sip_message_udf = "sip_message_udf"
 
     // Mongo
     const val mongo_bulk_writer = "mongo_bulk_writer"

@@ -32,6 +32,9 @@ class SipMessageHandlerTest : VertxTest() {
 
     companion object {
 
+        const val UDF_GROOVY = "src/test/resources/udf/SipMessageHandlerTest.groovy"
+        const val UDF_JS = "src/test/resources/udf/SipMessageHandlerTest.js"
+
         val PACKET_1 = Packet().apply {
             timestamp = Timestamp(System.currentTimeMillis())
             srcAddr = Address().apply {
@@ -57,7 +60,7 @@ class SipMessageHandlerTest : VertxTest() {
                         Expires: 300
                         Min-SE: 900
                         Max-Forwards: 63
-                        User-Agent: ITLCS 3.8.1
+                        User-Agent: Android Application
                         Content-Type: application/sdp
                         Content-Length: 179
 
@@ -123,6 +126,72 @@ class SipMessageHandlerTest : VertxTest() {
                             assertTrue(message is SIPMessage)
                         }
                         context.completeNow()
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Apply Groovy UDF to packet with SIP message`() {
+        runTest(
+                deploy = {
+                    vertx.deployVerticle(UDF_GROOVY)
+                    vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
+                        put("sip", JsonObject().apply {
+                            put("message", JsonObject().apply {
+                                put("check-udf-period", 100)
+                            })
+                        })
+                    })
+                },
+                execute = {
+                    vertx.setPeriodic(100) {
+                        vertx.eventBus().send(Routes.sip, PACKET_1, USE_LOCAL_CODEC)
+                    }
+                },
+                assert = {
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(Routes.sip + "_call_0") { event ->
+                        var (packet, _) = event.body()
+
+                        if (packet.attributes.isNotEmpty()) {
+                            context.verify {
+                                assertEquals("android", packet.attributes["os"])
+                            }
+                            context.completeNow()
+                        }
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Apply JavaScript UDF to packet with SIP message`() {
+        runTest(
+                deploy = {
+                    vertx.deployVerticle(UDF_JS)
+                    vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
+                        put("sip", JsonObject().apply {
+                            put("message", JsonObject().apply {
+                                put("check-udf-period", 100)
+                            })
+                        })
+                    })
+                },
+                execute = {
+                    vertx.setPeriodic(100) {
+                        vertx.eventBus().send(Routes.sip, PACKET_1, USE_LOCAL_CODEC)
+                    }
+                },
+                assert = {
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(Routes.sip + "_call_0") { event ->
+                        var (packet, _) = event.body()
+
+                        if (packet.attributes.isNotEmpty()) {
+                            context.verify {
+                                assertEquals("android", packet.attributes["os"])
+                            }
+                            context.completeNow()
+                        }
                     }
                 }
         )

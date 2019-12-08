@@ -53,7 +53,10 @@ open class SipMessageHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var exclusions = emptySet<String>()
+    private var checkUdfPeriod: Long = 30000
     private var instances = 1
+
+    private var sendToUdf = false
 
     private val packetsProcessed = Metrics.counter("packets_processed", "proto", "sip")
 
@@ -67,10 +70,16 @@ open class SipMessageHandler : AbstractVerticle() {
                 exclusions = it.map(Any::toString).toSet()
             }
 
+            config.getJsonObject("sip")?.getJsonObject("message")?.getLong("check-udf-period")?.let {
+                checkUdfPeriod = it
+            }
+
             config.getJsonObject("vertx")?.getInteger("instances")?.let {
                 instances = it
             }
         }
+
+        checkUserDefinedFunction()
 
         vertx.eventBus().localConsumer<Packet>(Routes.sip) { event ->
             try {
@@ -78,6 +87,15 @@ open class SipMessageHandler : AbstractVerticle() {
                 handle(packet)
             } catch (e: Exception) {
                 logger.error("SipMessageHandler 'handle()' failed.", e)
+            }
+        }
+    }
+
+    open fun checkUserDefinedFunction() {
+        if (!sendToUdf) {
+            sendToUdf = vertx.eventBus().consumes(Routes.sip_message_udf)
+            if (!sendToUdf) {
+                vertx.setTimer(checkUdfPeriod) { checkUserDefinedFunction() }
             }
         }
     }
@@ -96,6 +114,8 @@ open class SipMessageHandler : AbstractVerticle() {
             val cseqMethod = message.cseqMethod()
 
             if (SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
+                callUserDefinedFunction(packet, message)
+
                 val prefix = prefix(cseqMethod!!)
                 writeToDatabase(prefix, packet, message)
                 calculateMetrics(prefix, packet, message)
@@ -109,6 +129,34 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun validate(message: SIPMessage): Boolean {
         return message.callId() != null
                 && message.toUri() != null && message.fromUri() != null
+    }
+
+    open fun callUserDefinedFunction(packet: Packet, message: SIPMessage) {
+        if (sendToUdf) {
+            val udf = mutableMapOf<String, Any>().apply {
+                val src = packet.srcAddr
+                put("src_addr", src.addr)
+                put("src_port", src.port)
+                src.host?.let { put("src_host", it) }
+
+                val dst = packet.dstAddr
+                put("dst_addr", dst.addr)
+                put("dst_port", dst.port)
+                dst.host?.let { put("dst_host", it) }
+
+                put("attributes", packet.attributes)
+                put("payload", message.headersMap())
+            }
+
+            vertx.eventBus().request<Boolean>(Routes.sip_message_udf, udf, USE_LOCAL_CODEC) { asr ->
+                if (asr.failed()) {
+                    logger.info("SipMessageHandler `callUserDefinedFunction()` failed.", asr.cause())
+                }
+
+                val attributes = udf["attributes"]
+                (attributes as? MutableMap<String, Any>)?.let { packet.attributes = it }
+            }
+        }
     }
 
     open fun prefix(cseqMethod: String): String {
@@ -139,6 +187,8 @@ open class SipMessageHandler : AbstractVerticle() {
                 .apply {
                     packet.srcAddr.host?.let { tag("src_host", it) }
                     packet.dstAddr.host?.let { tag("dst_host", it) }
+                    packet.attributes.forEach { (key, value) -> tag(key, value.toString()) }
+
                     message.statusCode()?.let {
                         tag("status_type", "${it / 100}xx")
                         tag("status_code", it.toString())

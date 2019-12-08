@@ -25,6 +25,7 @@ server:
 #sip:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
+#    check-udf-period: 30000
 
 #! Metrics
 #metrics:
