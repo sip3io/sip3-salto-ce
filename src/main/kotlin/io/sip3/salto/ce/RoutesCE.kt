@@ -16,20 +16,24 @@
 
 package io.sip3.salto.ce
 
-object Routes {
+import io.sip3.commons.Routes
+
+interface RoutesCE : Routes {
+
+    companion object : RoutesCE
 
     // Decoder
-    const val sip3 = "sip3"
-    const val hep2 = "hep2"
-    const val hep3 = "hep3"
+    val sip3 get() = "sip3"
+     val hep2 get() = "hep2"
+     val hep3 get() = "hep3"
 
     // Router
-    const val router = "router"
+     val router get() = "router"
 
     // SIP
-    const val sip = "sip"
-    const val sip_message_udf = "sip_message_udf"
+     val sip get() = "sip"
+     val sip_message_udf get() = "sip_message_udf"
 
     // Mongo
-    const val mongo_bulk_writer = "mongo_bulk_writer"
+     val mongo_bulk_writer get() = "mongo_bulk_writer"
 }

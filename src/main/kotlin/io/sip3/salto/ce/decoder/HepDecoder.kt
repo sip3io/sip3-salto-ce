@@ -19,7 +19,7 @@ package io.sip3.salto.ce.decoder
 import io.micrometer.core.instrument.Metrics
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.util.IpUtil
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -44,7 +44,7 @@ class HepDecoder : AbstractVerticle() {
     private val packetsDecoded = Metrics.counter("packets_decoded", "proto", "hep")
 
     override fun start() {
-        vertx.eventBus().localConsumer<Buffer>(Routes.hep2) { event ->
+        vertx.eventBus().localConsumer<Buffer>(RoutesCE.hep2) { event ->
             try {
                 val buffer = event.body()
                 decodeHep2(buffer)
@@ -53,7 +53,7 @@ class HepDecoder : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<Buffer>(Routes.hep3) { event ->
+        vertx.eventBus().localConsumer<Buffer>(RoutesCE.hep3) { event ->
             try {
                 val buffer = event.body()
                 decodeHep3(buffer)
@@ -93,7 +93,7 @@ class HepDecoder : AbstractVerticle() {
         }
 
         packetsDecoded.increment()
-        vertx.eventBus().send(Routes.router, packet, USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.router, packet, USE_LOCAL_CODEC)
     }
 
     fun decodeHep3(buffer: Buffer) {
@@ -147,6 +147,6 @@ class HepDecoder : AbstractVerticle() {
         }
 
         packetsDecoded.increment()
-        vertx.eventBus().send(Routes.router, packet, USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.router, packet, USE_LOCAL_CODEC)
     }
 }

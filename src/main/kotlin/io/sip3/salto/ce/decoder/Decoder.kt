@@ -18,7 +18,7 @@ package io.sip3.salto.ce.decoder
 
 import io.micrometer.core.instrument.Metrics
 import io.sip3.commons.util.IpUtil
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -42,7 +42,7 @@ class Decoder : AbstractVerticle() {
     private val packetsDecoded = Metrics.counter("packets_decoded", "proto", "sip3")
 
     override fun start() {
-        vertx.eventBus().localConsumer<Buffer>(Routes.sip3) { event ->
+        vertx.eventBus().localConsumer<Buffer>(RoutesCE.sip3) { event ->
             try {
                 val buffer = event.body()
                 decode(buffer)
@@ -122,7 +122,7 @@ class Decoder : AbstractVerticle() {
             }
 
             packetsDecoded.increment()
-            vertx.eventBus().send(Routes.router, packet, USE_LOCAL_CODEC)
+            vertx.eventBus().send(RoutesCE.router, packet, USE_LOCAL_CODEC)
 
             offset += packetLength
         }

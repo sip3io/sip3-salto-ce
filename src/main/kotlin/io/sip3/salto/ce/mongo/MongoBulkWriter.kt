@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.mongo
 
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.BulkOperation
@@ -48,7 +48,7 @@ class MongoBulkWriter : AbstractVerticle() {
         }
 
         if (client != null) {
-            vertx.eventBus().localConsumer<Pair<String, JsonObject>>(Routes.mongo_bulk_writer) { bulkOperation ->
+            vertx.eventBus().localConsumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { bulkOperation ->
                 try {
                     val (collection, document) = bulkOperation.body()
                     handle(collection, document)

@@ -18,7 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -85,10 +85,10 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SipMessageHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().send(Routes.sip, PACKET_1, USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sip, PACKET_1, USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(Routes.mongo_bulk_writer) { event ->
+                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
                         var (collection, document) = event.body()
 
                         document = document.getJsonObject("document")
@@ -115,10 +115,10 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SipMessageHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().send(Routes.sip, PACKET_1, USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sip, PACKET_1, USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(Routes.sip + "_call_0") { event ->
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_call_0") { event ->
                         var (packet, message) = event.body()
 
                         context.verify {
@@ -151,11 +151,11 @@ class SipMessageHandlerTest : VertxTest() {
                         payload = PACKET_1.payload
                     }
                     vertx.setPeriodic(1000) {
-                        vertx.eventBus().send(Routes.sip, packet, USE_LOCAL_CODEC)
+                        vertx.eventBus().send(RoutesCE.sip, packet, USE_LOCAL_CODEC)
                     }
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(Routes.sip + "_call_0") { event ->
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_call_0") { event ->
                         var (packet, _) = event.body()
 
                         val attributes = packet.attributes
@@ -190,11 +190,11 @@ class SipMessageHandlerTest : VertxTest() {
                         payload = PACKET_1.payload
                     }
                     vertx.setPeriodic(1000) {
-                        vertx.eventBus().send(Routes.sip, packet, USE_LOCAL_CODEC)
+                        vertx.eventBus().send(RoutesCE.sip, packet, USE_LOCAL_CODEC)
                     }
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(Routes.sip + "_call_0") { event ->
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_call_0") { event ->
                         var (packet, _) = event.body()
 
                         val attributes = packet.attributes

@@ -23,7 +23,7 @@ import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.Metrics
 import io.sip3.commons.SipMethods
 import io.sip3.commons.util.format
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.*

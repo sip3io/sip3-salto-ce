@@ -17,7 +17,7 @@
 package io.sip3.salto.ce.decoder
 
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.buffer.Buffer
@@ -51,10 +51,10 @@ class DecoderTest : VertxTest() {
                     vertx.deployTestVerticle(Decoder::class)
                 },
                 execute = {
-                    vertx.eventBus().send(Routes.sip3, Buffer.buffer(PACKET_1), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sip3, Buffer.buffer(PACKET_1), USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Packet>(Routes.router) { event ->
+                    vertx.eventBus().consumer<Packet>(RoutesCE.router) { event ->
                         val packet = event.body()
                         context.verify {
                             assertEquals(1549880240852, packet.timestamp.time)

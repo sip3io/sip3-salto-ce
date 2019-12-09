@@ -18,7 +18,7 @@ package io.sip3.salto.ce.router
 
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.MongoExtension
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -53,10 +53,10 @@ class RouterTest : VertxTest() {
                         }
                         protocolCode = 3
                     }
-                    vertx.eventBus().send(Routes.router, packet, USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.router, packet, USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Packet>(Routes.sip) { event ->
+                    vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
                         val packet = event.body()
                         context.verify {
                             assertTrue(packet is Packet)
@@ -103,10 +103,10 @@ class RouterTest : VertxTest() {
                         }
                         protocolCode = 3
                     }
-                    vertx.setPeriodic(100) { vertx.eventBus().send(Routes.router, packet, USE_LOCAL_CODEC) }
+                    vertx.setPeriodic(100) { vertx.eventBus().send(RoutesCE.router, packet, USE_LOCAL_CODEC) }
                 },
                 assert = {
-                    vertx.eventBus().consumer<Packet>(Routes.sip) { event ->
+                    vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
                         val packet = event.body()
                         context.verify {
                             assertTrue(packet is Packet)
