@@ -21,6 +21,7 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
+import io.vertx.kotlin.coroutines.dispatcher
 import io.vertx.kotlin.ext.mongo.createCollectionAwait
 import io.vertx.kotlin.ext.mongo.createIndexAwait
 import io.vertx.kotlin.ext.mongo.dropCollectionAwait
@@ -66,7 +67,7 @@ class MongoCollectionManager : AbstractVerticle() {
     }
 
     private fun manageCollections() {
-        GlobalScope.launch {
+        GlobalScope.launch(vertx.dispatcher()) {
             try {
                 // Retrieve collections
                 var names = client!!.getCollectionsAwait() as MutableList<String>

@@ -29,6 +29,11 @@ import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.*
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.eventbus.requestAwait
+import io.vertx.kotlin.coroutines.dispatcher
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -52,8 +57,9 @@ open class SipMessageHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
-    private var exclusions = emptySet<String>()
     private var checkUdfPeriod: Long = 30000
+    private var executeUdfTimeout: Long = 100
+    private var exclusions = emptySet<String>()
     private var instances = 1
 
     private var sendToUdf = false
@@ -65,15 +71,15 @@ open class SipMessageHandler : AbstractVerticle() {
             config.getString("time-suffix")?.let {
                 timeSuffix = DateTimeFormatter.ofPattern(it)
             }
-
             config.getJsonObject("sip")?.getJsonObject("message")?.getJsonArray("exclusions")?.let {
                 exclusions = it.map(Any::toString).toSet()
             }
-
-            config.getJsonObject("sip")?.getJsonObject("message")?.getLong("check-udf-period")?.let {
+            config.getJsonObject("udf")?.getLong("check-period")?.let {
                 checkUdfPeriod = it
             }
-
+            config.getJsonObject("udf")?.getLong("execute-timeout")?.let {
+                executeUdfTimeout = it
+            }
             config.getJsonObject("vertx")?.getInteger("instances")?.let {
                 instances = it
             }
@@ -144,17 +150,25 @@ open class SipMessageHandler : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
-                put("attributes", packet.attributes)
                 put("payload", message.headersMap())
+                put("attributes", mutableMapOf<String, Any>())
             }
 
-            vertx.eventBus().request<Boolean>(Routes.sip_message_udf, udf, USE_LOCAL_CODEC) { asr ->
-                if (asr.failed()) {
-                    logger.info("SipMessageHandler `callUserDefinedFunction()` failed.", asr.cause())
+            GlobalScope.launch(vertx.dispatcher()) {
+                val result = withTimeoutOrNull(executeUdfTimeout) {
+                    vertx.eventBus().requestAwait<Boolean>(Routes.sip_message_udf, udf, USE_LOCAL_CODEC)
                 }
 
-                val attributes = udf["attributes"]
-                (attributes as? MutableMap<String, Any>)?.let { packet.attributes = it }
+                if (result != null) {
+                    (udf["attributes"] as? Map<String, Any>)?.forEach { (k, v) ->
+                        when (v) {
+                            is String, is Number, is Boolean -> packet.attributes[k] = v
+                            else -> logger.warn("UDF attribute $k will be skipped due to unsupported value type.")
+                        }
+                    }
+                } else {
+                    logger.warn("UDF call took more than ${executeUdfTimeout}ms.")
+                }
             }
         }
     }
