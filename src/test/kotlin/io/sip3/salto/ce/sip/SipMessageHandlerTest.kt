@@ -137,25 +137,31 @@ class SipMessageHandlerTest : VertxTest() {
                 deploy = {
                     vertx.deployVerticle(UDF_GROOVY)
                     vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("message", JsonObject().apply {
-                                put("check-udf-period", 100)
-                            })
+                        put("udf", JsonObject().apply {
+                            put("check-period", 100)
+                            put("execute-timeout", 100)
                         })
                     })
                 },
                 execute = {
+                    val packet = Packet().apply {
+                        timestamp = PACKET_1.timestamp
+                        srcAddr = PACKET_1.srcAddr
+                        dstAddr = PACKET_1.dstAddr
+                        payload = PACKET_1.payload
+                    }
                     vertx.setPeriodic(100) {
-                        vertx.eventBus().send(Routes.sip, PACKET_1, USE_LOCAL_CODEC)
+                        vertx.eventBus().send(Routes.sip, packet, USE_LOCAL_CODEC)
                     }
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(Routes.sip + "_call_0") { event ->
                         var (packet, _) = event.body()
 
-                        if (packet.attributes.isNotEmpty()) {
+                        val attributes = packet.attributes
+                        if (attributes.isNotEmpty()) {
                             context.verify {
-                                assertEquals("android", packet.attributes["os"])
+                                assertEquals(3, attributes.size)
                             }
                             context.completeNow()
                         }
@@ -170,25 +176,31 @@ class SipMessageHandlerTest : VertxTest() {
                 deploy = {
                     vertx.deployVerticle(UDF_JS)
                     vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("message", JsonObject().apply {
-                                put("check-udf-period", 100)
-                            })
+                        put("udf", JsonObject().apply {
+                            put("check-period", 100)
+                            put("execute-timeout", 100)
                         })
                     })
                 },
                 execute = {
+                    val packet = Packet().apply {
+                        timestamp = PACKET_1.timestamp
+                        srcAddr = PACKET_1.srcAddr
+                        dstAddr = PACKET_1.dstAddr
+                        payload = PACKET_1.payload
+                    }
                     vertx.setPeriodic(100) {
-                        vertx.eventBus().send(Routes.sip, PACKET_1, USE_LOCAL_CODEC)
+                        vertx.eventBus().send(Routes.sip, packet, USE_LOCAL_CODEC)
                     }
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(Routes.sip + "_call_0") { event ->
                         var (packet, _) = event.body()
 
-                        if (packet.attributes.isNotEmpty()) {
+                        val attributes = packet.attributes
+                        if (attributes.isNotEmpty()) {
                             context.verify {
-                                assertEquals("android", packet.attributes["os"])
+                                assertEquals(3, attributes.size)
                             }
                             context.completeNow()
                         }

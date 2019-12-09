@@ -17,11 +17,11 @@
 vertx.eventBus().localConsumer("sip_message_udf", { event ->
     def packet = event.body()
 
-    def payload = packet['payload']
-    if (payload['user-agent'] == 'Android Application') {
-        def attributes = packet['attributes']
-        attributes['os'] = 'android'
-    }
+    def attributes = packet['attributes']
+    attributes['string'] = 'string'
+    attributes['number'] = 42
+    attributes['boolean'] = true
+    attributes['list'] = [1, 2, 3, 4]
 
     event.reply(true)
 })

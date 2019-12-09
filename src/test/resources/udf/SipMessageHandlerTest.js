@@ -15,13 +15,13 @@
  */
 
 vertx.eventBus().localConsumer("sip_message_udf", function (event) {
-    var packet = event.body()
+    var packet = event.body();
 
-    var payload = packet['payload']
-    if (payload['user-agent'] == 'Android Application') {
-        var attributes = packet['attributes']
-        attributes['os'] = 'android'
-    }
+    var attributes = packet['attributes'];
+    attributes['string'] = 'string';
+    attributes['number'] = 42;
+    attributes['boolean'] = true;
+    attributes['list'] = [1, 2, 3, 4];
 
-    event.reply(true)
+    event.reply(true);
 });

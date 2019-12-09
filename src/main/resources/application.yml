@@ -22,10 +22,12 @@ server:
 
 #! Application
 #time-suffix: yyyyMMdd
+#udf:
+#  check-period: 300000
+#  execute-timeout: 100
 #sip:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
-#    check-udf-period: 30000
 
 #! Metrics
 #metrics:
