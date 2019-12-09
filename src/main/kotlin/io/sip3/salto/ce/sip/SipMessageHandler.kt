@@ -28,9 +28,8 @@ import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.*
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.eventbus.Message
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.coroutines.awaitResult
+import io.vertx.kotlin.core.eventbus.requestAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -78,7 +77,7 @@ open class SipMessageHandler : AbstractVerticle() {
             config.getJsonObject("udf")?.getLong("check-period")?.let {
                 checkUdfPeriod = it
             }
-            config.getJsonObject("udf")?.getLong("execute-period")?.let {
+            config.getJsonObject("udf")?.getLong("execute-timeout")?.let {
                 executeUdfTimeout = it
             }
             config.getJsonObject("vertx")?.getInteger("instances")?.let {
@@ -157,7 +156,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
             GlobalScope.launch(vertx.dispatcher()) {
                 val result = withTimeoutOrNull(executeUdfTimeout) {
-                    awaitResult<Message<Boolean>> { vertx.eventBus().request<Boolean>(Routes.sip_message_udf, udf, USE_LOCAL_CODEC, it) }
+                    vertx.eventBus().requestAwait<Boolean>(Routes.sip_message_udf, udf, USE_LOCAL_CODEC)
                 }
 
                 if (result != null) {
