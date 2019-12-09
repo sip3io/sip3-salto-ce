@@ -150,7 +150,7 @@ class SipMessageHandlerTest : VertxTest() {
                         dstAddr = PACKET_1.dstAddr
                         payload = PACKET_1.payload
                     }
-                    vertx.setPeriodic(100) {
+                    vertx.setPeriodic(1000) {
                         vertx.eventBus().send(Routes.sip, packet, USE_LOCAL_CODEC)
                     }
                 },
@@ -189,7 +189,7 @@ class SipMessageHandlerTest : VertxTest() {
                         dstAddr = PACKET_1.dstAddr
                         payload = PACKET_1.payload
                     }
-                    vertx.setPeriodic(100) {
+                    vertx.setPeriodic(1000) {
                         vertx.eventBus().send(Routes.sip, packet, USE_LOCAL_CODEC)
                     }
                 },
