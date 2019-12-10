@@ -18,8 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.domain.sip.ByeSipTransaction
-import io.sip3.salto.ce.domain.sip.InviteSipTransaction
+import io.sip3.salto.ce.domain.SipTransaction
 import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
@@ -44,8 +43,8 @@ open class SipCallHandler : AbstractVerticle() {
     private var terminationTimeout: Long = 10000
     private var durationTimeout: Long = 3600000
 
-    private val inviteTransactions = mutableMapOf<String, InviteSipTransaction>()
-    private val byeTransactions = mutableMapOf<String, ByeSipTransaction>()
+    private val inviteTransactions = mutableMapOf<String, SipTransaction>()
+    private val byeTransactions = mutableMapOf<String, SipTransaction>()
 
     override fun start() {
         config().let { config ->
@@ -86,7 +85,7 @@ open class SipCallHandler : AbstractVerticle() {
         val cseqMethod = message.cseqMethod()
         when (cseqMethod) {
             "INVITE" -> {
-                val transaction = inviteTransactions.getOrPut(transactionId) { InviteSipTransaction() }
+                val transaction = inviteTransactions.getOrPut(transactionId) { SipTransaction() }
                 transaction.addMessage(packet, message)
                 // TODO...
             }
@@ -95,7 +94,7 @@ open class SipCallHandler : AbstractVerticle() {
                 // Moreover, skipped ACK transaction will not affect call aggregation result.
             }
             "BYE" -> {
-                val transaction = byeTransactions.getOrPut(transactionId) { ByeSipTransaction() }
+                val transaction = byeTransactions.getOrPut(transactionId) { SipTransaction() }
                 transaction.addMessage(packet, message)
                 // TODO...
             }

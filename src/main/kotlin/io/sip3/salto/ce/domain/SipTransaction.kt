@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.domain.sip
+package io.sip3.salto.ce.domain
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
-import io.sip3.salto.ce.domain.Address
-import io.sip3.salto.ce.domain.Packet
 
-abstract class SipTransaction {
+class SipTransaction {
 
     var createdAt = System.currentTimeMillis()
+    var tryingAt: Long? = null
+    var ringingAt: Long? = null
+    var answeredAt: Long? = null
+    var terminatedAt: Long? = null
 
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
@@ -33,10 +35,6 @@ abstract class SipTransaction {
     var response: SIPResponse? = null
 
     var attributes = mutableMapOf<String, Any>()
-
-    abstract fun addSipRequest(packet: Packet, message: SIPMessage)
-
-    abstract fun addSipResponse(packet: Packet, message: SIPMessage)
 
     fun addMessage(packet: Packet, message: SIPMessage) {
         // Copy attributes
@@ -51,14 +49,14 @@ abstract class SipTransaction {
                     srcAddr = packet.srcAddr
                     dstAddr = packet.dstAddr
                 }
-                addSipRequest(packet, message)
+                // TODO...
             }
             is SIPResponse -> {
                 if (response == null) {
                     srcAddr = packet.dstAddr
                     dstAddr = packet.srcAddr
                 }
-                addSipResponse(packet, message)
+                // TODO...
             }
         }
     }
