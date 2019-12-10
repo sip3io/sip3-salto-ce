@@ -20,11 +20,13 @@ import java.sql.Timestamp
 
 class Packet {
 
-    lateinit var timestamp: Timestamp
+    val createdAt: Long by lazy {
+        timestamp.time
+    }
 
+    lateinit var timestamp: Timestamp
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
-
     var protocolCode: Byte = 0
     lateinit var payload: ByteArray
 
