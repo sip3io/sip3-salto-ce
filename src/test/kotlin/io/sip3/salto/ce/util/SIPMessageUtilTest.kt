@@ -71,7 +71,7 @@ class SIPMessageUtilTest {
         From: <sip:000260971282@demo.sip3.io>;tag=82-2zyzysoabqjb3
         To: <sip:000155917690@demo.sip3.io:5060>;tag=56B5324631353641B4C0D0A8
         Call-ID: 2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e
-        CSeq: 1 INVITE
+        CSeq: 42 INVITE
         Via: SIP/2.0/UDP 10.177.131.211:6333;branch=z9hG4bKmqffet30b03pp5mv5jj0.1;received=10.177.131.211
         Content-Length: 153
 
@@ -96,6 +96,12 @@ class SIPMessageUtilTest {
     }
 
     @Test
+    fun `Check branchId() method extension`() {
+        assertEquals("z9hG4bKmqffet30b03pp5mv5jj0.1", REQUEST.branchId())
+        assertEquals("z9hG4bKmqffet30b03pp5mv5jj0.1", RESPONSE.branchId())
+    }
+
+    @Test
     fun `Check fromUri() method extension`() {
         assertEquals("sip:000260971282@demo.sip3.io", REQUEST.fromUri())
         assertEquals("sip:000260971282@demo.sip3.io", RESPONSE.fromUri())
@@ -114,6 +120,12 @@ class SIPMessageUtilTest {
     }
 
     @Test
+    fun `Check cseqNumber() method extension`() {
+        assertEquals(1, REQUEST.cseqNumber())
+        assertEquals(42, RESPONSE.cseqNumber())
+    }
+
+    @Test
     fun `Check method() method extension`() {
         assertEquals("INVITE", REQUEST.method())
         assertNull(RESPONSE.method())
@@ -123,6 +135,12 @@ class SIPMessageUtilTest {
     fun `Check statusCode() method extension`() {
         assertNull(REQUEST.statusCode())
         assertEquals(183, RESPONSE.statusCode())
+    }
+
+    @Test
+    fun `Check transactionId() method extension`() {
+        assertEquals("2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e:z9hG4bKmqffet30b03pp5mv5jj0.1:1", REQUEST.transactionId())
+        assertEquals("2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e:z9hG4bKmqffet30b03pp5mv5jj0.1:42", RESPONSE.transactionId())
     }
 
     @Test

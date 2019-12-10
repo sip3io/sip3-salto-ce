@@ -24,6 +24,10 @@ fun SIPMessage.callId(): String? {
     return callId?.callId
 }
 
+fun SIPMessage.branchId(): String? {
+    return topmostVia?.branch
+}
+
 fun SIPMessage.toUri(): String? {
     return to?.address?.uri?.toString()
 }
@@ -36,12 +40,20 @@ fun SIPMessage.cseqMethod(): String? {
     return cSeq?.method
 }
 
+fun SIPMessage.cseqNumber(): Long? {
+    return cSeq?.seqNumber
+}
+
 fun SIPMessage.method(): String? {
     return (this as? SIPRequest)?.requestLine?.method
 }
 
 fun SIPMessage.statusCode(): Int? {
     return (this as? SIPResponse)?.statusCode
+}
+
+fun SIPMessage.transactionId() : String {
+    return "${callId()}:${branchId()}:${cseqNumber()}"
 }
 
 fun SIPMessage.headersMap() : Map<String, String> {

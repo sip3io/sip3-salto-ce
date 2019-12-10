@@ -14,26 +14,18 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce
+package io.sip3.salto.ce.domain.sip
 
-import io.sip3.commons.Routes
+import gov.nist.javax.sip.message.SIPMessage
+import io.sip3.salto.ce.domain.Packet
 
-interface RoutesCE : Routes {
+class ByeSipTransaction : SipTransaction() {
 
-    companion object : RoutesCE
+    override fun addSipRequest(packet: Packet, message: SIPMessage) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
 
-    // Decoder
-    val sip3 get() = "sip3"
-    val hep2 get() = "hep2"
-    val hep3 get() = "hep3"
-
-    // Router
-    val router get() = "router"
-
-    // SIP
-    val sip get() = "sip"
-    val sip_message_udf get() = "sip_message_udf"
-
-    // Mongo
-    val mongo_bulk_writer get() = "mongo_bulk_writer"
+    override fun addSipResponse(packet: Packet, message: SIPMessage) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
 }

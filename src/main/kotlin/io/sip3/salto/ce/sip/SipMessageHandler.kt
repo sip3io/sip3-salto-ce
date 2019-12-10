@@ -71,15 +71,20 @@ open class SipMessageHandler : AbstractVerticle() {
             config.getString("time-suffix")?.let {
                 timeSuffix = DateTimeFormatter.ofPattern(it)
             }
+
             config.getJsonObject("sip")?.getJsonObject("message")?.getJsonArray("exclusions")?.let {
                 exclusions = it.map(Any::toString).toSet()
             }
-            config.getJsonObject("udf")?.getLong("check-period")?.let {
-                checkUdfPeriod = it
+
+            config.getJsonObject("udf")?.let{ config ->
+                config.getLong("check-period")?.let {
+                    checkUdfPeriod = it
+                }
+                config.getLong("execute-timeout")?.let {
+                    executeUdfTimeout = it
+                }
             }
-            config.getJsonObject("udf")?.getLong("execute-timeout")?.let {
-                executeUdfTimeout = it
-            }
+
             config.getJsonObject("vertx")?.getInteger("instances")?.let {
                 instances = it
             }
@@ -87,7 +92,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
         checkUserDefinedFunction()
 
-        vertx.eventBus().localConsumer<Packet>(Routes.sip) { event ->
+        vertx.eventBus().localConsumer<Packet>(RoutesCE.sip) { event ->
             try {
                 val packet = event.body()
                 handle(packet)
@@ -99,7 +104,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun checkUserDefinedFunction() {
         if (!sendToUdf) {
-            sendToUdf = vertx.eventBus().consumes(Routes.sip_message_udf)
+            sendToUdf = vertx.eventBus().consumes(RoutesCE.sip_message_udf)
             if (!sendToUdf) {
                 vertx.setTimer(checkUdfPeriod) { checkUserDefinedFunction() }
             }
@@ -156,7 +161,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
             GlobalScope.launch(vertx.dispatcher()) {
                 val result = withTimeoutOrNull(executeUdfTimeout) {
-                    vertx.eventBus().requestAwait<Boolean>(Routes.sip_message_udf, udf, USE_LOCAL_CODEC)
+                    vertx.eventBus().requestAwait<Boolean>(RoutesCE.sip_message_udf, udf, USE_LOCAL_CODEC)
                 }
 
                 if (result != null) {
@@ -175,18 +180,18 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun prefix(cseqMethod: String): String {
         return when (cseqMethod) {
-            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> Routes.sip + "_${cseqMethod.toLowerCase()}"
-            else -> Routes.sip + "_call"
+            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
+            else -> RoutesCE.sip + "_call"
         }
     }
 
     open fun route(prefix: String, message: SIPMessage): String {
         return when (prefix) {
-            Routes.sip + "_call" -> {
+            RoutesCE.sip + "_call" -> {
                 val index = message.callId().hashCode()
                 prefix + "_${abs(index % instances)}"
             }
-            Routes.sip + "_register" -> {
+            RoutesCE.sip + "_register" -> {
                 // RFC-3261 10.2: The To header field contains the address of record
                 // whose registration is to be created, queried, or modified.
                 val index = message.toUri().hashCode()
@@ -238,6 +243,6 @@ open class SipMessageHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(Routes.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
     }
 }

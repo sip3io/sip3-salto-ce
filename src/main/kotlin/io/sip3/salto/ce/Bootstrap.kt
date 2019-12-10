@@ -20,6 +20,7 @@ import io.sip3.commons.vertx.AbstractBootstrap
 import io.sip3.salto.ce.decoder.Decoder
 import io.sip3.salto.ce.decoder.HepDecoder
 import io.sip3.salto.ce.server.Server
+import io.sip3.salto.ce.sip.SipCallHandler
 import io.sip3.salto.ce.sip.SipMessageHandler
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.deploymentOptionsOf
@@ -40,6 +41,7 @@ open class Bootstrap : AbstractBootstrap() {
         val instances = config.getJsonObject("vertx")?.getInteger("instances") ?: 1
         // Deploy verticles
         deployUdfVerticles(config, instances)
+        vertx.deployVerticle(SipCallHandler::class, config, instances)
         vertx.deployVerticle(SipMessageHandler::class, config, instances)
         vertx.deployVerticle(HepDecoder::class, config, instances)
         vertx.deployVerticle(Decoder::class, config, instances)
