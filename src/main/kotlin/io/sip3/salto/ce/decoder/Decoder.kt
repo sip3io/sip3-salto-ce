@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.decoder
 
-import io.micrometer.core.instrument.Metrics
+import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -39,7 +39,7 @@ class Decoder : AbstractVerticle() {
         const val HEADER_LENGTH = 4
     }
 
-    private val packetsDecoded = Metrics.counter("packets_decoded", "proto", "sip3")
+    private val packetsDecoded = Metrics.counter("packets_decoded", mapOf("proto" to "sip3"))
 
     override fun start() {
         vertx.eventBus().localConsumer<Buffer>(RoutesCE.sip3) { event ->

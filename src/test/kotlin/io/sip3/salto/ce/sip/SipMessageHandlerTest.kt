@@ -161,7 +161,7 @@ class SipMessageHandlerTest : VertxTest() {
                         val attributes = packet.attributes
                         if (attributes.isNotEmpty()) {
                             context.verify {
-                                assertEquals(3, attributes.size)
+                                assertEquals(2, attributes.size)
                             }
                             context.completeNow()
                         }
@@ -200,7 +200,7 @@ class SipMessageHandlerTest : VertxTest() {
                         val attributes = packet.attributes
                         if (attributes.isNotEmpty()) {
                             context.verify {
-                                assertEquals(3, attributes.size)
+                                assertEquals(2, attributes.size)
                             }
                             context.completeNow()
                         }

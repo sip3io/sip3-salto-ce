@@ -31,8 +31,9 @@ server:
 #  call:
 #    expiration-delay: 1000
 #    aggregation-timeout: 60000
-#    termination-timeout: 10000
+#    termination-timeout: 5000
 #    duration-timeout: 3600000
+#    exclusions: [caller, callee]
 
 #! Metrics
 #metrics:

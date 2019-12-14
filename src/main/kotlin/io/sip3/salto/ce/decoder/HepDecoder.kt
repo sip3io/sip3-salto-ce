@@ -16,8 +16,8 @@
 
 package io.sip3.salto.ce.decoder
 
-import io.micrometer.core.instrument.Metrics
 import io.sip3.commons.PacketTypes
+import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -41,7 +41,7 @@ class HepDecoder : AbstractVerticle() {
         const val HEP3_TYPE_SIP: Byte = 1
     }
 
-    private val packetsDecoded = Metrics.counter("packets_decoded", "proto", "hep")
+    private val packetsDecoded = Metrics.counter("packets_decoded", mapOf("proto" to "hep"))
 
     override fun start() {
         vertx.eventBus().localConsumer<Buffer>(RoutesCE.hep2) { event ->

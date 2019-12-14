@@ -19,9 +19,8 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.MessageFactoryImpl
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
-import io.micrometer.core.instrument.Counter
-import io.micrometer.core.instrument.Metrics
 import io.sip3.commons.SipMethods
+import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -64,7 +63,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     private var sendToUdf = false
 
-    private val packetsProcessed = Metrics.counter("packets_processed", "proto", "sip")
+    private val packetsProcessed = Metrics.counter("packets_processed", mapOf("proto" to "sip"))
 
     override fun start() {
         config().let { config ->
@@ -76,7 +75,7 @@ open class SipMessageHandler : AbstractVerticle() {
                 exclusions = it.map(Any::toString).toSet()
             }
 
-            config.getJsonObject("udf")?.let{ config ->
+            config.getJsonObject("udf")?.let { config ->
                 config.getLong("check-period")?.let {
                     checkUdfPeriod = it
                 }
@@ -131,8 +130,9 @@ open class SipMessageHandler : AbstractVerticle() {
                 writeToDatabase(prefix, packet, message)
                 calculateMetrics(prefix, packet, message)
 
-                val route = route(prefix, message)
-                vertx.eventBus().send(route, Pair(packet, message), USE_LOCAL_CODEC)
+                route(prefix, message)?.let {
+                    vertx.eventBus().send(it, Pair(packet, message), USE_LOCAL_CODEC)
+                }
             }
         }
     }
@@ -167,7 +167,7 @@ open class SipMessageHandler : AbstractVerticle() {
                 if (result != null) {
                     (udf["attributes"] as? Map<String, Any>)?.forEach { (k, v) ->
                         when (v) {
-                            is String, is Number, is Boolean -> packet.attributes[k] = v
+                            is String, is Boolean -> packet.attributes[k] = v
                             else -> logger.warn("UDF attribute $k will be skipped due to unsupported value type.")
                         }
                     }
@@ -185,7 +185,7 @@ open class SipMessageHandler : AbstractVerticle() {
         }
     }
 
-    open fun route(prefix: String, message: SIPMessage): String {
+    open fun route(prefix: String, message: SIPMessage): String? {
         return when (prefix) {
             RoutesCE.sip + "_call" -> {
                 val index = message.callId().hashCode()
@@ -197,26 +197,27 @@ open class SipMessageHandler : AbstractVerticle() {
                 val index = message.toUri().hashCode()
                 prefix + "_${abs(index % instances)}"
             }
-            else -> prefix
+            else -> null
         }
     }
 
     open fun calculateMetrics(prefix: String, packet: Packet, message: SIPMessage) {
-        Counter.builder(prefix + "_messages")
+        val attributes = packet.attributes
                 .apply {
-                    packet.srcAddr.host?.let { tag("src_host", it) }
-                    packet.dstAddr.host?.let { tag("dst_host", it) }
-                    packet.attributes.forEach { (key, value) -> tag(key, value.toString()) }
-
-                    message.statusCode()?.let {
-                        tag("status_type", "${it / 100}xx")
-                        tag("status_code", it.toString())
-                    }
-                    message.method()?.let { tag("method", it) }
-                    message.cseqMethod()?.let { tag("cseq_method", it) }
+                    packet.srcAddr.host?.let { put("src_host", it) }
+                    packet.dstAddr.host?.let { put("dst_host", it) }
                 }
-                .register(Metrics.globalRegistry)
-                .increment()
+                .toMutableMap()
+                .apply {
+                    message.statusCode()?.let {
+                        put("status_type", "${it / 100}xx")
+                        put("status_code", it)
+                    }
+                    message.method()?.let { put("method", it) }
+                    message.cseqMethod()?.let { put("cseq_method", it) }
+                }
+
+        Metrics.counter(prefix + "_messages", attributes).increment()
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage) {

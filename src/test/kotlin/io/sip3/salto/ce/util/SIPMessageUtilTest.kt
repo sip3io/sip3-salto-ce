@@ -102,15 +102,27 @@ class SIPMessageUtilTest {
     }
 
     @Test
+    fun `Check toUri() method extension`() {
+        assertEquals("sip:000155917690@demo.sip3.io:5060", REQUEST.toUri())
+        assertEquals("sip:000155917690@demo.sip3.io:5060", RESPONSE.toUri())
+    }
+
+    @Test
+    fun `Check toUserOrNumber() method extension`() {
+        assertEquals("000155917690", REQUEST.toUserOrNumber())
+        assertEquals("000155917690", RESPONSE.toUserOrNumber())
+    }
+
+    @Test
     fun `Check fromUri() method extension`() {
         assertEquals("sip:000260971282@demo.sip3.io", REQUEST.fromUri())
         assertEquals("sip:000260971282@demo.sip3.io", RESPONSE.fromUri())
     }
 
     @Test
-    fun `Check toUri() method extension`() {
-        assertEquals("sip:000155917690@demo.sip3.io:5060", REQUEST.toUri())
-        assertEquals("sip:000155917690@demo.sip3.io:5060", RESPONSE.toUri())
+    fun `Check fromUserOrNumber() method extension`() {
+        assertEquals("000260971282", REQUEST.fromUserOrNumber())
+        assertEquals("000260971282", RESPONSE.fromUserOrNumber())
     }
 
     @Test

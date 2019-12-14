@@ -20,17 +20,19 @@ import java.sql.Timestamp
 
 class Packet {
 
-    val createdAt: Long by lazy {
-        timestamp.time
-    }
-
     lateinit var timestamp: Timestamp
+
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
+
     var protocolCode: Byte = 0
     lateinit var payload: ByteArray
 
     var attributes = mutableMapOf<String, Any>()
+
+    val createdAt: Long by lazy {
+        timestamp.time
+    }
 
     override fun toString(): String {
         return "Packet(timestamp=$timestamp, srcAddr=$srcAddr, dstAddr=$dstAddr, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"

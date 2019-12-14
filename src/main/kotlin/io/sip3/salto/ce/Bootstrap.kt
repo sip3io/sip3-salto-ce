@@ -19,6 +19,9 @@ package io.sip3.salto.ce
 import io.sip3.commons.vertx.AbstractBootstrap
 import io.sip3.salto.ce.decoder.Decoder
 import io.sip3.salto.ce.decoder.HepDecoder
+import io.sip3.salto.ce.mongo.MongoBulkWriter
+import io.sip3.salto.ce.mongo.MongoCollectionManager
+import io.sip3.salto.ce.router.Router
 import io.sip3.salto.ce.server.Server
 import io.sip3.salto.ce.sip.SipCallHandler
 import io.sip3.salto.ce.sip.SipMessageHandler
@@ -41,10 +44,13 @@ open class Bootstrap : AbstractBootstrap() {
         val instances = config.getJsonObject("vertx")?.getInteger("instances") ?: 1
         // Deploy verticles
         deployUdfVerticles(config, instances)
+        vertx.deployVerticle(MongoCollectionManager::class, config)
+        vertx.deployVerticle(MongoBulkWriter::class, config, instances)
         vertx.deployVerticle(SipCallHandler::class, config, instances)
         vertx.deployVerticle(SipMessageHandler::class, config, instances)
         vertx.deployVerticle(HepDecoder::class, config, instances)
         vertx.deployVerticle(Decoder::class, config, instances)
+        vertx.deployVerticle(Router::class, config, instances)
         vertx.deployVerticle(Server::class, config)
     }
 
