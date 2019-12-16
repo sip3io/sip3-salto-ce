@@ -17,7 +17,7 @@
 package io.sip3.salto.ce.server
 
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.datagram.sendAwait
@@ -50,7 +50,7 @@ class ServerTest : VertxTest() {
                     vertx.createDatagramSocket().sendAwait(MESSAGE_1, 15060, "127.0.0.1")
                 },
                 assert = {
-                    vertx.eventBus().consumer<Buffer>(Routes.sip3) { event ->
+                    vertx.eventBus().consumer<Buffer>(RoutesCE.sip3) { event ->
                         val buffer = event.body()
                         context.verify {
                             assertEquals(MESSAGE_1, buffer.toString(Charset.defaultCharset()))
@@ -75,7 +75,7 @@ class ServerTest : VertxTest() {
                     vertx.createNetClient().connectAwait(15060, "127.0.0.1").write(MESSAGE_2)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Buffer>(Routes.hep3) { event ->
+                    vertx.eventBus().consumer<Buffer>(RoutesCE.hep3) { event ->
                         val buffer = event.body()
                         context.verify {
                             assertEquals(MESSAGE_2, buffer.toString(Charset.defaultCharset()))
@@ -100,7 +100,7 @@ class ServerTest : VertxTest() {
                     vertx.createNetClient().connectAwait(15061, "127.0.0.1").write(Buffer.buffer(MESSAGE_3))
                 },
                 assert = {
-                    vertx.eventBus().consumer<Buffer>(Routes.hep2) { event ->
+                    vertx.eventBus().consumer<Buffer>(RoutesCE.hep2) { event ->
                         val buffer = event.body()
                         context.verify {
                             Assertions.assertArrayEquals(MESSAGE_3, buffer.bytes)

@@ -19,11 +19,10 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.MessageFactoryImpl
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
-import io.micrometer.core.instrument.Counter
-import io.micrometer.core.instrument.Metrics
 import io.sip3.commons.SipMethods
+import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.*
@@ -64,22 +63,27 @@ open class SipMessageHandler : AbstractVerticle() {
 
     private var sendToUdf = false
 
-    private val packetsProcessed = Metrics.counter("packets_processed", "proto", "sip")
+    private val packetsProcessed = Metrics.counter("packets_processed", mapOf("proto" to "sip"))
 
     override fun start() {
         config().let { config ->
             config.getString("time-suffix")?.let {
                 timeSuffix = DateTimeFormatter.ofPattern(it)
             }
+
             config.getJsonObject("sip")?.getJsonObject("message")?.getJsonArray("exclusions")?.let {
                 exclusions = it.map(Any::toString).toSet()
             }
-            config.getJsonObject("udf")?.getLong("check-period")?.let {
-                checkUdfPeriod = it
+
+            config.getJsonObject("udf")?.let { config ->
+                config.getLong("check-period")?.let {
+                    checkUdfPeriod = it
+                }
+                config.getLong("execute-timeout")?.let {
+                    executeUdfTimeout = it
+                }
             }
-            config.getJsonObject("udf")?.getLong("execute-timeout")?.let {
-                executeUdfTimeout = it
-            }
+
             config.getJsonObject("vertx")?.getInteger("instances")?.let {
                 instances = it
             }
@@ -87,7 +91,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
         checkUserDefinedFunction()
 
-        vertx.eventBus().localConsumer<Packet>(Routes.sip) { event ->
+        vertx.eventBus().localConsumer<Packet>(RoutesCE.sip) { event ->
             try {
                 val packet = event.body()
                 handle(packet)
@@ -99,7 +103,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun checkUserDefinedFunction() {
         if (!sendToUdf) {
-            sendToUdf = vertx.eventBus().consumes(Routes.sip_message_udf)
+            sendToUdf = vertx.eventBus().consumes(RoutesCE.sip_message_udf)
             if (!sendToUdf) {
                 vertx.setTimer(checkUdfPeriod) { checkUserDefinedFunction() }
             }
@@ -124,10 +128,11 @@ open class SipMessageHandler : AbstractVerticle() {
 
                 val prefix = prefix(cseqMethod!!)
                 writeToDatabase(prefix, packet, message)
-                calculateMetrics(prefix, packet, message)
+                calculateSipMessageMetrics(prefix, packet, message)
 
-                val route = route(prefix, message)
-                vertx.eventBus().send(route, Pair(packet, message), USE_LOCAL_CODEC)
+                route(prefix, message)?.let {
+                    vertx.eventBus().send(it, Pair(packet, message), USE_LOCAL_CODEC)
+                }
             }
         }
     }
@@ -156,13 +161,13 @@ open class SipMessageHandler : AbstractVerticle() {
 
             GlobalScope.launch(vertx.dispatcher()) {
                 val result = withTimeoutOrNull(executeUdfTimeout) {
-                    vertx.eventBus().requestAwait<Boolean>(Routes.sip_message_udf, udf, USE_LOCAL_CODEC)
+                    vertx.eventBus().requestAwait<Boolean>(RoutesCE.sip_message_udf, udf, USE_LOCAL_CODEC)
                 }
 
                 if (result != null) {
                     (udf["attributes"] as? Map<String, Any>)?.forEach { (k, v) ->
                         when (v) {
-                            is String, is Number, is Boolean -> packet.attributes[k] = v
+                            is String, is Boolean -> packet.attributes[k] = v
                             else -> logger.warn("UDF attribute $k will be skipped due to unsupported value type.")
                         }
                     }
@@ -175,43 +180,44 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun prefix(cseqMethod: String): String {
         return when (cseqMethod) {
-            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> Routes.sip + "_${cseqMethod.toLowerCase()}"
-            else -> Routes.sip + "_call"
+            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
+            else -> RoutesCE.sip + "_call"
         }
     }
 
-    open fun route(prefix: String, message: SIPMessage): String {
+    open fun route(prefix: String, message: SIPMessage): String? {
         return when (prefix) {
-            Routes.sip + "_call" -> {
+            RoutesCE.sip + "_call" -> {
                 val index = message.callId().hashCode()
                 prefix + "_${abs(index % instances)}"
             }
-            Routes.sip + "_register" -> {
+            RoutesCE.sip + "_register" -> {
                 // RFC-3261 10.2: The To header field contains the address of record
                 // whose registration is to be created, queried, or modified.
                 val index = message.toUri().hashCode()
                 prefix + "_${abs(index % instances)}"
             }
-            else -> prefix
+            else -> null
         }
     }
 
-    open fun calculateMetrics(prefix: String, packet: Packet, message: SIPMessage) {
-        Counter.builder(prefix + "_messages")
+    open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
+        val attributes = packet.attributes
                 .apply {
-                    packet.srcAddr.host?.let { tag("src_host", it) }
-                    packet.dstAddr.host?.let { tag("dst_host", it) }
-                    packet.attributes.forEach { (key, value) -> tag(key, value.toString()) }
-
-                    message.statusCode()?.let {
-                        tag("status_type", "${it / 100}xx")
-                        tag("status_code", it.toString())
-                    }
-                    message.method()?.let { tag("method", it) }
-                    message.cseqMethod()?.let { tag("cseq_method", it) }
+                    packet.srcAddr.host?.let { put("src_host", it) }
+                    packet.dstAddr.host?.let { put("dst_host", it) }
                 }
-                .register(Metrics.globalRegistry)
-                .increment()
+                .toMutableMap()
+                .apply {
+                    message.statusCode()?.let {
+                        put("status_type", "${it / 100}xx")
+                        put("status_code", it)
+                    }
+                    message.method()?.let { put("method", it) }
+                    message.cseqMethod()?.let { put("cseq_method", it) }
+                }
+
+        Metrics.counter(prefix + "_messages", attributes).increment()
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage) {
@@ -238,6 +244,6 @@ open class SipMessageHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(Routes.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
     }
 }

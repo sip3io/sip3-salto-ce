@@ -19,9 +19,7 @@ vertx.eventBus().localConsumer("sip_message_udf", function (event) {
 
     var attributes = packet['attributes'];
     attributes['string'] = 'string';
-    attributes['number'] = 42;
     attributes['boolean'] = true;
-    attributes['list'] = [1, 2, 3, 4];
 
     event.reply(true);
 });

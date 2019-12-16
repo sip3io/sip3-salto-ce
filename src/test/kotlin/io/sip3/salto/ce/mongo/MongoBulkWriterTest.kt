@@ -18,7 +18,7 @@ package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.MongoExtension
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
@@ -45,7 +45,7 @@ class MongoBulkWriterTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(Routes.mongo_bulk_writer, Pair("test", JsonObject().apply {
+                    vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair("test", JsonObject().apply {
                         put("document", document)
                     }), USE_LOCAL_CODEC)
                 },

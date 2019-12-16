@@ -17,7 +17,7 @@
 package io.sip3.salto.ce.decoder
 
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.buffer.Buffer
@@ -70,10 +70,10 @@ class HepDecoderTest : VertxTest() {
                     vertx.deployTestVerticle(HepDecoder::class)
                 },
                 execute = {
-                    vertx.eventBus().send(Routes.hep2, Buffer.buffer(PACKET_1), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.hep2, Buffer.buffer(PACKET_1), USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Packet>(Routes.router) { event ->
+                    vertx.eventBus().consumer<Packet>(RoutesCE.router) { event ->
                         val packet = event.body()
                         context.verify {
                             assertEquals(1571254062044, packet.timestamp.time)
@@ -99,10 +99,10 @@ class HepDecoderTest : VertxTest() {
                     vertx.deployTestVerticle(HepDecoder::class)
                 },
                 execute = {
-                    vertx.eventBus().send(Routes.hep3, Buffer.buffer(PACKET_2), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.hep3, Buffer.buffer(PACKET_2), USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Packet>(Routes.router) { event ->
+                    vertx.eventBus().consumer<Packet>(RoutesCE.router) { event ->
                         val packet = event.body()
                         context.verify {
                             assertEquals(1550492760263, packet.timestamp.time)

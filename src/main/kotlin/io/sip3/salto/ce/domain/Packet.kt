@@ -30,6 +30,10 @@ class Packet {
 
     var attributes = mutableMapOf<String, Any>()
 
+    val createdAt: Long by lazy {
+        timestamp.time
+    }
+
     override fun toString(): String {
         return "Packet(timestamp=$timestamp, srcAddr=$srcAddr, dstAddr=$dstAddr, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"
     }

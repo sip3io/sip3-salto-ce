@@ -16,8 +16,8 @@
 
 package io.sip3.salto.ce.server
 
-import io.micrometer.core.instrument.Metrics
-import io.sip3.salto.ce.Routes
+import io.sip3.commons.micrometer.Metrics
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
@@ -46,7 +46,7 @@ class Server : AbstractVerticle() {
     private var bufferSize: Int? = null
     private var sslConfig: JsonObject? = null
 
-    private val packetsReceived = Metrics.counter("packets_received", "proto", "hep")
+    private val packetsReceived = Metrics.counter("packets_received", mapOf("proto" to "hep"))
 
     override fun start() {
         config().getJsonObject("server").let { config ->
@@ -116,14 +116,14 @@ class Server : AbstractVerticle() {
         if (buffer.length() >= 4) {
             // SIP3 and HEP3
             when (buffer.getString(0, 4)) {
-                PROTO_SIP3 -> vertx.eventBus().send(Routes.sip3, buffer, USE_LOCAL_CODEC)
-                PROTO_HEP3 -> vertx.eventBus().send(Routes.hep3, buffer, USE_LOCAL_CODEC)
+                PROTO_SIP3 -> vertx.eventBus().send(RoutesCE.sip3, buffer, USE_LOCAL_CODEC)
+                PROTO_HEP3 -> vertx.eventBus().send(RoutesCE.hep3, buffer, USE_LOCAL_CODEC)
             }
 
             // HEP2
             val prefix = buffer.getBytes(0, 3)
             if (prefix.contentEquals(PROTO_HEP2)) {
-                vertx.eventBus().send(Routes.hep2, buffer, USE_LOCAL_CODEC)
+                vertx.eventBus().send(RoutesCE.hep2, buffer, USE_LOCAL_CODEC)
             }
         }
     }

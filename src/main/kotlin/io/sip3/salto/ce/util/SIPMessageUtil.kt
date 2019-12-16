@@ -16,24 +16,43 @@
 
 package io.sip3.salto.ce.util
 
+import gov.nist.javax.sip.address.SipUri
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
+import javax.sip.address.TelURL
+import javax.sip.address.URI
 
 fun SIPMessage.callId(): String? {
     return callId?.callId
+}
+
+fun SIPMessage.branchId(): String? {
+    return topmostVia?.branch
 }
 
 fun SIPMessage.toUri(): String? {
     return to?.address?.uri?.toString()
 }
 
+fun SIPMessage.toUserOrNumber(): String? {
+    return to?.address?.uri?.userOrNumber()
+}
+
 fun SIPMessage.fromUri(): String? {
     return from?.address?.uri?.toString()
 }
 
+fun SIPMessage.fromUserOrNumber(): String? {
+    return from?.address?.uri?.userOrNumber()
+}
+
 fun SIPMessage.cseqMethod(): String? {
     return cSeq?.method
+}
+
+fun SIPMessage.cseqNumber(): Long? {
+    return cSeq?.seqNumber
 }
 
 fun SIPMessage.method(): String? {
@@ -44,8 +63,18 @@ fun SIPMessage.statusCode(): Int? {
     return (this as? SIPResponse)?.statusCode
 }
 
+fun SIPMessage.transactionId() : String {
+    return "${callId()}:${branchId()}:${cseqNumber()}"
+}
+
 fun SIPMessage.headersMap() : Map<String, String> {
     return mutableMapOf<String, String>().apply {
         headers.forEach { header -> put(header.headerName.toLowerCase(), header.headerValue) }
     }
+}
+
+fun URI.userOrNumber() = when (this) {
+    is SipUri -> user
+    is TelURL -> phoneNumber
+    else -> throw IllegalArgumentException("Unsupported URI format: '$this'")
 }

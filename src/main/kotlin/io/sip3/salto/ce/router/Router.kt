@@ -17,7 +17,7 @@
 package io.sip3.salto.ce.router
 
 import io.sip3.commons.PacketTypes
-import io.sip3.salto.ce.Routes
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
@@ -54,7 +54,7 @@ open class Router : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<Packet>(Routes.router) { event ->
+        vertx.eventBus().localConsumer<Packet>(RoutesCE.router) { event ->
             try {
                 val packet = event.body()
                 route(packet)
@@ -72,7 +72,7 @@ open class Router : AbstractVerticle() {
         (hostMap[dst.addr] ?: hostMap["${dst.addr}:${dst.port}"])?.let { dst.host = it }
 
         val route = when (packet.protocolCode) {
-            PacketTypes.SIP -> Routes.sip
+            PacketTypes.SIP -> RoutesCE.sip
             else -> null
         }
 
