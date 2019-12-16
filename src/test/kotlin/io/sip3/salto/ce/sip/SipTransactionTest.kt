@@ -57,6 +57,7 @@ class SipTransactionTest {
                     """.trimIndent().toByteArray()
 
             attributes["invite"] = true
+            attributes["caller"] = "caller"
         }
 
         val PACKET_2 = Packet().apply {
@@ -114,6 +115,8 @@ class SipTransactionTest {
         assertEquals(PACKET_1.dstAddr.addr, transaction.dstAddr.addr)
         assertEquals(PACKET_1.dstAddr.port, transaction.dstAddr.port)
         assertEquals(message1, transaction.request)
+        assertEquals("caller", transaction.caller)
+        assertEquals("000155917690", transaction.callee)
         assertTrue(transaction.attributes["invite"] as Boolean)
         assertNull(transaction.attributes["retransmits"])
 
@@ -128,6 +131,8 @@ class SipTransactionTest {
         assertEquals(PACKET_2.srcAddr.addr, transaction.dstAddr.addr)
         assertEquals(PACKET_2.srcAddr.port, transaction.dstAddr.port)
         assertNull(transaction.response)
+        assertEquals("caller", transaction.caller)
+        assertEquals("000155917690", transaction.callee)
         assertTrue(transaction.attributes["invite"] as Boolean)
         assertTrue(transaction.attributes["ringing"] as Boolean)
         assertTrue(transaction.attributes["retransmits"] as Boolean)

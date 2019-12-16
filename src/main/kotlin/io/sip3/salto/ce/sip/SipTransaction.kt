@@ -35,9 +35,9 @@ class SipTransaction {
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
 
+    lateinit var callId: String
     lateinit var caller: String
     lateinit var callee: String
-    lateinit var callId: String
 
     var request: SIPRequest? = null
     var response: SIPResponse? = null
@@ -60,8 +60,8 @@ class SipTransaction {
                     srcAddr = packet.srcAddr
                     dstAddr = packet.dstAddr
                     callId = message.callId()!!
-                    callee = message.toUserOrNumber()!!
-                    caller = message.fromUserOrNumber()!!
+                    callee = (packet.attributes["callee"] as? String) ?: message.toUserOrNumber()!!
+                    caller = (packet.attributes["caller"] as? String) ?: message.fromUserOrNumber()!!
                 }
 
                 // Received message is a retransmit
@@ -77,8 +77,8 @@ class SipTransaction {
                     srcAddr = packet.dstAddr
                     dstAddr = packet.srcAddr
                     callId = message.callId()!!
-                    callee = message.toUserOrNumber()!!
-                    caller = message.fromUserOrNumber()!!
+                    callee = (packet.attributes["callee"] as? String) ?: message.toUserOrNumber()!!
+                    caller = (packet.attributes["caller"] as? String) ?: message.fromUserOrNumber()!!
                 }
 
                 when (message.statusCode) {
@@ -97,9 +97,12 @@ class SipTransaction {
             }
         }
 
-        // Copy attributes
-        packet.attributes.forEach { (name, value) ->
-            attributes[name] = value
-        }
+        // Remove service attributes and copy the rest
+        packet.attributes
+                .apply {
+                    remove("caller")
+                    remove("callee")
+                }
+                .forEach { (name, value) -> attributes[name] = value }
     }
 }

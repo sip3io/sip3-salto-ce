@@ -128,7 +128,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
                 val prefix = prefix(cseqMethod!!)
                 writeToDatabase(prefix, packet, message)
-                calculateMetrics(prefix, packet, message)
+                calculateSipMessageMetrics(prefix, packet, message)
 
                 route(prefix, message)?.let {
                     vertx.eventBus().send(it, Pair(packet, message), USE_LOCAL_CODEC)
@@ -201,7 +201,7 @@ open class SipMessageHandler : AbstractVerticle() {
         }
     }
 
-    open fun calculateMetrics(prefix: String, packet: Packet, message: SIPMessage) {
+    open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
         val attributes = packet.attributes
                 .apply {
                     packet.srcAddr.host?.let { put("src_host", it) }

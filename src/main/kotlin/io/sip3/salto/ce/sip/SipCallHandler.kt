@@ -57,7 +57,7 @@ open class SipCallHandler : AbstractVerticle() {
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 5000
     private var durationTimeout: Long = 3600000
-    private var exclusions = emptyList<String>()
+    private var transactionExclusions = emptyList<String>()
 
     private var inviteTransactions = mutableMapOf<String, SipTransaction>()
     private var byeTransactions = mutableMapOf<String, SipTransaction>()
@@ -83,14 +83,15 @@ open class SipCallHandler : AbstractVerticle() {
                 config.getLong("duration-timeout")?.let {
                     durationTimeout = it
                 }
-                config.getJsonArray("exclusions")?.let {
-                    exclusions = it.map(Any::toString)
+                config.getJsonArray("transaction-exclusions")?.let {
+                    transactionExclusions = it.map(Any::toString)
                 }
             }
         }
 
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredTransactions()
+            terminateExpiredCallSessions()
         }
 
         val index = config().getInteger("index")
@@ -136,8 +137,7 @@ open class SipCallHandler : AbstractVerticle() {
                         val attributes = transaction.attributes
                                 .toMutableMap()
                                 .apply {
-                                    remove("retransmits")
-                                    exclusions.forEach { remove(it) }
+                                    transactionExclusions.forEach { remove(it) }
                                 }
 
                         Metrics.counter(APPROACHING, attributes).increment()
@@ -176,10 +176,12 @@ open class SipCallHandler : AbstractVerticle() {
 
         when (session.state) {
             SipSession.REDIRECTED, SipSession.CANCELED, SipSession.FAILED -> {
-                // TODO...
+                // TODO:
+                //  1. Terminate session immediately
             }
             else -> {
-                // TODO...
+                // TODO:
+                //  1. Add session to `activeSessions`, also write to database in status answered
             }
         }
 
@@ -190,8 +192,7 @@ open class SipCallHandler : AbstractVerticle() {
         val attributes = transaction.attributes
                 .toMutableMap()
                 .apply {
-                    exclusions.forEach { remove(it) }
-                    remove("retransmits")
+                    transactionExclusions.forEach { remove(it) }
                 }
 
         val createdAt = transaction.createdAt
@@ -226,8 +227,7 @@ open class SipCallHandler : AbstractVerticle() {
         val attributes = transaction.attributes
                 .toMutableMap()
                 .apply {
-                    exclusions.forEach { remove(it) }
-                    remove("retransmits")
+                    transactionExclusions.forEach { remove(it) }
                 }
 
         val createdAt = transaction.createdAt
@@ -236,6 +236,31 @@ open class SipCallHandler : AbstractVerticle() {
             if (createdAt < terminatedAt) {
                 Metrics.timer(DISCONNECT_TIME, attributes).record(terminatedAt - createdAt, TimeUnit.MILLISECONDS)
             }
+        }
+    }
+
+    open fun terminateExpiredCallSessions() {
+        // TODO...
+    }
+
+    open fun terminateCallSession(session: SipSession) {
+        // TODO...
+
+        calculateCallSessionMetrics(session)
+    }
+
+    open fun calculateCallSessionMetrics(session: SipSession) {
+        val attributes = session.attributes
+                .toMutableMap()
+                .apply {
+                    put("state", session.state)
+                }
+
+        Metrics.counter(ATTEMPTS, attributes).increment()
+
+        val duration = session.duration
+        if (duration != null) {
+            Metrics.summary(DURATION, attributes).record(duration.toDouble())
         }
     }
 
@@ -263,13 +288,16 @@ open class SipCallHandler : AbstractVerticle() {
                 put("callee", session.callee)
                 put("call_id", session.callId)
 
-                session.setupTime?.let { put("setup_time", it) }
                 session.duration?.let { put("duration", it) }
+                session.setupTime?.let { put("setup_time", it) }
 
-                // TODO...
+                session.attributes.forEach { (name, value) ->
+                    put(name, value)
+                }
             })
             if (replace) {
-                // TODO...
+                // TODO:
+                //  1. Find the best matching pattern
                 put("upsert", true)
             }
         }

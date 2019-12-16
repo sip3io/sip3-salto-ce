@@ -43,8 +43,8 @@ class SipSession {
     lateinit var callee: String
     lateinit var callId: String
 
-    var setupTime: Long? = null
     var duration: Long? = null
+    var setupTime: Long? = null
 
     var attributes = mutableMapOf<String, Any>()
 
