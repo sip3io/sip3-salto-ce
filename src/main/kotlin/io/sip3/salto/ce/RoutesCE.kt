@@ -30,6 +30,9 @@ interface RoutesCE : Routes {
     // Router
     val router get() = "router"
 
+    // SDP
+    val sdp_session get() = "sdp_session"
+
     // SIP
     val sip get() = "sip"
     val sip_message_udf get() = "sip_message_udf"
