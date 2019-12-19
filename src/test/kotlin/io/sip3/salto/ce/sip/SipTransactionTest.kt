@@ -1,6 +1,23 @@
+/*
+ * Copyright 2018-2019 SIP3.IO, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.parser.StringMsgParser
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import org.junit.jupiter.api.Assertions.*
@@ -25,6 +42,8 @@ class SipTransactionTest {
                 addr = "127.0.0.2"
                 port = 5061
             }
+            attributes["invite"] = true
+            attributes[Attributes.caller] = "caller"
             payload = """
                         INVITE sip:000155917690@ss63.invite.demo.sip3.io:5060 SIP/2.0
                         Via: SIP/2.0/UDP 10.177.131.211:6333;branch=z9hG4bKmqffet30b03pp5mv5jj0.1
@@ -55,9 +74,6 @@ class SipTransactionTest {
                         a=ptime:20
 
                     """.trimIndent().toByteArray()
-
-            attributes["invite"] = true
-            attributes["caller"] = "caller"
         }
 
         val PACKET_2 = Packet().apply {
@@ -70,6 +86,7 @@ class SipTransactionTest {
                 addr = "127.0.0.1"
                 port = 5060
             }
+            attributes["ringing"] = true
             payload = """
                         SIP/2.0 183 Session Progress
                         Supported: 100rel,precondition,timer
@@ -96,8 +113,6 @@ class SipTransactionTest {
                         a=maxptime:20
 
                     """.trimIndent().toByteArray()
-
-            attributes["ringing"] = true
         }
     }
 
@@ -115,8 +130,9 @@ class SipTransactionTest {
         assertEquals(PACKET_1.dstAddr.addr, transaction.dstAddr.addr)
         assertEquals(PACKET_1.dstAddr.port, transaction.dstAddr.port)
         assertEquals(message1, transaction.request)
-        assertEquals("caller", transaction.caller)
+        assertEquals("000260971282", transaction.caller)
         assertEquals("000155917690", transaction.callee)
+        assertEquals("caller", transaction.attributes[Attributes.caller])
         assertTrue(transaction.attributes["invite"] as Boolean)
         assertNull(transaction.attributes["retransmits"])
 
@@ -131,7 +147,7 @@ class SipTransactionTest {
         assertEquals(PACKET_2.srcAddr.addr, transaction.dstAddr.addr)
         assertEquals(PACKET_2.srcAddr.port, transaction.dstAddr.port)
         assertNull(transaction.response)
-        assertEquals("caller", transaction.caller)
+        assertEquals("000260971282", transaction.caller)
         assertEquals("000155917690", transaction.callee)
         assertTrue(transaction.attributes["invite"] as Boolean)
         assertTrue(transaction.attributes["ringing"] as Boolean)

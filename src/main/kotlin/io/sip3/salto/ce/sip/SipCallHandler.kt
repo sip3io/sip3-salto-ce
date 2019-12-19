@@ -19,11 +19,11 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.cseqMethod
-import io.sip3.salto.ce.util.statusCode
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -62,30 +62,27 @@ open class SipCallHandler : AbstractVerticle() {
     private var inviteTransactions = mutableMapOf<String, SipTransaction>()
     private var byeTransactions = mutableMapOf<String, SipTransaction>()
 
-    private var activeSessions = mutableMapOf<String, Map<String, SipSession>>()
+    private var activeSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
 
     override fun start() {
-        config().let { config ->
-            config.getString("time-suffix")?.let {
-                timeSuffix = DateTimeFormatter.ofPattern(it)
+        config().getString("time-suffix")?.let {
+            timeSuffix = DateTimeFormatter.ofPattern(it)
+        }
+        config().getJsonObject("sip")?.getJsonObject("call")?.let { config ->
+            config.getLong("expiration-delay")?.let {
+                expirationDelay = it
             }
-
-            config.getJsonObject("sip")?.getJsonObject("call")?.let { config ->
-                config.getLong("expiration-delay")?.let {
-                    expirationDelay = it
-                }
-                config.getLong("aggregation-timeout")?.let {
-                    aggregationTimeout = it
-                }
-                config.getLong("termination-timeout")?.let {
-                    terminationTimeout = it
-                }
-                config.getLong("duration-timeout")?.let {
-                    durationTimeout = it
-                }
-                config.getJsonArray("transaction-exclusions")?.let {
-                    transactionExclusions = it.map(Any::toString)
-                }
+            config.getLong("aggregation-timeout")?.let {
+                aggregationTimeout = it
+            }
+            config.getLong("termination-timeout")?.let {
+                terminationTimeout = it
+            }
+            config.getLong("duration-timeout")?.let {
+                durationTimeout = it
+            }
+            config.getJsonArray("transaction-exclusions")?.let {
+                transactionExclusions = it.map(Any::toString)
             }
         }
 
@@ -107,9 +104,7 @@ open class SipCallHandler : AbstractVerticle() {
 
     open fun handle(packet: Packet, message: SIPMessage) {
         val tid = message.transactionId()
-
-        val cseqMethod = message.cseqMethod()
-        when (cseqMethod) {
+        when (message.cseqMethod()) {
             "INVITE" -> {
                 inviteTransactions.getOrPut(tid) { SipTransaction() }.addMessage(packet, message)
             }
@@ -126,62 +121,50 @@ open class SipCallHandler : AbstractVerticle() {
     open fun terminateExpiredTransactions() {
         val now = System.currentTimeMillis()
 
-        inviteTransactions.toMap()
-                .filterValues { transaction ->
-                    val terminatedAt = transaction.terminatedAt
-                    // Check if transaction was terminated and `termination-timeout` has passed
-                    // Otherwise, check if `aggregation-timout` has passed
-                    return@filterValues if (terminatedAt != null) {
-                        terminatedAt + terminationTimeout < now
-                    } else {
-                        val attributes = transaction.attributes
-                                .toMutableMap()
-                                .apply {
-                                    transactionExclusions.forEach { remove(it) }
-                                }
+        inviteTransactions.filterValues { transaction ->
+            val isExpired = (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt + aggregationTimeout) < now
 
-                        Metrics.counter(APPROACHING, attributes).increment()
+            if (!isExpired) {
+                val attributes = transaction.attributes
+                        .toMutableMap()
+                        .apply {
+                            remove(Attributes.caller)
+                            remove(Attributes.callee)
+                            remove(Attributes.retransmits)
+                            transactionExclusions.forEach { remove(it) }
+                        }
+                Metrics.counter(APPROACHING, attributes).increment()
+            }
 
-                        transaction.createdAt + aggregationTimeout < now
-                    }
-                }
-                .forEach { (tid, transaction) ->
-                    inviteTransactions.remove(tid)
-                    terminateInviteTransaction(transaction)
-                }
+            return@filterValues isExpired
+        }.forEach { (tid, transaction) ->
+            inviteTransactions.remove(tid)
+            terminateInviteTransaction(transaction)
+        }
 
-        byeTransactions.toMap()
-                .filterValues { transaction ->
-                    val terminatedAt = transaction.terminatedAt
-                    // Check if transaction was terminated and `termination-timeout` has passed
-                    // Otherwise, check if `aggregation-timout` has passed
-                    return@filterValues if (terminatedAt != null) {
-                        terminatedAt + terminationTimeout < now
-                    } else {
-                        transaction.createdAt + aggregationTimeout < now
-                    }
-                }
-                .forEach { (tid, transaction) ->
-                    inviteTransactions.remove(tid)
-                    terminateByeTransaction(transaction)
-                }
+        byeTransactions.filterValues { transaction ->
+            return@filterValues (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt + aggregationTimeout) < now
+        }.forEach { (tid, transaction) ->
+            byeTransactions.remove(tid)
+            terminateByeTransaction(transaction)
+        }
     }
 
     open fun terminateInviteTransaction(transaction: SipTransaction) {
-        val session = activeSessions.get(transaction.callId)
-                ?.get(transaction.legId)
-                ?: SipSession()
+        val session = activeSessions.get(transaction.callId)?.get(transaction.legId) ?: SipSession()
 
         session.addInviteTransaction(transaction)
 
         when (session.state) {
             SipSession.REDIRECTED, SipSession.CANCELED, SipSession.FAILED -> {
-                // TODO:
-                //  1. Terminate session immediately
+                terminateCallSession(session)
+            }
+            SipSession.ANSWERED -> {
+                writeToDatabase(PREFIX, session)
+                activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
             else -> {
-                // TODO:
-                //  1. Add session to `activeSessions`, also write to database in status answered
+                activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
         }
 
@@ -192,6 +175,9 @@ open class SipCallHandler : AbstractVerticle() {
         val attributes = transaction.attributes
                 .toMutableMap()
                 .apply {
+                    remove(Attributes.caller)
+                    remove(Attributes.callee)
+                    remove(Attributes.retransmits)
                     transactionExclusions.forEach { remove(it) }
                 }
 
@@ -208,7 +194,7 @@ open class SipCallHandler : AbstractVerticle() {
             }
         }
         val response = transaction.response
-        if (response != null && response.statusCode() == 200) {
+        if (response != null && response.statusCode == 200) {
             transaction.terminatedAt?.let { terminatedAt ->
                 if (createdAt < terminatedAt) {
                     Metrics.timer(ESTABLISH_TIME, attributes).record(terminatedAt - createdAt, TimeUnit.MILLISECONDS)
@@ -218,7 +204,20 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun terminateByeTransaction(transaction: SipTransaction) {
-        // TODO...
+        activeSessions.get(transaction.callId)?.let { sessions ->
+            val session = sessions[transaction.legId]
+            if (session != null) {
+                // In case of B2BUA we'll terminate particular call leg
+                session.addByeTransaction(transaction)
+            } else {
+                // In case of SIP Proxy we'll check and terminate all legs related to the call
+                sessions.forEach { (_, session) ->
+                    if (session.caller == transaction.caller && session.callee == transaction.callee) {
+                        session.addByeTransaction(transaction)
+                    }
+                }
+            }
+        }
 
         calculateByeTransactionMetrics(transaction)
     }
@@ -227,6 +226,9 @@ open class SipCallHandler : AbstractVerticle() {
         val attributes = transaction.attributes
                 .toMutableMap()
                 .apply {
+                    remove(Attributes.caller)
+                    remove(Attributes.callee)
+                    remove(Attributes.retransmits)
                     transactionExclusions.forEach { remove(it) }
                 }
 
@@ -240,28 +242,71 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun terminateExpiredCallSessions() {
-        // TODO...
+        val now = System.currentTimeMillis()
+
+        activeSessions.filterValues { sessions ->
+            sessions.filterValues { session ->
+                val isExpired = (session.terminatedAt?.let { it + terminationTimeout }
+                        ?: session.answeredAt?.let { it + durationTimeout } ?: session.createdAt + aggregationTimeout) < now
+
+                if (!isExpired && session.state == SipSession.ANSWERED) {
+                    val attributes = session.attributes
+                            .toMutableMap()
+                            .apply {
+                                remove(Attributes.caller)
+                                remove(Attributes.callee)
+                                remove(Attributes.retransmits)
+                                transactionExclusions.forEach { remove(it) }
+                            }
+                    Metrics.counter(ESTABLISHED, attributes).increment()
+                }
+
+                return@filterValues isExpired
+            }.forEach { (sid, session) ->
+                sessions.remove(sid)
+                terminateCallSession(session)
+            }
+            return@filterValues sessions.isEmpty()
+        }.forEach { (callId, _) ->
+            activeSessions.remove(callId)
+        }
     }
 
     open fun terminateCallSession(session: SipSession) {
-        // TODO...
-
+        if (session.terminatedAt == null) {
+            session.terminatedAt = System.currentTimeMillis()
+        }
+        writeToDatabase(PREFIX, session, replace = (session.state == SipSession.ANSWERED))
         calculateCallSessionMetrics(session)
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
+        val duration = session.duration
+        if (duration != null) {
+            val attributes = session.attributes
+                    .toMutableMap()
+                    .apply {
+                        remove(Attributes.caller)
+                        remove(Attributes.callee)
+                        remove(Attributes.retransmits)
+                        transactionExclusions.forEach { remove(it) }
+                    }
+            Metrics.summary(DURATION, attributes).record(duration.toDouble())
+        }
+
+        val state = session.state
+        if (session.state == SipSession.ANSWERED && duration == null) {
+            session.attributes[Attributes.expired] = true
+        }
+
         val attributes = session.attributes
                 .toMutableMap()
                 .apply {
-                    put("state", session.state)
+                    put(Attributes.state, state)
+                    remove(Attributes.caller)
+                    remove(Attributes.callee)
                 }
-
         Metrics.counter(ATTEMPTS, attributes).increment()
-
-        val duration = session.duration
-        if (duration != null) {
-            Metrics.summary(DURATION, attributes).record(duration.toDouble())
-        }
     }
 
     open fun writeToDatabase(prefix: String, session: SipSession, replace: Boolean = false) {
@@ -291,13 +336,16 @@ open class SipCallHandler : AbstractVerticle() {
                 session.duration?.let { put("duration", it) }
                 session.setupTime?.let { put("setup_time", it) }
 
-                session.attributes.forEach { (name, value) ->
-                    put(name, value)
-                }
+                session.attributes.forEach { (name, value) -> put(name, value) }
             })
             if (replace) {
-                // TODO:
-                //  1. Find the best matching pattern
+                put("type", "REPLACE")
+                put("filter", JsonObject().apply {
+                    put("created_at", session.createdAt)
+                    put("call_id", session.callId)
+                    put("src_addr", session.srcAddr.addr)
+                    put("dst_addr", session.dstAddr.addr)
+                })
                 put("upsert", true)
             }
         }
