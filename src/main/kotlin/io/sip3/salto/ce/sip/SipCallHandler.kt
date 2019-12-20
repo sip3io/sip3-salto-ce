@@ -194,7 +194,7 @@ open class SipCallHandler : AbstractVerticle() {
             }
         }
         val response = transaction.response
-        if (response != null && response.statusCode == 200) {
+        if (response?.statusCode == 200) {
             transaction.terminatedAt?.let { terminatedAt ->
                 if (createdAt < terminatedAt) {
                     Metrics.timer(ESTABLISH_TIME, attributes).record(terminatedAt - createdAt, TimeUnit.MILLISECONDS)
