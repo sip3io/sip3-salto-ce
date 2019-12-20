@@ -158,10 +158,12 @@ class SIPMessageUtilTest {
     @Test
     fun `Check headersMap() method extension`() {
         var headersMap = REQUEST.headersMap()
-        assertEquals(16, headersMap.size)
+        assertEquals(17, headersMap.size)
+        assertEquals("INVITE sip:000155917690@ss63.invite.demo.sip3.io:5060 SIP/2.0", headersMap["request-line"])
         assertEquals("1 INVITE", headersMap["cseq"])
         headersMap = RESPONSE.headersMap()
-        assertEquals(11, headersMap.size)
+        assertEquals(12, headersMap.size)
+        assertEquals("SIP/2.0 183 Session Progress", headersMap["status-line"])
         assertEquals("100rel,precondition,timer", headersMap["supported"])
     }
 }

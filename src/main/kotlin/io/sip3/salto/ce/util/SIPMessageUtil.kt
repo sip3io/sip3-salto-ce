@@ -63,12 +63,18 @@ fun SIPMessage.statusCode(): Int? {
     return (this as? SIPResponse)?.statusCode
 }
 
-fun SIPMessage.transactionId() : String {
+fun SIPMessage.transactionId(): String {
     return "${callId()}:${branchId()}:${cseqNumber()}"
 }
 
-fun SIPMessage.headersMap() : Map<String, String> {
+fun SIPMessage.headersMap(): Map<String, String> {
     return mutableMapOf<String, String>().apply {
+        (this@headersMap as? SIPRequest)?.let {
+            put("request-line", it.requestLine.toString().replace("\r\n", ""))
+        }
+        (this@headersMap as? SIPResponse)?.let {
+            put("status-line", it.statusLine.toString().replace("\r\n", ""))
+        }
         headers.forEach { header -> put(header.headerName.toLowerCase(), header.headerValue) }
     }
 }
