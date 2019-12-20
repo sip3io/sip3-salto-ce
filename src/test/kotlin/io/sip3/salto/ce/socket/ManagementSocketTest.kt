@@ -56,6 +56,7 @@ class ManagementSocketTest : VertxTest() {
 
     @BeforeEach
     fun init() {
+        // TODO: Move free port selection to JUnit5 Extension (https://github.com/sip3io/sip3-salto-ce/issues/5)
         val localSocket = ServerSocket(0)
         localPort = localSocket.localPort
         val remoteSocket = ServerSocket(0)
