@@ -21,6 +21,7 @@ import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
+import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -35,22 +36,23 @@ class ManagementSocketTest : VertxTest() {
 
     companion object {
 
-        private val host = JsonObject().apply {
+        private val HOST = JsonObject().apply {
             put("name", "sbc1")
             put("sip", arrayListOf("10.10.10.10", "10.10.20.10:5060"))
+        }
+
+        private val REGISTER_MESSAGE = JsonObject().apply {
+            put("type", ManagementSocket.TYPE_REGISTER)
+            put("payload", JsonObject().apply {
+                put("name", UUID.randomUUID().toString())
+                put("host", HOST)
+            })
         }
     }
 
     private lateinit var config: JsonObject
     private var localPort = -1
     private var remotePort = -1
-    private val registerMessage = JsonObject().apply {
-        put("type", ManagementSocket.TYPE_REGISTER)
-        put("payload", JsonObject().apply {
-            put("name", UUID.randomUUID().toString())
-            put("host", host)
-        })
-    }
 
     @BeforeEach
     fun init() {
@@ -82,28 +84,18 @@ class ManagementSocketTest : VertxTest() {
                     vertx.deployTestVerticle(ManagementSocket::class, config)
                 },
                 execute = {
-                    vertx.createDatagramSocket().send(registerMessage.toBuffer(), localPort, "127.0.0.1") {}
+                    vertx.createDatagramSocket().send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {}
                 },
                 assert = {
-                    vertx.setTimer(1000L) {
-                        val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                            put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                            put("db_name", "sip3")
-                        })
-                        vertx.setPeriodic(100) {
-                            mongo.find("hosts", JsonObject()) { asr ->
-                                if (asr.succeeded()) {
-                                    val documents = asr.result()
-                                    if (documents.isNotEmpty()) {
-                                        assertEquals(1, documents.size)
-                                        val saved = documents[0]
-                                        context.verify {
-                                            saved.remove("_id")
-                                            assertEquals(host, saved)
-                                        }
-                                        context.completeNow()
-                                    }
-                                }
+                    val mongo = MongoClient.createShared(vertx, JsonObject().apply {
+                        put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("db_name", "sip3")
+                    })
+
+                    vertx.setPeriodic(500) {
+                        mongo.findOne("hosts", HOST, JsonObject()) { asr ->
+                            if (asr.succeeded() && asr.result() != null) {
+                                context.completeNow()
                             }
                         }
                     }
@@ -123,31 +115,30 @@ class ManagementSocketTest : VertxTest() {
             callId = "SomeKindOfCallId"
         }
 
-        var result: JsonObject? = null
+        lateinit var socket: DatagramSocket
 
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(ManagementSocket::class, config)
                 },
                 execute = {
-                    val socket = vertx.createDatagramSocket()
-
-                    socket.handler { packet ->
-                        result = packet.data().toJsonObject()
-                    }
-                    socket.listen(localPort, "127.0.0.1") {}
-
-                    socket.send(registerMessage.toBuffer(), localPort, "127.0.0.1") {
+                    socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {
                         vertx.eventBus().send(RoutesCE.sdp_session, listOf(sdpSession), USE_LOCAL_CODEC)
                     }
                 },
                 assert = {
-                    vertx.setTimer(2000L) {
+                    socket = vertx.createDatagramSocket()
+                    socket.handler { packet ->
                         context.verify {
-                            assertEquals(ManagementSocket.TYPE_SDP_SESSION, result!!.getString("type"))
+                            val message = packet.data().toJsonObject()
+                            assertEquals(ManagementSocket.TYPE_SDP_SESSION, message.getString("type"))
                         }
                         context.completeNow()
                     }
+                    socket.listen(remotePort, "127.0.0.1") {}
+                },
+                cleanup = {
+                    socket.close()
                 }
         )
     }

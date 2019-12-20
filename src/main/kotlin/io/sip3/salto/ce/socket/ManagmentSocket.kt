@@ -47,7 +47,7 @@ class ManagementSocket : AbstractVerticle() {
     private var expirationDelay: Long = 60000
 
     private val remoteHosts = mutableMapOf<String, RemoteHost>()
-    lateinit var socket: DatagramSocket
+    private lateinit var socket: DatagramSocket
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
@@ -83,11 +83,11 @@ class ManagementSocket : AbstractVerticle() {
             put("payload", JsonObject.mapFrom(sdpSession))
         }.toBuffer()
 
-        remoteHosts.values.forEach { remoteHost ->
+        remoteHosts.forEach { (_, remoteHost) ->
             try {
                 socket.send(buffer, remoteHost.uri.port, remoteHost.uri.host) {}
             } catch (e: Exception) {
-                logger.error("Failed to send to ${remoteHost.uri}: ${e.message}", e)
+                logger.error("Socket 'send()' failed. URI: ${remoteHost.uri}", e)
             }
         }
     }
@@ -128,10 +128,10 @@ class ManagementSocket : AbstractVerticle() {
                     val uri = URI("${uri.scheme}://$host:$port")
                     RemoteHost(name, uri)
                 }.apply {
-                    payload.getJsonObject("host")?.let { updateHost(it) }
-
                     lastUpdate = System.currentTimeMillis()
                 }
+
+                payload.getJsonObject("host")?.let { updateHost(it) }
             }
             else -> logger.error("Unknown message type. Message: ${message.encodePrettily()}")
         }
