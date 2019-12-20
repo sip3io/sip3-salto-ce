@@ -39,7 +39,7 @@ server:
 #    aggregation-timeout: 60000
 #    termination-timeout: 5000
 #    duration-timeout: 3600000
-#    transaction-exclusions: [retransmits]
+#    transaction-exclusions: [exclude-me]
 
 #! Metrics
 #metrics:
