@@ -66,27 +66,22 @@ open class SipMessageHandler : AbstractVerticle() {
     private val packetsProcessed = Metrics.counter("packets_processed", mapOf("proto" to "sip"))
 
     override fun start() {
-        config().let { config ->
-            config.getString("time-suffix")?.let {
-                timeSuffix = DateTimeFormatter.ofPattern(it)
+        config().getString("time-suffix")?.let {
+            timeSuffix = DateTimeFormatter.ofPattern(it)
+        }
+        config().getJsonObject("sip")?.getJsonObject("message")?.getJsonArray("exclusions")?.let {
+            exclusions = it.map(Any::toString).toSet()
+        }
+        config().getJsonObject("udf")?.let { config ->
+            config.getLong("check-period")?.let {
+                checkUdfPeriod = it
             }
-
-            config.getJsonObject("sip")?.getJsonObject("message")?.getJsonArray("exclusions")?.let {
-                exclusions = it.map(Any::toString).toSet()
+            config.getLong("execute-timeout")?.let {
+                executeUdfTimeout = it
             }
-
-            config.getJsonObject("udf")?.let { config ->
-                config.getLong("check-period")?.let {
-                    checkUdfPeriod = it
-                }
-                config.getLong("execute-timeout")?.let {
-                    executeUdfTimeout = it
-                }
-            }
-
-            config.getJsonObject("vertx")?.getInteger("instances")?.let {
-                instances = it
-            }
+        }
+        config().getJsonObject("vertx")?.getInteger("instances")?.let {
+            instances = it
         }
 
         checkUserDefinedFunction()

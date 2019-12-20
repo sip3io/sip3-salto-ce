@@ -36,8 +36,8 @@ class SipTransaction {
     lateinit var dstAddr: Address
 
     lateinit var callId: String
-    lateinit var caller: String
     lateinit var callee: String
+    lateinit var caller: String
 
     var request: SIPRequest? = null
     var response: SIPResponse? = null
@@ -48,49 +48,46 @@ class SipTransaction {
         srcAddr.compositeKey(dstAddr)
     }
 
-    val firstMessage: SIPMessage? by lazy {
-        request ?: response
-    }
-
     fun addMessage(packet: Packet, message: SIPMessage) {
         // Aggregate transaction data
         when (message) {
             is SIPRequest -> {
-                if (request == null && response == null) {
+                if (createdAt == 0L) {
+                    createdAt = packet.createdAt
                     srcAddr = packet.srcAddr
                     dstAddr = packet.dstAddr
                     callId = message.callId()!!
-                    callee = (packet.attributes["callee"] as? String) ?: message.toUserOrNumber()!!
-                    caller = (packet.attributes["caller"] as? String) ?: message.fromUserOrNumber()!!
+                    callee = message.toUserOrNumber()!!
+                    caller = message.fromUserOrNumber()!!
                 }
 
                 // Received message is a retransmit
                 if (request != null) {
                     attributes["retransmits"] = true
                 } else {
-                    createdAt = packet.createdAt
                     request = message
                 }
             }
             is SIPResponse -> {
-                if (request == null && response == null) {
+                if (createdAt == 0L) {
+                    createdAt = packet.createdAt
                     srcAddr = packet.dstAddr
                     dstAddr = packet.srcAddr
                     callId = message.callId()!!
-                    callee = (packet.attributes["callee"] as? String) ?: message.toUserOrNumber()!!
-                    caller = (packet.attributes["caller"] as? String) ?: message.fromUserOrNumber()!!
+                    callee = message.toUserOrNumber()!!
+                    caller = message.fromUserOrNumber()!!
                 }
 
                 when (message.statusCode) {
                     100 -> if (tryingAt == null) tryingAt = packet.createdAt
                     in 180..183 -> if (ringingAt == null) ringingAt = packet.createdAt
-                    in 200..700 -> {
+                    in 200..699 -> {
                         // Received message is a retransmit
                         if (response != null) {
                             attributes["retransmits"] = true
                         } else {
-                            terminatedAt = packet.createdAt
                             response = message
+                            terminatedAt = packet.createdAt
                         }
                     }
                 }
@@ -98,11 +95,6 @@ class SipTransaction {
         }
 
         // Remove service attributes and copy the rest
-        packet.attributes
-                .apply {
-                    remove("caller")
-                    remove("callee")
-                }
-                .forEach { (name, value) -> attributes[name] = value }
+        packet.attributes.forEach { (name, value) -> attributes[name] = value }
     }
 }
