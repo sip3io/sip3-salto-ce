@@ -125,14 +125,7 @@ open class SipCallHandler : AbstractVerticle() {
             val isExpired = (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt + aggregationTimeout) < now
 
             if (!isExpired) {
-                val attributes = transaction.attributes
-                        .toMutableMap()
-                        .apply {
-                            remove(Attributes.caller)
-                            remove(Attributes.callee)
-                            remove(Attributes.retransmits)
-                            transactionExclusions.forEach { remove(it) }
-                        }
+                val attributes = excludeSessionAttributes(transaction.attributes)
                 Metrics.counter(APPROACHING, attributes).increment()
             }
 
@@ -160,6 +153,7 @@ open class SipCallHandler : AbstractVerticle() {
                 terminateCallSession(session)
             }
             SipSession.ANSWERED -> {
+                writeAttributes(session)
                 writeToDatabase(PREFIX, session)
                 activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
@@ -172,17 +166,9 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun calculateInviteTransactionMetrics(transaction: SipTransaction) {
-        val attributes = transaction.attributes
-                .toMutableMap()
-                .apply {
-                    remove(Attributes.caller)
-                    remove(Attributes.callee)
-                    remove(Attributes.retransmits)
-                    transactionExclusions.forEach { remove(it) }
-                }
-
         val createdAt = transaction.createdAt
 
+        val attributes = excludeSessionAttributes(transaction.attributes)
         transaction.tryingAt?.let { tryingAt ->
             if (createdAt < tryingAt) {
                 Metrics.timer(TRYING_DELAY, attributes).record(tryingAt - createdAt, TimeUnit.MILLISECONDS)
@@ -223,17 +209,9 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun calculateByeTransactionMetrics(transaction: SipTransaction) {
-        val attributes = transaction.attributes
-                .toMutableMap()
-                .apply {
-                    remove(Attributes.caller)
-                    remove(Attributes.callee)
-                    remove(Attributes.retransmits)
-                    transactionExclusions.forEach { remove(it) }
-                }
-
         val createdAt = transaction.createdAt
 
+        val attributes = excludeSessionAttributes(transaction.attributes)
         transaction.terminatedAt?.let { terminatedAt ->
             if (createdAt < terminatedAt) {
                 Metrics.timer(DISCONNECT_TIME, attributes).record(terminatedAt - createdAt, TimeUnit.MILLISECONDS)
@@ -250,14 +228,7 @@ open class SipCallHandler : AbstractVerticle() {
                         ?: session.answeredAt?.let { it + durationTimeout } ?: session.createdAt + aggregationTimeout) < now
 
                 if (!isExpired && session.state == SipSession.ANSWERED) {
-                    val attributes = session.attributes
-                            .toMutableMap()
-                            .apply {
-                                remove(Attributes.caller)
-                                remove(Attributes.callee)
-                                remove(Attributes.retransmits)
-                                transactionExclusions.forEach { remove(it) }
-                            }
+                    val attributes = excludeSessionAttributes(session.attributes)
                     Metrics.counter(ESTABLISHED, attributes).increment()
                 }
 
@@ -276,6 +247,7 @@ open class SipCallHandler : AbstractVerticle() {
         if (session.terminatedAt == null) {
             session.terminatedAt = System.currentTimeMillis()
         }
+        writeAttributes(session)
         writeToDatabase(PREFIX, session, replace = (session.state == SipSession.ANSWERED))
         calculateCallSessionMetrics(session)
     }
@@ -283,14 +255,7 @@ open class SipCallHandler : AbstractVerticle() {
     open fun calculateCallSessionMetrics(session: SipSession) {
         val duration = session.duration
         if (duration != null) {
-            val attributes = session.attributes
-                    .toMutableMap()
-                    .apply {
-                        remove(Attributes.caller)
-                        remove(Attributes.callee)
-                        remove(Attributes.retransmits)
-                        transactionExclusions.forEach { remove(it) }
-                    }
+            val attributes = excludeSessionAttributes(session.attributes)
             Metrics.summary(DURATION, attributes).record(duration.toDouble())
         }
 
@@ -307,6 +272,20 @@ open class SipCallHandler : AbstractVerticle() {
                     remove(Attributes.callee)
                 }
         Metrics.counter(ATTEMPTS, attributes).increment()
+    }
+
+    open fun writeAttributes(session: SipSession) {
+        val attributes = session.attributes
+                .toMutableMap()
+                .apply {
+                    remove(Attributes.caller)
+                    remove(Attributes.callee)
+                    remove(Attributes.state)
+                    remove(Attributes.src_host)
+                    remove(Attributes.dst_host)
+                }
+
+        vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
     }
 
     open fun writeToDatabase(prefix: String, session: SipSession, replace: Boolean = false) {
@@ -351,5 +330,14 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+    }
+
+    private fun excludeSessionAttributes(attributes: Map<String, Any>): Map<String, Any> {
+        return attributes.toMutableMap().apply {
+            remove(Attributes.caller)
+            remove(Attributes.callee)
+            remove(Attributes.retransmits)
+            transactionExclusions.forEach { remove(it) }
+        }
     }
 }

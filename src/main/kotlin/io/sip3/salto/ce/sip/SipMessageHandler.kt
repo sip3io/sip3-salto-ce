@@ -22,6 +22,7 @@ import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.SipMethods
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
@@ -122,6 +123,7 @@ open class SipMessageHandler : AbstractVerticle() {
                 callUserDefinedFunction(packet, message)
 
                 val prefix = prefix(cseqMethod!!)
+                writeAttributes(message)
                 writeToDatabase(prefix, packet, message)
                 calculateSipMessageMetrics(prefix, packet, message)
 
@@ -199,8 +201,8 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
         val attributes = packet.attributes
                 .apply {
-                    packet.srcAddr.host?.let { put("src_host", it) }
-                    packet.dstAddr.host?.let { put("dst_host", it) }
+                    packet.srcAddr.host?.let { put(Attributes.src_host, it) }
+                    packet.dstAddr.host?.let { put(Attributes.dst_host, it) }
                 }
                 .toMutableMap()
                 .apply {
@@ -213,6 +215,14 @@ open class SipMessageHandler : AbstractVerticle() {
                 }
 
         Metrics.counter(prefix + "_messages", attributes).increment()
+    }
+
+    open fun writeAttributes(message: SIPMessage) {
+        val attributes = mutableMapOf<String, Any>().apply {
+            message.cseqMethod()?.let { put("method", it) }
+        }
+
+        vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage) {

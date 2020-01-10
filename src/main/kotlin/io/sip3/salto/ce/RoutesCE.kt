@@ -27,6 +27,9 @@ interface RoutesCE : Routes {
     val hep2 get() = "hep2"
     val hep3 get() = "hep3"
 
+    // Attributes
+    val attributes get() = "attributes"
+
     // Router
     val router get() = "router"
 
