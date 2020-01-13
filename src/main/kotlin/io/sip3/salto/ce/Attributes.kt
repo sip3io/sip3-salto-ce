@@ -28,4 +28,6 @@ object Attributes {
     const val expired = "expired"
     const val error_code = "error_code"
     const val retransmits = "retransmits"
+    const val duration = "duration"
+    const val setup_time = "setup_time"
 }

@@ -278,6 +278,8 @@ open class SipCallHandler : AbstractVerticle() {
         val attributes = session.attributes
                 .toMutableMap()
                 .apply {
+                    session.duration?.let { put(Attributes.duration, it) }
+                    session.setupTime?.let { put(Attributes.setup_time, it) }
                     remove(Attributes.caller)
                     remove(Attributes.callee)
                     remove(Attributes.state)
@@ -289,7 +291,7 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun writeToDatabase(prefix: String, session: SipSession, replace: Boolean = false) {
-        val collection = PREFIX + "_index_" + timeSuffix.format(session.createdAt)
+        val collection = prefix + "_index_" + timeSuffix.format(session.createdAt)
 
         val document = JsonObject().apply {
             put("document", JsonObject().apply {
