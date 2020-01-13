@@ -58,7 +58,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var checkUdfPeriod: Long = 30000
-    private var executeUdfTimeout: Long = 100
+    private var executionUdfTimeout: Long = 100
     private var exclusions = emptySet<String>()
     private var instances = 1
 
@@ -77,8 +77,8 @@ open class SipMessageHandler : AbstractVerticle() {
             config.getLong("check-period")?.let {
                 checkUdfPeriod = it
             }
-            config.getLong("execute-timeout")?.let {
-                executeUdfTimeout = it
+            config.getLong("execution-timeout")?.let {
+                executionUdfTimeout = it
             }
         }
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
@@ -157,7 +157,7 @@ open class SipMessageHandler : AbstractVerticle() {
             }
 
             GlobalScope.launch(vertx.dispatcher()) {
-                val result = withTimeoutOrNull(executeUdfTimeout) {
+                val result = withTimeoutOrNull(executionUdfTimeout) {
                     vertx.eventBus().requestAwait<Boolean>(RoutesCE.sip_message_udf, udf, USE_LOCAL_CODEC)
                 }
 
@@ -169,7 +169,7 @@ open class SipMessageHandler : AbstractVerticle() {
                         }
                     }
                 } else {
-                    logger.warn("UDF call took more than ${executeUdfTimeout}ms.")
+                    logger.warn("UDF call took more than ${executionUdfTimeout}ms.")
                 }
             }
         }

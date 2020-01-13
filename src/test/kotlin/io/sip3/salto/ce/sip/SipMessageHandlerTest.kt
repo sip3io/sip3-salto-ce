@@ -139,7 +139,7 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
                         put("udf", JsonObject().apply {
                             put("check-period", 100)
-                            put("execute-timeout", 100)
+                            put("execution-timeout", 100)
                         })
                     })
                 },
@@ -178,7 +178,7 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
                         put("udf", JsonObject().apply {
                             put("check-period", 100)
-                            put("execute-timeout", 100)
+                            put("execution-timeout", 100)
                         })
                     })
                 },

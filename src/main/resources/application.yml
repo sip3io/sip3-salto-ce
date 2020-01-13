@@ -39,7 +39,7 @@ server:
 #    transaction-exclusions: [exclude-me]
 #udf:
 #  check-period: 300000
-#  execute-timeout: 100
+#  execution-timeout: 100
 
 #! Metrics
 #metrics:
