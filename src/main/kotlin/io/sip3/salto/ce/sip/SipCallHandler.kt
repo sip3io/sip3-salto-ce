@@ -281,6 +281,7 @@ open class SipCallHandler : AbstractVerticle() {
                     put("state", session.state)
                     session.duration?.let { put(Attributes.duration, it) }
                     session.setupTime?.let { put(Attributes.setup_time, it) }
+                    session.establishTime?.let { put(Attributes.establish_time, it) }
                     remove(Attributes.caller)
                     remove(Attributes.callee)
                     remove(Attributes.state)

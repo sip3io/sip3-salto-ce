@@ -31,4 +31,5 @@ object Attributes {
     const val retransmits = "retransmits"
     const val duration = "duration"
     const val setup_time = "setup_time"
+    const val establish_time = "establish_time"
 }

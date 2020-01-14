@@ -46,6 +46,7 @@ class SipSession {
 
     var duration: Long? = null
     var setupTime: Long? = null
+    var establishTime: Long? = null
 
     var attributes = mutableMapOf<String, Any>()
 
@@ -67,6 +68,9 @@ class SipSession {
                     answeredAt = transaction.terminatedAt ?: transaction.createdAt
                     transaction.ringingAt?.let { ringingAt ->
                         setupTime = ringingAt - transaction.createdAt
+                    }
+                    transaction.terminatedAt?.let { terminatedAt ->
+                        establishTime = terminatedAt - transaction.createdAt
                     }
                 }
                 in 300..399 -> {
