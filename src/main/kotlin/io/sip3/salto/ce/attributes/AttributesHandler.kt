@@ -93,7 +93,7 @@ open class AttributesHandler : AbstractVerticle() {
 
         val options = attribute.options
         if (options.add(value)) {
-            writeToDatabase(PREFIX, attribute, replace = true)
+            writeToDatabase(PREFIX, attribute)
         }
     }
 
@@ -119,27 +119,30 @@ open class AttributesHandler : AbstractVerticle() {
         }
     }
 
-    open fun writeToDatabase(prefix: String, attribute: Attribute, replace: Boolean = false) {
+    open fun writeToDatabase(prefix: String, attribute: Attribute) {
         val collection = prefix + "_" + currentTimeSuffix
 
         val document = JsonObject().apply {
-            put("document", JsonObject().apply {
+            put("type", "UPDATE")
+            put("upsert", true)
+            put("filter", JsonObject().apply {
                 put("name", attribute.name)
-                put("type", attribute.type)
+            })
+            put("document", JsonObject().apply {
+                put("\$setOnInsert", JsonObject().apply {
+                    put("type", attribute.type)
+                })
                 val options = attribute.options
                 if (options.isNotEmpty()) {
-                    put("options", JsonArray().apply {
-                        options.forEach { add(it) }
+                    put("\$addToSet", JsonObject().apply {
+                        put("options", JsonObject().apply {
+                            put("\$each", JsonArray().apply {
+                                attribute.options.forEach { add(it) }
+                            })
+                        })
                     })
                 }
             })
-            if (replace) {
-                put("type", "REPLACE")
-                put("filter", JsonObject().apply {
-                    put("name", attribute.name)
-                })
-                put("upsert", true)
-            }
         }
 
         vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)

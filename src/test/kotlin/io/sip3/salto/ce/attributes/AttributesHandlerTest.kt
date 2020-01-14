@@ -21,8 +21,7 @@ import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class AttributesHandlerTest : VertxTest() {
@@ -40,12 +39,13 @@ class AttributesHandlerTest : VertxTest() {
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
                         var (collection, document) = event.body()
-
+                        val filter = document.getJsonObject("filter")
                         document = document.getJsonObject("document")
                         context.verify {
                             assertTrue(collection.startsWith("attributes"))
-                            assertEquals("${Attribute.TYPE_STRING}.name", document.getString("name"))
-                            assertEquals(Attribute.TYPE_STRING, document.getString("type"))
+                            assertEquals(Attribute.TYPE_STRING + ".name", filter.getString("name"))
+                            assertEquals(Attribute.TYPE_STRING, document.getJsonObject("\$setOnInsert").getString("type"))
+                            assertTrue(document.containsKey("\$addToSet"))
                         }
                         context.completeNow()
                     }
@@ -66,12 +66,13 @@ class AttributesHandlerTest : VertxTest() {
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
                         var (collection, document) = event.body()
-
+                        val filter = document.getJsonObject("filter")
                         document = document.getJsonObject("document")
                         context.verify {
                             assertTrue(collection.startsWith("attributes"))
-                            assertEquals("${Attribute.TYPE_NUMBER}.name", document.getString("name"))
-                            assertEquals(Attribute.TYPE_NUMBER, document.getString("type"))
+                            assertEquals(Attribute.TYPE_NUMBER + ".name", filter.getString("name"))
+                            assertEquals(Attribute.TYPE_NUMBER, document.getJsonObject("\$setOnInsert").getString("type"))
+                            assertFalse(document.containsKey("\$addToSet"))
                         }
                         context.completeNow()
                     }
@@ -92,12 +93,13 @@ class AttributesHandlerTest : VertxTest() {
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
                         var (collection, document) = event.body()
-
+                        val filter = document.getJsonObject("filter")
                         document = document.getJsonObject("document")
                         context.verify {
                             assertTrue(collection.startsWith("attributes"))
-                            assertEquals("${Attribute.TYPE_BOOLEAN}.name", document.getString("name"))
-                            assertEquals(Attribute.TYPE_BOOLEAN, document.getString("type"))
+                            assertEquals(Attribute.TYPE_BOOLEAN + ".name", filter.getString("name"))
+                            assertEquals(Attribute.TYPE_BOOLEAN, document.getJsonObject("\$setOnInsert").getString("type"))
+                            assertFalse(document.containsKey("\$addToSet"))
                         }
                         context.completeNow()
                     }
