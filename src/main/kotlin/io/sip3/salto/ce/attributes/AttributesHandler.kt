@@ -42,7 +42,7 @@ open class AttributesHandler : AbstractVerticle() {
 
     private lateinit var currentTimeSuffix: String
 
-    private val attributes = mutableMapOf<String, Attribute>()
+    private val attributeMap = mutableMapOf<String, Attribute>()
 
     override fun start() {
         config().getString("time-suffix")?.let {
@@ -77,18 +77,18 @@ open class AttributesHandler : AbstractVerticle() {
         val newTimeSuffix = timeSuffix.format(System.currentTimeMillis())
         if (currentTimeSuffix < newTimeSuffix) {
             currentTimeSuffix = newTimeSuffix
-            attributes.clear()
+            attributeMap.clear()
         }
     }
 
     open fun handleStringAttribute(name: String, value: String) {
-        var attribute = attributes[name]
+        var attribute = attributeMap[name]
         if (attribute == null) {
             attribute = Attribute().apply {
                 this.name = name
                 this.type = Attribute.TYPE_STRING
             }
-            attributes[name] = attribute
+            attributeMap[name] = attribute
         }
 
         val options = attribute.options
@@ -107,13 +107,13 @@ open class AttributesHandler : AbstractVerticle() {
             }
         }
 
-        var attribute = attributes[name]
+        var attribute = attributeMap[name]
         if (attribute == null) {
             attribute = Attribute().apply {
                 this.name = name
                 this.type = type
             }
-            attributes[name] = attribute
+            attributeMap[name] = attribute
 
             writeToDatabase(PREFIX, attribute)
         }
