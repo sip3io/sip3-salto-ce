@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.router
 
 import io.sip3.commons.PacketTypes
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
@@ -77,6 +78,7 @@ open class Router : AbstractVerticle() {
         }
 
         if (route != null) {
+            writeAttributes(packet)
             vertx.eventBus().send(route, packet, USE_LOCAL_CODEC)
         }
     }
@@ -99,6 +101,20 @@ open class Router : AbstractVerticle() {
             }
             hostMap = tmpHostMap
         }
+    }
+
+    open fun writeAttributes(packet: Packet) {
+        val attributes = mutableMapOf<String, Any>().apply {
+            val src = packet.srcAddr
+            put(Attributes.src_addr, src.addr)
+            src.host?.let { put(Attributes.src_host, it) }
+
+            val dst = packet.dstAddr
+            put(Attributes.dst_addr, dst.addr)
+            dst.host?.let { put(Attributes.dst_host, it) }
+        }
+
+        vertx.eventBus().send(RoutesCE.attributes, Pair("ip", attributes), USE_LOCAL_CODEC)
     }
 
     private fun mapHostToAddr(host: JsonObject, type: String): MutableMap<String, String> {

@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.net.ServerSocket
 import java.util.*
 
 @ExtendWith(MongoExtension::class)
@@ -56,14 +55,8 @@ class ManagementSocketTest : VertxTest() {
 
     @BeforeEach
     fun init() {
-        // TODO: Move free port selection to JUnit5 Extension (https://github.com/sip3io/sip3-salto-ce/issues/5)
-        val localSocket = ServerSocket(0)
-        localPort = localSocket.localPort
-        val remoteSocket = ServerSocket(0)
-        remotePort = remoteSocket.localPort
-        localSocket.close()
-        remoteSocket.close()
-
+        localPort = findRandomPort()
+        remotePort = findRandomPort()
         config = JsonObject().apply {
             put("mongo", JsonObject().apply {
                 put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")

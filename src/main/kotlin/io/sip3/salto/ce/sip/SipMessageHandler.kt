@@ -22,6 +22,7 @@ import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.SipMethods
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
@@ -57,7 +58,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var checkUdfPeriod: Long = 30000
-    private var executeUdfTimeout: Long = 100
+    private var executionUdfTimeout: Long = 100
     private var exclusions = emptySet<String>()
     private var instances = 1
 
@@ -76,8 +77,8 @@ open class SipMessageHandler : AbstractVerticle() {
             config.getLong("check-period")?.let {
                 checkUdfPeriod = it
             }
-            config.getLong("execute-timeout")?.let {
-                executeUdfTimeout = it
+            config.getLong("execution-timeout")?.let {
+                executionUdfTimeout = it
             }
         }
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
@@ -122,6 +123,7 @@ open class SipMessageHandler : AbstractVerticle() {
                 callUserDefinedFunction(packet, message)
 
                 val prefix = prefix(cseqMethod!!)
+                writeAttributes(prefix, message)
                 writeToDatabase(prefix, packet, message)
                 calculateSipMessageMetrics(prefix, packet, message)
 
@@ -155,7 +157,7 @@ open class SipMessageHandler : AbstractVerticle() {
             }
 
             GlobalScope.launch(vertx.dispatcher()) {
-                val result = withTimeoutOrNull(executeUdfTimeout) {
+                val result = withTimeoutOrNull(executionUdfTimeout) {
                     vertx.eventBus().requestAwait<Boolean>(RoutesCE.sip_message_udf, udf, USE_LOCAL_CODEC)
                 }
 
@@ -167,7 +169,7 @@ open class SipMessageHandler : AbstractVerticle() {
                         }
                     }
                 } else {
-                    logger.warn("UDF call took more than ${executeUdfTimeout}ms.")
+                    logger.warn("UDF call took more than ${executionUdfTimeout}ms.")
                 }
             }
         }
@@ -199,8 +201,8 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
         val attributes = packet.attributes
                 .apply {
-                    packet.srcAddr.host?.let { put("src_host", it) }
-                    packet.dstAddr.host?.let { put("dst_host", it) }
+                    packet.srcAddr.host?.let { put(Attributes.src_host, it) }
+                    packet.dstAddr.host?.let { put(Attributes.dst_host, it) }
                 }
                 .toMutableMap()
                 .apply {
@@ -215,8 +217,20 @@ open class SipMessageHandler : AbstractVerticle() {
         Metrics.counter(prefix + "_messages", attributes).increment()
     }
 
+    open fun writeAttributes(prefix: String, message: SIPMessage) {
+        val attributes = mutableMapOf<String, Any>().apply {
+            if (prefix.contains("call")) {
+                put("method", "INVITE")
+            } else {
+                put("method", message.cseqMethod()!!)
+            }
+        }
+
+        vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
+    }
+
     open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage) {
-        val collection = "${prefix}_raw_" + timeSuffix.format(packet.timestamp)
+        val collection = prefix + "_raw_" + timeSuffix.format(packet.timestamp)
 
         val document = JsonObject().apply {
             put("document", JsonObject().apply {

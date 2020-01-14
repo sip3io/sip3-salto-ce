@@ -46,6 +46,7 @@ class SipSession {
 
     var duration: Long? = null
     var setupTime: Long? = null
+    var establishTime: Long? = null
 
     var attributes = mutableMapOf<String, Any>()
 
@@ -68,6 +69,9 @@ class SipSession {
                     transaction.ringingAt?.let { ringingAt ->
                         setupTime = ringingAt - transaction.createdAt
                     }
+                    transaction.terminatedAt?.let { terminatedAt ->
+                        establishTime = terminatedAt - transaction.createdAt
+                    }
                 }
                 in 300..399 -> {
                     state = REDIRECTED
@@ -84,6 +88,11 @@ class SipSession {
                     state = FAILED
                     terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                     attributes[Attributes.error_code] = statusCode
+                    attributes[Attributes.error_type] = when (statusCode) {
+                        in 400..499 -> "client"
+                        in 500..599 -> "server"
+                        else -> "global"
+                    }
                 }
             }
         }

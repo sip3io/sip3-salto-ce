@@ -79,7 +79,7 @@ class SipMessageHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Send packet with SIP message to database`() {
+    fun `Write packet with SIP message to database`() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(SipMessageHandler::class)
@@ -109,7 +109,30 @@ class SipMessageHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Send packet with SIP message to further handler`() {
+    fun `Write SIP method attribute`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SipMessageHandler::class)
+                },
+                execute = {
+                    vertx.eventBus().send(RoutesCE.sip, PACKET_1, USE_LOCAL_CODEC)
+                },
+                assert = {
+                    vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                        val (prefix, attributes) = event.body()
+                        context.verify {
+                            assertEquals("sip", prefix)
+                            assertEquals(1, attributes.size)
+                            assertEquals("INVITE", attributes["method"])
+                        }
+                        context.completeNow()
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Handle packet with SIP message based on its method`() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(SipMessageHandler::class)
@@ -139,7 +162,7 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
                         put("udf", JsonObject().apply {
                             put("check-period", 100)
-                            put("execute-timeout", 100)
+                            put("execution-timeout", 100)
                         })
                     })
                 },
@@ -178,7 +201,7 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
                         put("udf", JsonObject().apply {
                             put("check-period", 100)
-                            put("execute-timeout", 100)
+                            put("execution-timeout", 100)
                         })
                     })
                 },

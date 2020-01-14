@@ -18,10 +18,18 @@ package io.sip3.salto.ce
 
 object Attributes {
 
+    const val src_addr = "src_addr"
+    const val src_host = "src_host"
+    const val dst_addr = "dst_addr"
+    const val dst_host = "dst_host"
     const val state = "state"
     const val caller = "caller"
     const val callee = "callee"
     const val expired = "expired"
     const val error_code = "error_code"
+    const val error_type = "error_type"
     const val retransmits = "retransmits"
+    const val duration = "duration"
+    const val setup_time = "setup_time"
+    const val establish_time = "establish_time"
 }

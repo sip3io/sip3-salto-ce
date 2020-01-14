@@ -28,9 +28,6 @@ server:
 
 #! Application
 #time-suffix: yyyyMMdd
-#udf:
-#  check-period: 300000
-#  execute-timeout: 100
 #sip:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
@@ -40,6 +37,9 @@ server:
 #    termination-timeout: 5000
 #    duration-timeout: 3600000
 #    transaction-exclusions: [exclude-me]
+#udf:
+#  check-period: 300000
+#  execution-timeout: 100
 
 #! Metrics
 #metrics:

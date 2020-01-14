@@ -17,6 +17,7 @@
 package io.sip3.salto.ce
 
 import io.sip3.commons.vertx.AbstractBootstrap
+import io.sip3.salto.ce.attributes.AttributesHandler
 import io.sip3.salto.ce.decoder.Decoder
 import io.sip3.salto.ce.decoder.HepDecoder
 import io.sip3.salto.ce.mongo.MongoBulkWriter
@@ -46,6 +47,7 @@ open class Bootstrap : AbstractBootstrap() {
         deployUdfVerticles(config, instances)
         vertx.deployVerticle(MongoCollectionManager::class, config)
         vertx.deployVerticle(MongoBulkWriter::class, config, instances)
+        vertx.deployVerticle(AttributesHandler::class, config)
         vertx.deployVerticle(SipCallHandler::class, config, instances)
         vertx.deployVerticle(SipMessageHandler::class, config, instances)
         vertx.deployVerticle(HepDecoder::class, config, instances)
@@ -60,13 +62,13 @@ open class Bootstrap : AbstractBootstrap() {
             this.instances = instances
         }
 
-        val folder = System.getProperty("udf.location")
-
-        File(folder).walkTopDown().filter(File::isFile).forEach { file ->
-            logger.info("Deploying UDF from `$file`")
-            vertx.deployVerticle(file.absolutePath, options) { asr ->
-                if (asr.failed()) {
-                    logger.error("Vertx 'deployVerticle()' failed. File: $file", asr.cause())
+        System.getProperty("udf.location")?.let { folder ->
+            File(folder).walkTopDown().filter(File::isFile).forEach { file ->
+                logger.info("Deploying UDF from `$file`")
+                vertx.deployVerticle(file.absolutePath, options) { asr ->
+                    if (asr.failed()) {
+                        logger.error("Vertx 'deployVerticle()' failed. File: $file", asr.cause())
+                    }
                 }
             }
         }
