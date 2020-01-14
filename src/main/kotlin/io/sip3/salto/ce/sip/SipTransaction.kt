@@ -94,7 +94,7 @@ class SipTransaction {
             }
         }
 
-        // Remove service attributes and copy the rest
+        // Copy attributes
         packet.attributes.forEach { (name, value) -> attributes[name] = value }
     }
 }
