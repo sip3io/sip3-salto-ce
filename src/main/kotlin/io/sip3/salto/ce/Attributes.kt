@@ -27,6 +27,7 @@ object Attributes {
     const val callee = "callee"
     const val expired = "expired"
     const val error_code = "error_code"
+    const val error_type = "error_type"
     const val retransmits = "retransmits"
     const val duration = "duration"
     const val setup_time = "setup_time"

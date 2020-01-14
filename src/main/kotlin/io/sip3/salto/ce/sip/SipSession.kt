@@ -84,6 +84,11 @@ class SipSession {
                     state = FAILED
                     terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                     attributes[Attributes.error_code] = statusCode
+                    attributes[Attributes.error_type] = when (statusCode) {
+                        in 400..499 -> "client"
+                        in 500..599 -> "server"
+                        else -> "global"
+                    }
                 }
             }
         }
