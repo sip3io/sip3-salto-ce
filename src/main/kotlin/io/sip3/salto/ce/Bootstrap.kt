@@ -62,13 +62,13 @@ open class Bootstrap : AbstractBootstrap() {
             this.instances = instances
         }
 
-        val folder = System.getProperty("udf.location")
-
-        File(folder).walkTopDown().filter(File::isFile).forEach { file ->
-            logger.info("Deploying UDF from `$file`")
-            vertx.deployVerticle(file.absolutePath, options) { asr ->
-                if (asr.failed()) {
-                    logger.error("Vertx 'deployVerticle()' failed. File: $file", asr.cause())
+        System.getProperty("udf.location")?.let { folder ->
+            File(folder).walkTopDown().filter(File::isFile).forEach { file ->
+                logger.info("Deploying UDF from `$file`")
+                vertx.deployVerticle(file.absolutePath, options) { asr ->
+                    if (asr.failed()) {
+                        logger.error("Vertx 'deployVerticle()' failed. File: $file", asr.cause())
+                    }
                 }
             }
         }
