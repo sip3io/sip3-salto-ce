@@ -126,10 +126,12 @@ open class AttributesHandler : AbstractVerticle() {
             put("document", JsonObject().apply {
                 put("name", attribute.name)
                 put("type", attribute.type)
-                put("options", JsonArray().apply {
-                    val options = attribute.options
-                    options.forEach { add(it) }
-                })
+                val options = attribute.options
+                if (options.isNotEmpty()) {
+                    put("options", JsonArray().apply {
+                        options.forEach { add(it) }
+                    })
+                }
             })
             if (replace) {
                 put("type", "REPLACE")
