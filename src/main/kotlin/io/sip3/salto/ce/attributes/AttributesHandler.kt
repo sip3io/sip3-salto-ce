@@ -66,9 +66,29 @@ open class AttributesHandler : AbstractVerticle() {
 
         attributes.forEach { (key, value) ->
             val name = "$prefix.$key"
-            when (value) {
-                is String -> handleStringAttribute(name, value)
-                else -> handleAnyAttribute(name, value)
+            val type = when(value) {
+                is String -> Attribute.TYPE_STRING
+                is Number -> Attribute.TYPE_NUMBER
+                is Boolean -> Attribute.TYPE_BOOLEAN
+                else -> return@forEach
+            }
+
+            var attribute = attributeMap[name]
+            if (attribute == null) {
+                attribute = Attribute().apply {
+                    this.name = name
+                    this.type = type
+                }
+                attributeMap[name] = attribute
+
+                writeToDatabase(PREFIX, attribute)
+            }
+
+            if ((value is String) && value.isNotEmpty()) {
+                val options = attribute.options
+                if (options.add(value)) {
+                    writeToDatabase(PREFIX, attribute)
+                }
             }
         }
     }
@@ -78,44 +98,6 @@ open class AttributesHandler : AbstractVerticle() {
         if (currentTimeSuffix < newTimeSuffix) {
             currentTimeSuffix = newTimeSuffix
             attributeMap.clear()
-        }
-    }
-
-    open fun handleStringAttribute(name: String, value: String) {
-        var attribute = attributeMap[name]
-        if (attribute == null) {
-            attribute = Attribute().apply {
-                this.name = name
-                this.type = Attribute.TYPE_STRING
-            }
-            attributeMap[name] = attribute
-        }
-
-        val options = attribute.options
-        if (options.add(value)) {
-            writeToDatabase(PREFIX, attribute)
-        }
-    }
-
-    open fun handleAnyAttribute(name: String, value: Any) {
-        val type = when (value) {
-            is Number -> Attribute.TYPE_NUMBER
-            is Boolean -> Attribute.TYPE_BOOLEAN
-            else -> {
-                logger.warn("Attribute $name will be skipped due to unsupported value type.")
-                return
-            }
-        }
-
-        var attribute = attributeMap[name]
-        if (attribute == null) {
-            attribute = Attribute().apply {
-                this.name = name
-                this.type = type
-            }
-            attributeMap[name] = attribute
-
-            writeToDatabase(PREFIX, attribute)
         }
     }
 

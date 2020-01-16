@@ -58,6 +58,7 @@ open class SipCallHandler : AbstractVerticle() {
     private var terminationTimeout: Long = 5000
     private var durationTimeout: Long = 3600000
     private var transactionExclusions = emptyList<String>()
+    private var recordCallUsersAttributes = false
 
     private var inviteTransactions = mutableMapOf<String, SipTransaction>()
     private var byeTransactions = mutableMapOf<String, SipTransaction>()
@@ -84,6 +85,9 @@ open class SipCallHandler : AbstractVerticle() {
             config.getJsonArray("transaction-exclusions")?.let {
                 transactionExclusions = it.map(Any::toString)
             }
+        }
+        config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
+            recordCallUsersAttributes = it
         }
 
         vertx.setPeriodic(expirationDelay) {
@@ -278,12 +282,14 @@ open class SipCallHandler : AbstractVerticle() {
         val attributes = session.attributes
                 .toMutableMap()
                 .apply {
-                    put("state", session.state)
+                    put(Attributes.state, session.state)
+                    if (!recordCallUsersAttributes) {
+                        put(Attributes.caller, "")
+                        put(Attributes.callee, "")
+                    }
                     session.duration?.let { put(Attributes.duration, it) }
                     session.setupTime?.let { put(Attributes.setup_time, it) }
                     session.establishTime?.let { put(Attributes.establish_time, it) }
-                    remove(Attributes.caller)
-                    remove(Attributes.callee)
                     remove(Attributes.state)
                     remove(Attributes.src_host)
                     remove(Attributes.dst_host)

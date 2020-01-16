@@ -36,6 +36,7 @@ open class Router : AbstractVerticle() {
 
     private var client: MongoClient? = null
     private var updatePeriod: Long = 0
+    private var recordIpAddressesAttributes = false
 
     open var hostMap = emptyMap<String, String>()
 
@@ -46,6 +47,9 @@ open class Router : AbstractVerticle() {
                 put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
             })
             config.getLong("update-period")?.let { updatePeriod = it }
+        }
+        config().getJsonObject("attributes")?.getBoolean("record-ip-addresses")?.let {
+            recordIpAddressesAttributes = it
         }
 
         if (client != null) {
@@ -106,11 +110,11 @@ open class Router : AbstractVerticle() {
     open fun writeAttributes(packet: Packet) {
         val attributes = mutableMapOf<String, Any>().apply {
             val src = packet.srcAddr
-            put(Attributes.src_addr, src.addr)
+            put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
             src.host?.let { put(Attributes.src_host, it) }
 
             val dst = packet.dstAddr
-            put(Attributes.dst_addr, dst.addr)
+            put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
             dst.host?.let { put(Attributes.dst_host, it) }
         }
 
