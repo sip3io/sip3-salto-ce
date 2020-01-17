@@ -123,7 +123,6 @@ open class SipMessageHandler : AbstractVerticle() {
                 callUserDefinedFunction(packet, message)
 
                 val prefix = prefix(cseqMethod!!)
-                writeAttributes(prefix, message)
                 writeToDatabase(prefix, packet, message)
                 calculateSipMessageMetrics(prefix, packet, message)
 
@@ -215,18 +214,6 @@ open class SipMessageHandler : AbstractVerticle() {
                 }
 
         Metrics.counter(prefix + "_messages", attributes).increment()
-    }
-
-    open fun writeAttributes(prefix: String, message: SIPMessage) {
-        val attributes = mutableMapOf<String, Any>().apply {
-            if (prefix.contains("call")) {
-                put("method", "INVITE")
-            } else {
-                put("method", message.cseqMethod()!!)
-            }
-        }
-
-        vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage) {

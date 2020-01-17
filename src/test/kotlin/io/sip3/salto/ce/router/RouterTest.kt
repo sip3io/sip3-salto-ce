@@ -71,7 +71,11 @@ class RouterTest : VertxTest() {
     fun `Send packet attributes without host mapping`() {
         runTest(
                 deploy = {
-                    vertx.deployTestVerticle(Router::class)
+                    vertx.deployTestVerticle(Router::class, JsonObject().apply {
+                        put("attributes", JsonObject().apply {
+                            put("record-ip-addresses", true)
+                        })
+                    })
                 },
                 execute = {
                     val packet = Packet().apply {
@@ -177,6 +181,9 @@ class RouterTest : VertxTest() {
                         put("mongo", JsonObject().apply {
                             put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
                             put("db", "sip3")
+                        })
+                        put("attributes", JsonObject().apply {
+                            put("record-ip-addresses", true)
                         })
                     })
                 },

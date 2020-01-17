@@ -45,9 +45,10 @@ class AttributesHandlerTest : VertxTest() {
                             assertTrue(collection.startsWith("attributes"))
                             assertEquals(Attribute.TYPE_STRING + ".name", filter.getString("name"))
                             assertEquals(Attribute.TYPE_STRING, document.getJsonObject("\$setOnInsert").getString("type"))
-                            assertTrue(document.containsKey("\$addToSet"))
                         }
-                        context.completeNow()
+                        if (document.containsKey("\$addToSet")) {
+                            context.completeNow()
+                        }
                     }
                 }
         )
