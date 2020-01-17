@@ -282,6 +282,8 @@ open class SipCallHandler : AbstractVerticle() {
         val attributes = session.attributes
                 .toMutableMap()
                 .apply {
+                    put(Attributes.call_id, "")
+                    put(Attributes.method, "INVITE")
                     put(Attributes.state, session.state)
                     if (!recordCallUsersAttributes) {
                         put(Attributes.caller, "")
@@ -290,7 +292,6 @@ open class SipCallHandler : AbstractVerticle() {
                     session.duration?.let { put(Attributes.duration, it) }
                     session.setupTime?.let { put(Attributes.setup_time, it) }
                     session.establishTime?.let { put(Attributes.establish_time, it) }
-                    remove(Attributes.state)
                     remove(Attributes.src_host)
                     remove(Attributes.dst_host)
                 }
