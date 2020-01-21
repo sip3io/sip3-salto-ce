@@ -66,7 +66,7 @@ open class AttributesHandler : AbstractVerticle() {
 
         attributes.forEach { (key, value) ->
             val name = "$prefix.$key"
-            val type = when(value) {
+            val type = when (value) {
                 is String -> Attribute.TYPE_STRING
                 is Number -> Attribute.TYPE_NUMBER
                 is Boolean -> Attribute.TYPE_BOOLEAN
@@ -85,7 +85,12 @@ open class AttributesHandler : AbstractVerticle() {
             }
 
             if ((value is String) && value.isNotEmpty()) {
-                val options = attribute.options
+                var options = attribute.options
+                if (options == null) {
+                    options = mutableSetOf()
+                    attribute.options = options
+                }
+
                 if (options.add(value)) {
                     writeToDatabase(PREFIX, attribute)
                 }
@@ -115,11 +120,11 @@ open class AttributesHandler : AbstractVerticle() {
                     put("type", attribute.type)
                 })
                 val options = attribute.options
-                if (options.isNotEmpty()) {
+                if (options != null && options.isNotEmpty()) {
                     put("\$addToSet", JsonObject().apply {
                         put("options", JsonObject().apply {
                             put("\$each", JsonArray().apply {
-                                attribute.options.forEach { add(it) }
+                                options.forEach { add(it) }
                             })
                         })
                     })
