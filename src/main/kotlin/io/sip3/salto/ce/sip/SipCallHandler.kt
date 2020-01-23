@@ -17,6 +17,8 @@
 package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
+import gov.nist.javax.sip.message.SIPRequest
+import gov.nist.javax.sip.message.SIPResponse
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.salto.ce.Attributes
@@ -110,7 +112,11 @@ open class SipCallHandler : AbstractVerticle() {
         val tid = message.transactionId()
         when (message.cseqMethod()) {
             "INVITE" -> {
-                inviteTransactions.getOrPut(tid) { SipTransaction() }.addMessage(packet, message)
+                inviteTransactions.getOrPut(tid) { SipTransaction() }.apply {
+                    if(addMessage(packet, message)) {
+                        handleSdp(message)
+                    }
+                }
             }
             "ACK" -> {
                 // To simplify call aggregation we decided to skip ACK transaction.
@@ -167,6 +173,7 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         calculateInviteTransactionMetrics(transaction)
+        vertx.eventBus().send(RoutesCE.sdp_session_terminate, session.callId, USE_LOCAL_CODEC)
     }
 
     open fun calculateInviteTransactionMetrics(transaction: SipTransaction) {
@@ -240,6 +247,7 @@ open class SipCallHandler : AbstractVerticle() {
             }.forEach { (sid, session) ->
                 sessions.remove(sid)
                 terminateCallSession(session)
+                vertx.eventBus().send(RoutesCE.sdp_session_terminate, session.callId, USE_LOCAL_CODEC)
             }
             return@filterValues sessions.isEmpty()
         }.forEach { (callId, _) ->
@@ -349,6 +357,13 @@ open class SipCallHandler : AbstractVerticle() {
             remove(Attributes.callee)
             remove(Attributes.retransmits)
             transactionExclusions.forEach { remove(it) }
+        }
+    }
+
+    private fun handleSdp(message: SIPMessage) {
+        if (message is SIPResponse && (message.statusCode == 183 || message.statusCode == 200) ||
+                        message is SIPRequest) {
+            vertx.eventBus().send(RoutesCE.sdp_session_update, message, USE_LOCAL_CODEC)
         }
     }
 }

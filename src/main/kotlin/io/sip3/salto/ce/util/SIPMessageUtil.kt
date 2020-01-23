@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.util
 
 import gov.nist.javax.sip.address.SipUri
+import gov.nist.javax.sip.message.Content
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
@@ -83,4 +84,8 @@ fun URI.userOrNumber() = when (this) {
     is SipUri -> user
     is TelURL -> phoneNumber
     else -> throw IllegalArgumentException("Unsupported URI format: '$this'")
+}
+
+fun Content.matches(proto: String): Boolean {
+    return contentTypeHeader?.contentSubType?.toLowerCase()?.contains(proto.toLowerCase()) ?: false
 }

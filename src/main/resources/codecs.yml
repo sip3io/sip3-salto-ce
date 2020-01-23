@@ -1,0 +1,56 @@
+#! Codec directory
+#
+# Contains information about codecs used in RTP. All data filled up according to:
+#  1) ITU-T Recommendation G.113: Transmission impairments due to speech processing and it's Amendments (https://www.itu.int/rec/T-REC-G.113)
+#  2) RFC-3551: RTP Profile for Audio and Video Conferences with Minimal Control (https://tools.ietf.org/html/rfc3551)
+#
+# Every entry MUST contains:
+#  name(e.i. PCMA, PCMU) for matching with SDP information
+#  payloadType - reserved payload type;
+#  clockRate - clock rate for codec;
+#  ie - equipment impairment factor, Ie;
+#  bpl - packet-loss robustness factor, Bpl.
+#
+
+codecs:
+  - name: PCMA
+    payloadType: 8
+    clockRate: 8000
+    ie: 0
+    bpl: 4.3
+
+  - name: PCMU
+    payloadType: 0
+    clockRate: 8000
+    ie: 0
+    bpl: 4.3
+
+  - name: G722
+    payloadType: 9
+    clockRate: 8000
+    ie: 5
+    bpl: 7.1
+
+  - name: CN
+    payloadType: 13
+    clockRate: 8000
+    ie: 0
+    bpl: 4.3
+
+  - name: G723
+    payloadType: 4
+    clockRate: 8000
+    ie: 15
+    bpl: 16.1
+
+  - name: G729
+    payloadType: 1
+    clockRate: 8000
+    ie: 10
+    bpl: 19.0
+
+  - name: GSM
+    payloadType: 3
+    clockRate: 8000
+    ie: 20
+    bpl: 10.0

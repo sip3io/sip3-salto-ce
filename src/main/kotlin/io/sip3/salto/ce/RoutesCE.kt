@@ -35,6 +35,8 @@ interface RoutesCE : Routes {
 
     // SDP
     val sdp_session get() = "sdp_session"
+    val sdp_session_update get() = "sdp_session_update"
+    val sdp_session_terminate get() = "sdp_session_terminate"
 
     // SIP
     val sip get() = "sip"

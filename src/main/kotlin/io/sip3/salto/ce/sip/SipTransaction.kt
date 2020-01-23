@@ -48,7 +48,8 @@ class SipTransaction {
         srcAddr.compositeKey(dstAddr)
     }
 
-    fun addMessage(packet: Packet, message: SIPMessage) {
+    fun addMessage(packet: Packet, message: SIPMessage): Boolean {
+        var added = false
         // Aggregate transaction data
         when (message) {
             is SIPRequest -> {
@@ -66,6 +67,7 @@ class SipTransaction {
                     attributes["retransmits"] = true
                 } else {
                     request = message
+                    added = true
                 }
             }
             is SIPResponse -> {
@@ -88,6 +90,7 @@ class SipTransaction {
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
+                            added = true
                         }
                     }
                 }
@@ -96,5 +99,7 @@ class SipTransaction {
 
         // Copy attributes
         packet.attributes.forEach { (name, value) -> attributes[name] = value }
+
+        return added
     }
 }
