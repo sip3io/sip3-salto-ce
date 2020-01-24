@@ -23,6 +23,7 @@ import io.sip3.salto.ce.decoder.HepDecoder
 import io.sip3.salto.ce.mongo.MongoBulkWriter
 import io.sip3.salto.ce.mongo.MongoCollectionManager
 import io.sip3.salto.ce.router.Router
+import io.sip3.salto.ce.rtpr.RtprHandler
 import io.sip3.salto.ce.server.Server
 import io.sip3.salto.ce.sip.SipCallHandler
 import io.sip3.salto.ce.sip.SipMessageHandler
@@ -50,6 +51,7 @@ open class Bootstrap : AbstractBootstrap() {
         vertx.deployVerticle(AttributesHandler::class, config)
         vertx.deployVerticle(SipCallHandler::class, config, instances)
         vertx.deployVerticle(SipMessageHandler::class, config, instances)
+        vertx.deployVerticle(RtprHandler::class, config, instances)
         vertx.deployVerticle(HepDecoder::class, config, instances)
         vertx.deployVerticle(Decoder::class, config, instances)
         vertx.deployVerticle(Router::class, config, instances)
