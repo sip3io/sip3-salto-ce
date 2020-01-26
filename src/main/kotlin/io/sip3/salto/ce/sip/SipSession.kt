@@ -87,7 +87,7 @@ class SipSession {
                 in 400..699 -> {
                     state = FAILED
                     terminatedAt = transaction.terminatedAt ?: transaction.createdAt
-                    attributes[Attributes.error_code] = statusCode
+                    attributes[Attributes.error_code] = statusCode.toString()
                     attributes[Attributes.error_type] = when (statusCode) {
                         in 400..499 -> "client"
                         in 500..599 -> "server"
