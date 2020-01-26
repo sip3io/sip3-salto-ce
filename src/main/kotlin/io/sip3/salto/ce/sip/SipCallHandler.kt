@@ -263,12 +263,6 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
-        val duration = session.duration
-        if (duration != null) {
-            val attributes = excludeSessionAttributes(session.attributes)
-            Metrics.summary(DURATION, attributes).record(duration.toDouble())
-        }
-
         val attributes = session.attributes
                 .toMutableMap()
                 .apply {
@@ -277,7 +271,13 @@ open class SipCallHandler : AbstractVerticle() {
                     remove(Attributes.callee)
                     remove(Attributes.x_call_id)
                 }
+
         Metrics.counter(ATTEMPTS, attributes).increment()
+
+        val duration = session.duration
+        if (duration != null) {
+            Metrics.summary(DURATION, attributes).record(duration.toDouble())
+        }
     }
 
     open fun writeAttributes(session: SipSession) {
