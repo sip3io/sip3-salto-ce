@@ -275,6 +275,7 @@ open class SipCallHandler : AbstractVerticle() {
                     put(Attributes.state, session.state)
                     remove(Attributes.caller)
                     remove(Attributes.callee)
+                    remove(Attributes.x_call_id)
                 }
         Metrics.counter(ATTEMPTS, attributes).increment()
     }
