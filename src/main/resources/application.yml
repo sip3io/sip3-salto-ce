@@ -34,6 +34,7 @@ server:
 #sip:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
+#    x-correlation-header: X-Call-ID
 #  call:
 #    expiration-delay: 1000
 #    aggregation-timeout: 60000

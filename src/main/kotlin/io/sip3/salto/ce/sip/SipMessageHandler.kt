@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import javax.sip.header.ExtensionHeader
 import kotlin.math.abs
 
 /**
@@ -60,6 +61,7 @@ open class SipMessageHandler : AbstractVerticle() {
     private var checkUdfPeriod: Long = 30000
     private var executionUdfTimeout: Long = 100
     private var exclusions = emptySet<String>()
+    private var xCorrelationHeader = "X-Call-ID"
     private var instances = 1
 
     private var sendToUdf = false
@@ -70,8 +72,13 @@ open class SipMessageHandler : AbstractVerticle() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
-        config().getJsonObject("sip")?.getJsonObject("message")?.getJsonArray("exclusions")?.let {
-            exclusions = it.map(Any::toString).toSet()
+        config().getJsonObject("sip")?.getJsonObject("message")?.let { config ->
+            config.getJsonArray("exclusions")?.let {
+                exclusions = it.map(Any::toString).toSet()
+            }
+            config.getString("x-correlation-header")?.let {
+                xCorrelationHeader = it
+            }
         }
         config().getJsonObject("udf")?.let { config ->
             config.getLong("check-period")?.let {
@@ -109,6 +116,7 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun handle(packet: Packet) {
         packetsProcessed.increment()
 
+        // Parse
         val message: SIPMessage? = try {
             StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         } catch (e: Exception) {
@@ -116,18 +124,25 @@ open class SipMessageHandler : AbstractVerticle() {
             return
         }
 
+        // Validate
         if (message != null && validate(message)) {
             val cseqMethod = message.cseqMethod()
 
+            // Filter by `Cseq` header
             if (SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
+                // Assign and modify attributes
+                (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.let { header ->
+                    packet.attributes[Attributes.x_call_id] = header.value
+                }
                 callUserDefinedFunction(packet, message)
 
                 val prefix = prefix(cseqMethod!!)
-                writeToDatabase(prefix, packet, message)
-                calculateSipMessageMetrics(prefix, packet, message)
+                val route = route(prefix, message)
 
-                route(prefix, message)?.let {
-                    vertx.eventBus().send(it, Pair(packet, message), USE_LOCAL_CODEC)
+                calculateSipMessageMetrics(prefix, packet, message)
+                if (route != null) {
+                    writeToDatabase(prefix, packet, message)
+                    vertx.eventBus().send(route, Pair(packet, message), USE_LOCAL_CODEC)
                 }
             }
         }
@@ -211,6 +226,10 @@ open class SipMessageHandler : AbstractVerticle() {
                     }
                     message.method()?.let { put("method", it) }
                     message.cseqMethod()?.let { put("cseq_method", it) }
+                    remove(Attributes.caller)
+                    remove(Attributes.callee)
+                    remove(Attributes.x_call_id)
+                    remove(Attributes.retransmits)
                 }
 
         Metrics.counter(prefix + "_messages", attributes).increment()
