@@ -41,6 +41,8 @@ server:
 #    termination-timeout: 5000
 #    duration-timeout: 3600000
 #    transaction-exclusions: [exclude-me]
+#rtp-r:
+#  cumulative-metrics: true
 #udf:
 #  check-period: 300000
 #  execution-timeout: 100

@@ -33,6 +33,9 @@ interface RoutesCE : Routes {
     // Router
     val router get() = "router"
 
+    // RTPR
+    val rtpr get() = "rtpr"
+
     // SDP
     val sdp_session get() = "sdp_session"
 
