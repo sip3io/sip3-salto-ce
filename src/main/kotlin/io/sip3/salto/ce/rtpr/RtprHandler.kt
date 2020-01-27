@@ -16,11 +16,9 @@
 
 package io.sip3.salto.ce.rtpr
 
-import io.micrometer.core.instrument.DistributionSummary
-import io.micrometer.core.instrument.Metrics
-import io.micrometer.core.instrument.Timer
 import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.payload.RtpReportPayload
+import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -31,6 +29,9 @@ import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
+/**
+ * Handles RTP reports
+ */
 open class RtprHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -51,10 +52,15 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+    private var cumulativeMetrics = true
 
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
+        }
+
+        config().getJsonObject("rtp-r")?.getBoolean("cumulative-metrics")?.let {
+            cumulativeMetrics = it
         }
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr) { event ->
@@ -70,10 +76,18 @@ open class RtprHandler : AbstractVerticle() {
     open fun handle(packet: Packet) {
         val payload = Unpooled.wrappedBuffer(packet.payload)
         val report = RtpReportPayload().apply { decode(payload) }
+
         val prefix = prefix(report.source)
 
-        writeToDatabase(prefix, packet, report)
-        calculateMetrics(prefix, packet, report)
+        if (report.cumulative) {
+            writeToDatabase("${prefix}_index", packet, report)
+        } else {
+            writeToDatabase("${prefix}_raw", packet, report)
+        }
+
+        if (report.cumulative == cumulativeMetrics) {
+            calculateMetrics(prefix, packet, report)
+        }
     }
 
     open fun prefix(source: Byte): String {
@@ -85,53 +99,28 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun calculateMetrics(prefix: String, packet: Packet, report: RtpReportPayload) {
-        // Skip cumulative reports
-        if (report.cumulative) {
-            return;
+        val attributes = mutableMapOf<String, Any>().apply {
+            packet.srcAddr.host?.let { put("src_host", it) }
+            packet.dstAddr.host?.let { put("dst_host", it) }
+            put("codec", report.codecName ?: report.payloadType)
         }
-
-        val srcHost = packet.srcAddr.host
-        val dstHost = packet.dstAddr.host
 
         report.apply {
-            val codecTag = codecName ?: payloadType.toString()
-            record(srcHost, dstHost, codecTag, prefix + EXPECTED_PACKETS, expectedPacketCount)
-            record(srcHost, dstHost, codecTag, prefix + LOST_PACKETS, lostPacketCount)
-            record(srcHost, dstHost, codecTag, prefix + REJECTED_PACKETS, rejectedPacketCount)
+            Metrics.summary(prefix + EXPECTED_PACKETS, attributes).record(expectedPacketCount.toDouble())
+            Metrics.summary(prefix + LOST_PACKETS, attributes).record(lostPacketCount.toDouble())
+            Metrics.summary(prefix + REJECTED_PACKETS, attributes).record(rejectedPacketCount.toDouble())
 
-            record(srcHost, dstHost, codecTag, prefix + JITTER, avgJitter)
+            Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
 
-            record(srcHost, dstHost, codecTag, prefix + R_FACTOR, rFactor)
-            record(srcHost, dstHost, codecTag, prefix + MOS, mos)
+            Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
+            Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
 
-            Timer.builder(prefix + DURATION)
-                    .apply {
-                        srcHost?.let { tag("src_host", it) }
-                        dstHost?.let { tag("dst_host", it) }
-                        tag("codec", codecTag)
-                    }
-                    .register(Metrics.globalRegistry)
-                    .record(duration.toLong(), TimeUnit.MILLISECONDS)
+            Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
         }
-    }
-
-    open fun record(srcHost: String?, dstHost: String?, codecTag: String, name: String, value: Number) {
-        DistributionSummary.builder(name)
-                .apply {
-                    srcHost?.let { tag("src_host", it) }
-                    dstHost?.let { tag("dst_host", it) }
-                    tag("codec", codecTag)
-                }
-                .register(Metrics.globalRegistry)
-                .record(value.toDouble())
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
-        val collection = if (report.cumulative) {
-            "${prefix}_index_" + timeSuffix.format(packet.timestamp)
-        } else {
-            "${prefix}_raw_" + timeSuffix.format(packet.timestamp)
-        }
+        val collection = prefix + "_" + timeSuffix.format(packet.timestamp)
 
         val document = JsonObject().apply {
             put("document", JsonObject().apply {
@@ -154,15 +143,19 @@ open class RtprHandler : AbstractVerticle() {
                 report.codecName?.let { put("codec_name", it) }
                 put("duration", report.duration)
 
-                put("expected_packet_count", report.expectedPacketCount)
-                put("received_packet_count", report.receivedPacketCount)
-                put("lost_packet_count", report.lostPacketCount)
-                put("rejected_packet_count", report.rejectedPacketCount)
+                put("packets", JsonObject().apply {
+                    put("expected", report.expectedPacketCount)
+                    put("received", report.receivedPacketCount)
+                    put("lost", report.lostPacketCount)
+                    put("rejected", report.rejectedPacketCount)
+                })
 
-                put("last_jitter", report.lastJitter.toDouble())
-                put("avg_jitter", report.avgJitter.toDouble())
-                put("min_jitter", report.minJitter.toDouble())
-                put("max_jitter", report.maxJitter.toDouble())
+                put("jitter", JsonObject().apply {
+                    put("last", report.lastJitter.toDouble())
+                    put("avg", report.avgJitter.toDouble())
+                    put("min", report.minJitter.toDouble())
+                    put("max", report.maxJitter.toDouble())
+                })
 
                 put("r_factor", report.rFactor.toDouble())
                 put("mos", report.mos.toDouble())
