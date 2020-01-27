@@ -333,6 +333,7 @@ open class SipCallHandler : AbstractVerticle() {
 
                 session.duration?.let { put("duration", it) }
                 session.setupTime?.let { put("setup_time", it) }
+                session.establishTime?.let { put("establish_time", it) }
 
                 session.attributes.forEach { (name, value) -> put(name, value) }
             })
