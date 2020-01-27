@@ -251,49 +251,57 @@ open class SipCallHandler : AbstractVerticle() {
         if (session.terminatedAt == null) {
             session.terminatedAt = System.currentTimeMillis()
         }
+
+        val state = session.state
+        if (state == SipSession.ANSWERED && session.duration == null) {
+            session.attributes[Attributes.expired] = true
+        }
+
         writeAttributes(session)
         writeToDatabase(PREFIX, session, replace = (session.state == SipSession.ANSWERED))
         calculateCallSessionMetrics(session)
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
-        val duration = session.duration
-        if (duration != null) {
-            val attributes = excludeSessionAttributes(session.attributes)
-            Metrics.summary(DURATION, attributes).record(duration.toDouble())
-        }
-
-        val state = session.state
-        if (session.state == SipSession.ANSWERED && duration == null) {
-            session.attributes[Attributes.expired] = true
-        }
-
         val attributes = session.attributes
                 .toMutableMap()
                 .apply {
-                    put(Attributes.state, state)
+                    put(Attributes.state, session.state)
                     remove(Attributes.caller)
                     remove(Attributes.callee)
+                    remove(Attributes.x_call_id)
                 }
+
         Metrics.counter(ATTEMPTS, attributes).increment()
+
+        val duration = session.duration
+        if (duration != null) {
+            Metrics.summary(DURATION, attributes).record(duration.toDouble())
+        }
     }
 
     open fun writeAttributes(session: SipSession) {
         val attributes = session.attributes
                 .toMutableMap()
                 .apply {
-                    put(Attributes.call_id, "")
+                    remove(Attributes.src_host)
+                    remove(Attributes.dst_host)
+
                     put(Attributes.method, "INVITE")
                     put(Attributes.state, session.state)
-                    if (!recordCallUsersAttributes) {
-                        put(Attributes.caller, "")
-                        put(Attributes.callee, "")
-                    }
+
+                    put(Attributes.call_id, "")
+                    remove(Attributes.x_call_id)
+
+                    val caller = get(Attributes.caller) ?: session.caller
+                    put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
+
+                    val callee = get(Attributes.callee) ?: session.callee
+                    put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
+
                     session.duration?.let { put(Attributes.duration, it) }
                     session.setupTime?.let { put(Attributes.setup_time, it) }
                     session.establishTime?.let { put(Attributes.establish_time, it) }
-                    remove(Attributes.src_host)
-                    remove(Attributes.dst_host)
                 }
 
         vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
@@ -347,6 +355,7 @@ open class SipCallHandler : AbstractVerticle() {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
+            remove(Attributes.x_call_id)
             remove(Attributes.retransmits)
             transactionExclusions.forEach { remove(it) }
         }

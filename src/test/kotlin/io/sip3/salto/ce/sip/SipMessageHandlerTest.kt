@@ -144,13 +144,13 @@ class SipMessageHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    val packet = Packet().apply {
-                        timestamp = PACKET_1.timestamp
-                        srcAddr = PACKET_1.srcAddr
-                        dstAddr = PACKET_1.dstAddr
-                        payload = PACKET_1.payload
-                    }
                     vertx.setPeriodic(1000) {
+                        val packet = Packet().apply {
+                            timestamp = PACKET_1.timestamp
+                            srcAddr = PACKET_1.srcAddr
+                            dstAddr = PACKET_1.dstAddr
+                            payload = PACKET_1.payload
+                        }
                         vertx.eventBus().send(RoutesCE.sip, packet, USE_LOCAL_CODEC)
                     }
                 },
@@ -183,13 +183,13 @@ class SipMessageHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    val packet = Packet().apply {
-                        timestamp = PACKET_1.timestamp
-                        srcAddr = PACKET_1.srcAddr
-                        dstAddr = PACKET_1.dstAddr
-                        payload = PACKET_1.payload
-                    }
                     vertx.setPeriodic(1000) {
+                        val packet = Packet().apply {
+                            timestamp = PACKET_1.timestamp
+                            srcAddr = PACKET_1.srcAddr
+                            dstAddr = PACKET_1.dstAddr
+                            payload = PACKET_1.payload
+                        }
                         vertx.eventBus().send(RoutesCE.sip, packet, USE_LOCAL_CODEC)
                     }
                 },

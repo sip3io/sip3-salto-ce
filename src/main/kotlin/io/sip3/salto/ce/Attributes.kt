@@ -24,6 +24,7 @@ object Attributes {
     const val dst_host = "dst_host"
     const val method = "method"
     const val call_id = "call_id"
+    const val x_call_id = "x_call_id"
     const val state = "state"
     const val caller = "caller"
     const val callee = "callee"

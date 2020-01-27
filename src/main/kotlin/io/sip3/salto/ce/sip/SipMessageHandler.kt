@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import javax.sip.header.ExtensionHeader
 import kotlin.math.abs
 
 /**
@@ -60,6 +61,7 @@ open class SipMessageHandler : AbstractVerticle() {
     private var checkUdfPeriod: Long = 30000
     private var executionUdfTimeout: Long = 100
     private var exclusions = emptySet<String>()
+    private var xCorrelationHeader = "X-Call-ID"
     private var instances = 1
 
     private var sendToUdf = false
@@ -70,8 +72,13 @@ open class SipMessageHandler : AbstractVerticle() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
-        config().getJsonObject("sip")?.getJsonObject("message")?.getJsonArray("exclusions")?.let {
-            exclusions = it.map(Any::toString).toSet()
+        config().getJsonObject("sip")?.getJsonObject("message")?.let { config ->
+            config.getJsonArray("exclusions")?.let {
+                exclusions = it.map(Any::toString).toSet()
+            }
+            config.getString("x-correlation-header")?.let {
+                xCorrelationHeader = it
+            }
         }
         config().getJsonObject("udf")?.let { config ->
             config.getLong("check-period")?.let {
@@ -109,6 +116,7 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun handle(packet: Packet) {
         packetsProcessed.increment()
 
+        // Parse
         val message: SIPMessage? = try {
             StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         } catch (e: Exception) {
@@ -116,19 +124,34 @@ open class SipMessageHandler : AbstractVerticle() {
             return
         }
 
-        if (message != null && validate(message)) {
-            val cseqMethod = message.cseqMethod()
+        // Validate
+        if (message == null || !validate(message)) {
+            return
+        }
 
-            if (SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
-                callUserDefinedFunction(packet, message)
+        // Filter by `Cseq`
+        val cseqMethod = message.cseqMethod()
+        if (cseqMethod != null && SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
+            // Find `x-correlation-header`
+            (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.let { header ->
+                packet.attributes[Attributes.x_call_id] = header.value
+            }
 
-                val prefix = prefix(cseqMethod!!)
-                writeToDatabase(prefix, packet, message)
-                calculateSipMessageMetrics(prefix, packet, message)
+            val prefix = when (cseqMethod) {
+                "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
+                else -> RoutesCE.sip + "_call"
+            }
 
-                route(prefix, message)?.let {
-                    vertx.eventBus().send(it, Pair(packet, message), USE_LOCAL_CODEC)
+            // Call user-defined function
+            if (sendToUdf) {
+                GlobalScope.launch(vertx.dispatcher()) {
+                    callUserDefinedFunction(packet, message)
+                    calculateSipMessageMetrics(prefix, packet, message)
+                    routeSipMessage(prefix, packet, message)
                 }
+            } else {
+                calculateSipMessageMetrics(prefix, packet, message)
+                routeSipMessage(prefix, packet, message)
             }
         }
     }
@@ -138,51 +161,40 @@ open class SipMessageHandler : AbstractVerticle() {
                 && message.toUri() != null && message.fromUri() != null
     }
 
-    open fun callUserDefinedFunction(packet: Packet, message: SIPMessage) {
-        if (sendToUdf) {
-            val udf = mutableMapOf<String, Any>().apply {
-                val src = packet.srcAddr
-                put("src_addr", src.addr)
-                put("src_port", src.port)
-                src.host?.let { put("src_host", it) }
+    open suspend fun callUserDefinedFunction(packet: Packet, message: SIPMessage) {
+        val udf = mutableMapOf<String, Any>().apply {
+            val src = packet.srcAddr
+            put("src_addr", src.addr)
+            put("src_port", src.port)
+            src.host?.let { put("src_host", it) }
 
-                val dst = packet.dstAddr
-                put("dst_addr", dst.addr)
-                put("dst_port", dst.port)
-                dst.host?.let { put("dst_host", it) }
+            val dst = packet.dstAddr
+            put("dst_addr", dst.addr)
+            put("dst_port", dst.port)
+            dst.host?.let { put("dst_host", it) }
 
-                put("payload", message.headersMap())
-                put("attributes", mutableMapOf<String, Any>())
-            }
+            put("payload", message.headersMap())
+            put("attributes", mutableMapOf<String, Any>())
+        }
 
-            GlobalScope.launch(vertx.dispatcher()) {
-                val result = withTimeoutOrNull(executionUdfTimeout) {
-                    vertx.eventBus().requestAwait<Boolean>(RoutesCE.sip_message_udf, udf, USE_LOCAL_CODEC)
-                }
+        val result = withTimeoutOrNull(executionUdfTimeout) {
+            vertx.eventBus().requestAwait<Boolean>(RoutesCE.sip_message_udf, udf, USE_LOCAL_CODEC)
+        }
 
-                if (result != null) {
-                    (udf["attributes"] as? Map<String, Any>)?.forEach { (k, v) ->
-                        when (v) {
-                            is String, is Boolean -> packet.attributes[k] = v
-                            else -> logger.warn("UDF attribute $k will be skipped due to unsupported value type.")
-                        }
-                    }
-                } else {
-                    logger.warn("UDF call took more than ${executionUdfTimeout}ms.")
+        if (result != null) {
+            (udf["attributes"] as? Map<String, Any>)?.forEach { (k, v) ->
+                when (v) {
+                    is String, is Boolean -> packet.attributes[k] = v
+                    else -> logger.warn("UDF attribute $k will be skipped due to unsupported value type.")
                 }
             }
+        } else {
+            logger.warn("UDF call took more than ${executionUdfTimeout}ms.")
         }
     }
 
-    open fun prefix(cseqMethod: String): String {
-        return when (cseqMethod) {
-            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
-            else -> RoutesCE.sip + "_call"
-        }
-    }
-
-    open fun route(prefix: String, message: SIPMessage): String? {
-        return when (prefix) {
+    open fun routeSipMessage(prefix: String, packet: Packet, message: SIPMessage) {
+        val route = when (prefix) {
             RoutesCE.sip + "_call" -> {
                 val index = message.callId().hashCode()
                 prefix + "_${abs(index % instances)}"
@@ -193,8 +205,11 @@ open class SipMessageHandler : AbstractVerticle() {
                 val index = message.toUri().hashCode()
                 prefix + "_${abs(index % instances)}"
             }
-            else -> null
+            else -> return
         }
+
+        writeToDatabase(prefix, packet, message)
+        vertx.eventBus().send(route, Pair(packet, message), USE_LOCAL_CODEC)
     }
 
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
@@ -211,6 +226,9 @@ open class SipMessageHandler : AbstractVerticle() {
                     }
                     message.method()?.let { put("method", it) }
                     message.cseqMethod()?.let { put("cseq_method", it) }
+                    remove(Attributes.caller)
+                    remove(Attributes.callee)
+                    remove(Attributes.x_call_id)
                 }
 
         Metrics.counter(prefix + "_messages", attributes).increment()
