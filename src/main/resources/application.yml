@@ -29,8 +29,8 @@ server:
 #! Application
 #time-suffix: yyyyMMdd
 #attributes:
-#   record-ip-addresses: false
-#   record-call-users: false
+#  record-ip-addresses: false
+#  record-call-users: false
 #sip:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
