@@ -122,7 +122,7 @@ class SipSessionTest {
         assertEquals("callee", session.callee)
         assertEquals("caller", session.caller)
         assertEquals(SipSession.FAILED, session.state)
-        assertEquals(404, session.attributes[Attributes.error_code])
+        assertEquals("404", session.attributes[Attributes.error_code])
     }
 
     @Test
