@@ -18,8 +18,11 @@ ADD src/main/resources/application.yml $CONFIG_FILE
 ENV CODECS_FILE $HOME/codecs.yml
 ADD src/main/resources/codecs.yml $CODECS_FILE
 
+ENV UDF_FOLDER $HOME/udf
+ADD src/main/resources/udf $UDF_FOLDER
+
 ENV LOGBACK_FILE $HOME/logback.xml
 ADD src/main/resources/logback.xml $LOGBACK_FILE
 
 ENV JAVA_OPTS "-Xms256m -Xmx512m"
-ENTRYPOINT java $JAVA_OPTS -jar $EXECUTABLE_FILE -Dconfig.location=$CONFIG_FILE -Dlogback.configurationFile=$LOGBACK_FILE -Dcodecs.location=$CODECS_FILE
+ENTRYPOINT java $JAVA_OPTS -jar $EXECUTABLE_FILE -Dconfig.location=$CONFIG_FILE -Dlogback.configurationFile=$LOGBACK_FILE -Dudf.location=$UDF_FOLDER
