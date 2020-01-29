@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 SIP3.IO, Inc.
+ * Copyright 2018-2020 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.socket
 
+import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.MongoExtension
@@ -102,11 +103,15 @@ class ManagementSocketTest : VertxTest() {
         val sdpSession = SdpSession().apply {
             id = 10070L
             timestamp = System.currentTimeMillis()
-            clockRate = 8000
-            codecIe = 1F
-            codecBpl = 2F
-            payloadType = 0
             callId = "SomeKindOfCallId"
+
+            codec = Codec().apply {
+                name = "PCMU"
+                payloadType = 0
+                clockRate = 8000
+                ie = 1F
+                bpl = 2F
+            }
         }
 
         lateinit var socket: DatagramSocket
@@ -117,7 +122,7 @@ class ManagementSocketTest : VertxTest() {
                 },
                 execute = {
                     socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {
-                        vertx.eventBus().send(RoutesCE.sdp_session, listOf(sdpSession), USE_LOCAL_CODEC)
+                        vertx.eventBus().send(RoutesCE.sdp_info, listOf(sdpSession), USE_LOCAL_CODEC)
                     }
                 },
                 assert = {

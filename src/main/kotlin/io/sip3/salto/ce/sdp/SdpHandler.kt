@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 SIP3.IO, Inc.
+ * Copyright 2018-2020 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,29 +19,48 @@ package io.sip3.salto.ce.sdp
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
+import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
-import io.sip3.commons.util.IpUtil
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.util.callId
-import io.sip3.salto.ce.util.matches
+import io.sip3.salto.ce.util.sdpSessionId
+import io.sip3.salto.ce.util.sessionDescription
+import io.sip3.salto.ce.util.transactionId
+import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.coroutines.CoroutineVerticle
 import mu.KotlinLogging
 import org.restcomm.media.sdp.SessionDescription
-import org.restcomm.media.sdp.SessionDescriptionParser
 import org.restcomm.media.sdp.attributes.RtpMapAttribute
 import org.restcomm.media.sdp.fields.MediaDescriptionField
 
-class SdpHandler : CoroutineVerticle() {
+class SdpHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
+
+    companion object {
+
+        const val CMD_UPDATE = "update"
+        const val CMD_TERMINATE = "terminate"
+    }
+
+    private var expirationDelay: Long = 1000
+    private var durationTimeout: Long = 3600000
 
     private var codecs = mapOf<String, Codec>()
     private val sessions = mutableMapOf<String, SdpSessionDescription>()
 
-    override suspend fun start() {
-        readCodecs(config)
+    override fun start() {
+        config().getJsonObject("sip")?.getJsonObject("call")?.let { config ->
+            config.getLong("expiration-delay")?.let {
+                expirationDelay = it
+            }
+            config.getLong("duration-timeout")?.let {
+                durationTimeout = it
+            }
+        }
+
+        readCodecs(config())
         vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
             try {
                 val config = event.body()
@@ -51,21 +70,20 @@ class SdpHandler : CoroutineVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<SIPMessage>(RoutesCE.sdp_session_update) { event ->
-            try {
-                val message = event.body()
-                handleSdp(message)
-            } catch (e: Exception) {
-                logger.error("SdpHandler 'handleSdp()' failed.", e)
-            }
+        vertx.setPeriodic(expirationDelay) {
+            terminateExpiredSessions()
         }
 
-        vertx.eventBus().localConsumer<String>(RoutesCE.sdp_session_terminate) { event ->
+        vertx.eventBus().localConsumer<Pair<String, Any>>(RoutesCE.sdp_session) { event ->
             try {
-                val sessionKey = event.body()
-                sessions.remove(sessionKey)
+                val (cmd, obj) = event.body()
+                when (cmd) {
+                    CMD_UPDATE -> handle(obj as SIPMessage)
+                    CMD_TERMINATE -> terminate(obj as String)
+                    else -> throw IllegalArgumentException("Unsupported SdpHandler command: '$cmd'")
+                }
             } catch (e: Exception) {
-                logger.error("SdpHandler sdpSession remove failed.", e)
+                logger.error("SdpHandler 'handle()' or 'terminate()' failed.", e)
             }
         }
     }
@@ -74,49 +92,64 @@ class SdpHandler : CoroutineVerticle() {
         val tmpCodecs = mutableMapOf<String, Codec>()
         config.getJsonArray("codecs")?.forEach { codecObject ->
             val codec = (codecObject as JsonObject).mapTo(Codec::class.java)
-            tmpCodecs[codec.name!!] = codec
+            tmpCodecs[codec.name] = codec
         }
         codecs = tmpCodecs
     }
 
-    private fun handleSdp(message: SIPMessage) {
-        val sessionDescription: SessionDescription = getSessionDescription(message) ?: return
+    private fun terminateExpiredSessions() {
+        val now = System.currentTimeMillis()
+        sessions.filterValues { it.createdAt + durationTimeout < now }
+                .forEach { (transactionId, _) -> terminate(transactionId) }
+    }
 
-        val callId = message.callId()!!
-        sessions.getOrPut(callId) { SdpSessionDescription(callId) }.apply {
-            when (message) {
-                is SIPRequest -> {
-                    request = sessionDescription
-                }
-                is SIPResponse -> {
-                    response = sessionDescription
-                }
-            }
+    private fun terminate(transactionId: String) {
+        sessions.remove(transactionId)
+    }
 
-            if (isFilled()) {
-                sendSdpSession(this)
-            }
+    private fun handle(message: SIPMessage) {
+        val sessionDescription: SessionDescription = message.sessionDescription() ?: return
+
+        val transactionId = message.transactionId()
+        val session = sessions.getOrPut(transactionId) {
+            SdpSessionDescription().apply { this.callId = message.callId()!! }
+        }
+
+        when (message) {
+            is SIPRequest -> session.request = sessionDescription.getMediaDescription("audio")
+            is SIPResponse -> session.response = sessionDescription.getMediaDescription("audio")
+        }
+
+        if (session.request != null && session.response != null) {
+            session.codec = defineCodec(session.request!!, session.response!!)
+            send(session)
         }
     }
 
-    private fun sendSdpSession(sdpSessionDescription: SdpSessionDescription) {
-        val requestMediaDescription = sdpSessionDescription.request.getMediaDescription("audio")
-        val responseMediaDescription = sdpSessionDescription.response.getMediaDescription("audio")
+    private fun send(session: SdpSessionDescription) {
+        val now = System.currentTimeMillis()
 
-        val callId = sdpSessionDescription.callId
-        val codec = getCodec(requestMediaDescription, responseMediaDescription)
-        val requestSdpSession = createSdpSession(callId, requestMediaDescription, codec)
-        val responseSdpSession = createSdpSession(callId, responseMediaDescription, codec)
+        val sdpSessions = mutableListOf<SdpSession>()
 
-        // Send to Management Socket
-        vertx.eventBus().send(RoutesCE.sdp_session, listOf(requestSdpSession, responseSdpSession), USE_LOCAL_CODEC)
+        listOf(session.request!!.sdpSessionId(), session.response!!.sdpSessionId())
+                .forEach { id ->
+                    sdpSessions.add(SdpSession().apply {
+                        this.id = id
+                        timestamp = now
+                        this.callId = session.callId
+                        this.codec = session.codec
+                    })
+                }
+
+        vertx.eventBus().send(RoutesCE.sdp_info, sdpSessions, USE_LOCAL_CODEC)
     }
 
-    private fun getCodec(request: MediaDescriptionField, response: MediaDescriptionField): Codec {
-        val payloadTypes = request.payloadTypes.intersect(response.payloadTypes.asIterable())
-        val payloadType = payloadTypes.first()
-        val payload: RtpMapAttribute? = response.getFormat(payloadType)
-                ?: request.getFormat(payloadType)
+    private fun defineCodec(request: MediaDescriptionField, response: MediaDescriptionField): Codec {
+        val payloadType = request.payloadTypes
+                .intersect(response.payloadTypes.asIterable())
+                .first()
+
+        val payload: RtpMapAttribute? = response.getFormat(payloadType) ?: request.getFormat(payloadType)
 
         val codec = codecs[payload?.codec]
                 ?: codecs.values.firstOrNull { it.payloadType.toInt() == payloadType }
@@ -128,48 +161,14 @@ class SdpHandler : CoroutineVerticle() {
         return codec
     }
 
-    private fun createSdpSession(callId: String, mediaDescription: MediaDescriptionField, codec: Codec): SdpSession {
-        return SdpSession().apply {
-            id = getSdpSessionId(mediaDescription)
-            timestamp = System.currentTimeMillis()
+    private class SdpSessionDescription {
 
-            payloadType = codec.payloadType
-            codecName = codec.name
-            clockRate = codec.clockRate
-            codecIe = codec.ie
-            codecBpl = codec.bpl
+        val createdAt = System.currentTimeMillis()
 
-            this.callId = callId
-        }
-    }
+        lateinit var callId: String
+        lateinit var codec: Codec
 
-    private fun getSdpSessionId(mediaDescription: MediaDescriptionField): Long {
-        val addr = IpUtil.convertToInt(mediaDescription.connection.address).toLong()
-        val port = mediaDescription.port.toLong()
-        return (addr shl 32) or port
-    }
-
-    private fun getSessionDescription(message: SIPMessage): SessionDescription? {
-        if (message.contentTypeHeader?.mediaSubType == "sdp") {
-            return SessionDescriptionParser.parse(message.messageContent)
-        } else {
-            message.multipartMimeContent?.contents?.forEach { mimeContent ->
-                if (mimeContent.matches("sdp")) {
-                    return SessionDescriptionParser.parse(mimeContent.content.toString())
-                }
-            }
-        }
-
-        return null
-    }
-
-    private class SdpSessionDescription(val callId: String) {
-
-        lateinit var request: SessionDescription
-        lateinit var response: SessionDescription
-
-        fun isFilled(): Boolean {
-            return ::request.isInitialized && ::response.isInitialized
-        }
+        var request: MediaDescriptionField? = null
+        var response: MediaDescriptionField? = null
     }
 }

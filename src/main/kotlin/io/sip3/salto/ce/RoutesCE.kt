@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 SIP3.IO, Inc.
+ * Copyright 2018-2020 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,9 +37,8 @@ interface RoutesCE : Routes {
     val rtpr get() = "rtpr"
 
     // SDP
+    val sdp_info get() = "sdp_info"
     val sdp_session get() = "sdp_session"
-    val sdp_session_update get() = "sdp_session_update"
-    val sdp_session_terminate get() = "sdp_session_terminate"
 
     // SIP
     val sip get() = "sip"

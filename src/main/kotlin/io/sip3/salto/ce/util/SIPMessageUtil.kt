@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 SIP3.IO, Inc.
+ * Copyright 2018-2020 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import gov.nist.javax.sip.message.Content
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
+import org.restcomm.media.sdp.SessionDescription
+import org.restcomm.media.sdp.SessionDescriptionParser
 import javax.sip.address.TelURL
 import javax.sip.address.URI
 
@@ -78,6 +80,28 @@ fun SIPMessage.headersMap(): Map<String, String> {
         }
         headers.forEach { header -> put(header.headerName.toLowerCase(), header.headerValue) }
     }
+}
+
+fun SIPMessage.hasSdp(): Boolean {
+    return when(this) {
+        is SIPRequest -> return true
+        is SIPResponse -> return statusCode == 183 || statusCode == 200
+        else -> false
+    }
+}
+
+fun SIPMessage.sessionDescription(): SessionDescription? {
+    if (this.contentTypeHeader?.mediaSubType == "sdp") {
+        return SessionDescriptionParser.parse(this.messageContent)
+    } else {
+        this.multipartMimeContent?.contents?.forEach { mimeContent ->
+            if (mimeContent.matches("sdp")) {
+                return SessionDescriptionParser.parse(mimeContent.content.toString())
+            }
+        }
+    }
+
+    return null
 }
 
 fun URI.userOrNumber() = when (this) {

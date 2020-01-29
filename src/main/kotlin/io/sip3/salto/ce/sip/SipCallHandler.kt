@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 SIP3.IO, Inc.
+ * Copyright 2018-2020 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,15 @@
 package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
-import gov.nist.javax.sip.message.SIPRequest
-import gov.nist.javax.sip.message.SIPResponse
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.sdp.SdpHandler
 import io.sip3.salto.ce.util.cseqMethod
+import io.sip3.salto.ce.util.hasSdp
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -113,8 +113,10 @@ open class SipCallHandler : AbstractVerticle() {
         when (message.cseqMethod()) {
             "INVITE" -> {
                 inviteTransactions.getOrPut(tid) { SipTransaction() }.apply {
-                    if(addMessage(packet, message)) {
-                        handleSdp(message)
+                    addMessage(packet, message)
+
+                    if (message.hasSdp()) {
+                        vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, message), USE_LOCAL_CODEC)
                     }
                 }
             }
@@ -173,7 +175,7 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         calculateInviteTransactionMetrics(transaction)
-        vertx.eventBus().send(RoutesCE.sdp_session_terminate, session.callId, USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_TERMINATE, session.callId), USE_LOCAL_CODEC)
     }
 
     open fun calculateInviteTransactionMetrics(transaction: SipTransaction) {
@@ -247,7 +249,6 @@ open class SipCallHandler : AbstractVerticle() {
             }.forEach { (sid, session) ->
                 sessions.remove(sid)
                 terminateCallSession(session)
-                vertx.eventBus().send(RoutesCE.sdp_session_terminate, session.callId, USE_LOCAL_CODEC)
             }
             return@filterValues sessions.isEmpty()
         }.forEach { (callId, _) ->
@@ -367,13 +368,6 @@ open class SipCallHandler : AbstractVerticle() {
             remove(Attributes.x_call_id)
             remove(Attributes.retransmits)
             transactionExclusions.forEach { remove(it) }
-        }
-    }
-
-    private fun handleSdp(message: SIPMessage) {
-        if (message is SIPResponse && (message.statusCode == 183 || message.statusCode == 200) ||
-                        message is SIPRequest) {
-            vertx.eventBus().send(RoutesCE.sdp_session_update, message, USE_LOCAL_CODEC)
         }
     }
 }

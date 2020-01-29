@@ -4,7 +4,7 @@
 #  1) ITU-T Recommendation G.113: Transmission impairments due to speech processing and it's Amendments (https://www.itu.int/rec/T-REC-G.113)
 #  2) RFC-3551: RTP Profile for Audio and Video Conferences with Minimal Control (https://tools.ietf.org/html/rfc3551)
 #
-# Every entry MUST contains:
+# Every entry MUST contain:
 #  name(e.i. PCMA, PCMU) for matching with SDP information
 #  payloadType - reserved payload type;
 #  clockRate - clock rate for codec;

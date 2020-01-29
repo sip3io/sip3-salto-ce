@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 SIP3.IO, Inc.
+ * Copyright 2018-2020 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.sdp
+package io.sip3.salto.ce.util
 
-class Codec {
+import io.sip3.commons.util.IpUtil
+import org.restcomm.media.sdp.fields.MediaDescriptionField
 
-    var name: String? = null
-    var payloadType: Byte = -1
-    var clockRate: Int = 8000
-    var ie: Float = 5.0F
-    var bpl: Float = 10.0F
+fun MediaDescriptionField.sdpSessionId(): Long {
+    val addr = IpUtil.convertToInt(this.connection.address).toLong()
+    val port = this.port.toLong()
+    return (addr shl 32) or port
 }
