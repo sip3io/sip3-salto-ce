@@ -83,11 +83,17 @@ fun SIPMessage.headersMap(): Map<String, String> {
 }
 
 fun SIPMessage.hasSdp(): Boolean {
-    return when(this) {
-        is SIPRequest -> return true
-        is SIPResponse -> return statusCode == 183 || statusCode == 200
-        else -> false
+    if (this.contentTypeHeader?.mediaSubType == "sdp") {
+        return true
+    } else {
+        this.multipartMimeContent?.contents?.forEach { mimeContent ->
+            if (mimeContent.matches("sdp")) {
+                return true
+            }
+        }
     }
+
+    return false
 }
 
 fun SIPMessage.sessionDescription(): SessionDescription? {

@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sdp
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
+import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.RoutesCE
@@ -26,7 +27,8 @@ import io.sip3.salto.ce.util.callId
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
 
 class SdpHandlerTest : VertxTest() {
@@ -37,15 +39,17 @@ class SdpHandlerTest : VertxTest() {
             StringMsgParser.setComputeContentLengthFromMessage(true)
         }
 
+        val CODEC = Codec().apply {
+            name = "PCMA"
+            payloadType = 8
+            clockRate = 8000
+            ie = 0.0F
+            bpl = 4.3F
+        }
+
         val CONFIG = JsonObject().apply {
             put("codecs", JsonArray().apply {
-                add(JsonObject().apply {
-                    put("name", "PCMA")
-                    put("payload_type", 8)
-                    put("clock_rate", 8000)
-                    put("ie", 0)
-                    put("bpl", 4.3)
-                })
+                add(JsonObject.mapFrom(CODEC))
             })
         }
 
@@ -298,9 +302,9 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, JsonObject())
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, REQUEST_2), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, REQUEST_1), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, RESPONSE_1), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, REQUEST_2), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, REQUEST_1), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, RESPONSE_1), USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
@@ -311,7 +315,17 @@ class SdpHandlerTest : VertxTest() {
                             val session2 = sessions[1]
 
                             assertNotEquals(session1.id, session2.id)
+                            assertEquals(session1.callId, session2.callId)
+                            assertEquals(REQUEST_1.callId(), session1.callId)
                             assertEquals(session1.codec, session2.codec)
+
+                            session1.codec.apply {
+                                assertEquals("UNDEFINED", name)
+                                assertEquals(8000, clockRate)
+                                assertEquals(0x08.toByte(), payloadType)
+                                assertEquals(5.0F, ie)
+                                assertEquals(10.0F, bpl)
+                            }
 
                             context.completeNow()
                         }
@@ -327,8 +341,8 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, CONFIG)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, REQUEST_3), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, RESPONSE_3), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, REQUEST_3), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, RESPONSE_3), USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
@@ -339,12 +353,19 @@ class SdpHandlerTest : VertxTest() {
                             val session2 = sessions[1]
 
                             assertNotEquals(session1.id, session2.id)
-                            assertNotNull(session1.timestamp)
-                            assertEquals(session1.timestamp, session2.timestamp)
                             assertEquals(session1.callId, session2.callId)
-
+                            assertEquals(REQUEST_3.callId(), session1.callId)
                             assertEquals(session1.codec, session2.codec)
+
+                            session1.codec.apply {
+                                assertEquals(CODEC.name, name)
+                                assertEquals(CODEC.clockRate, clockRate)
+                                assertEquals(CODEC.payloadType, payloadType)
+                                assertEquals(CODEC.ie, ie)
+                                assertEquals(CODEC.bpl, bpl)
+                            }
                         }
+
                         context.completeNow()
                     }
                 }
@@ -358,15 +379,15 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, JsonObject())
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, REQUEST_2), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, RESPONSE_1), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, REQUEST_2), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, RESPONSE_1), USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) {
                         context.failNow(AssertionError("No events expected in `${RoutesCE.sdp_info}`"))
                     }
 
-                    // wait for events
+                    // Wait for events
                     vertx.setTimer(1500L) {
                         context.completeNow()
                     }
@@ -381,16 +402,16 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, JsonObject())
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, REQUEST_3), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, REQUEST_3), USE_LOCAL_CODEC)
                     vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_TERMINATE, REQUEST_3.transactionId()), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, RESPONSE_3), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, RESPONSE_3), USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) {
                         context.failNow(AssertionError("No events expected in `${RoutesCE.sdp_info}`"))
                     }
 
-                    // wait for events
+                    // Wait for events
                     vertx.setTimer(1500L) {
                         context.completeNow()
                     }
@@ -405,24 +426,26 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, CONFIG)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, REQUEST_4), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, RESPONSE_4), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, REQUEST_4), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, RESPONSE_4), USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
                         val sessions = event.body()
                         val session = sessions.first()
-                        val codec = session.codec
 
                         context.verify {
                             assertEquals(REQUEST_4.callId(), session.callId)
-                            assertEquals(0x08.toByte(), codec.payloadType)
 
-                            assertEquals("PCMA", codec.name)
-                            assertEquals(8000, codec.clockRate)
-                            assertEquals(0.0F, codec.ie)
-                            assertEquals(4.3F, codec.bpl)
+                            session.codec.apply {
+                                assertEquals(CODEC.name, name)
+                                assertEquals(CODEC.clockRate, clockRate)
+                                assertEquals(CODEC.payloadType, payloadType)
+                                assertEquals(CODEC.ie, ie)
+                                assertEquals(CODEC.bpl, bpl)
+                            }
                         }
+
                         context.completeNow()
                     }
                 }

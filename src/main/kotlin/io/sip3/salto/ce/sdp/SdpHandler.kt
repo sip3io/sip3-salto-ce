@@ -40,7 +40,7 @@ class SdpHandler : AbstractVerticle() {
 
     companion object {
 
-        const val CMD_UPDATE = "update"
+        const val CMD_HANDLE = "handle"
         const val CMD_TERMINATE = "terminate"
     }
 
@@ -78,7 +78,7 @@ class SdpHandler : AbstractVerticle() {
             try {
                 val (cmd, obj) = event.body()
                 when (cmd) {
-                    CMD_UPDATE -> handle(obj as SIPMessage)
+                    CMD_HANDLE -> handle(obj as SIPMessage)
                     CMD_TERMINATE -> terminate(obj as String)
                     else -> throw IllegalArgumentException("Unsupported SdpHandler command: '$cmd'")
                 }
@@ -129,16 +129,14 @@ class SdpHandler : AbstractVerticle() {
     private fun send(session: SdpSessionDescription) {
         val now = System.currentTimeMillis()
 
-        val sdpSessions = mutableListOf<SdpSession>()
-
-        listOf(session.request!!.sdpSessionId(), session.response!!.sdpSessionId())
-                .forEach { id ->
-                    sdpSessions.add(SdpSession().apply {
+        val sdpSessions = listOf(session.request!!.sdpSessionId(), session.response!!.sdpSessionId())
+                .map { id ->
+                    SdpSession().apply {
                         this.id = id
                         timestamp = now
                         this.callId = session.callId
                         this.codec = session.codec
-                    })
+                    }
                 }
 
         vertx.eventBus().send(RoutesCE.sdp_info, sdpSessions, USE_LOCAL_CODEC)

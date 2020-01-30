@@ -116,7 +116,7 @@ open class SipCallHandler : AbstractVerticle() {
                     addMessage(packet, message)
 
                     if (message.hasSdp()) {
-                        vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_UPDATE, message), USE_LOCAL_CODEC)
+                        vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, message), USE_LOCAL_CODEC)
                     }
                 }
             }
