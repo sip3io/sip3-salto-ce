@@ -122,7 +122,7 @@ class ManagementSocketTest : VertxTest() {
                 },
                 execute = {
                     socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {
-                        vertx.eventBus().send(RoutesCE.sdp_session, listOf(sdpSession), USE_LOCAL_CODEC)
+                        vertx.eventBus().send(RoutesCE.sdp_info, listOf(sdpSession), USE_LOCAL_CODEC)
                     }
                 },
                 assert = {

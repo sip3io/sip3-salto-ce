@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 SIP3.IO, Inc.
+ * Copyright 2018-2020 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,9 @@ import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.sdp.SdpHandler
 import io.sip3.salto.ce.util.cseqMethod
+import io.sip3.salto.ce.util.hasSdp
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -110,7 +112,13 @@ open class SipCallHandler : AbstractVerticle() {
         val tid = message.transactionId()
         when (message.cseqMethod()) {
             "INVITE" -> {
-                inviteTransactions.getOrPut(tid) { SipTransaction() }.addMessage(packet, message)
+                inviteTransactions.getOrPut(tid) { SipTransaction() }.apply {
+                    addMessage(packet, message)
+
+                    if (message.hasSdp()) {
+                        vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, message), USE_LOCAL_CODEC)
+                    }
+                }
             }
             "ACK" -> {
                 // To simplify call aggregation we decided to skip ACK transaction.
@@ -167,6 +175,7 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         calculateInviteTransactionMetrics(transaction)
+        vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_TERMINATE, session.callId), USE_LOCAL_CODEC)
     }
 
     open fun calculateInviteTransactionMetrics(transaction: SipTransaction) {

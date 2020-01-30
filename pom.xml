@@ -49,6 +49,12 @@
             <artifactId>jain-sip-ri</artifactId>
         </dependency>
 
+        <!-- SDP -->
+        <dependency>
+            <groupId>org.restcomm.media</groupId>
+            <artifactId>sdp</artifactId>
+        </dependency>
+
         <!-- Util -->
         <dependency>
             <groupId>commons-net</groupId>
