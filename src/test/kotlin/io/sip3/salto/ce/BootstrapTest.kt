@@ -16,19 +16,24 @@
 
 package io.sip3.salto.ce
 
+import io.sip3.commons.domain.Codec
 import io.sip3.commons.vertx.test.VertxTest
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class BootstrapTest : VertxTest() {
 
     companion object {
+
         const val UDF_LOCATION = "src/test/resources/udf"
+        const val CODEC_LOCATION = "src/test/resources/codecs.yml"
     }
 
     init {
         System.setProperty("udf.location", UDF_LOCATION)
+        System.setProperty("codecs.location", CODEC_LOCATION)
     }
 
     @Test
@@ -38,7 +43,7 @@ class BootstrapTest : VertxTest() {
                 deploy = {
                     vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
                         put("server", JsonObject().apply {
-                            put("uri", "udp://0.0.0.0:15062")
+                            put("uri", "udp://0.0.0.0:${findRandomPort()}")
                         })
                     })
                 },
@@ -65,7 +70,7 @@ class BootstrapTest : VertxTest() {
                 deploy = {
                     vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
                         put("server", JsonObject().apply {
-                            put("uri", "udp://0.0.0.0:15063")
+                            put("uri", "udp://0.0.0.0:${findRandomPort()}")
                         })
                     })
                 },
@@ -79,6 +84,39 @@ class BootstrapTest : VertxTest() {
                         context.verify {
                             assertEquals(message, event.body())
                         }
+                        context.completeNow()
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Codec directory read`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
+                        put("server", JsonObject().apply {
+                            put("uri", "udp://0.0.0.0:${findRandomPort()}")
+                        })
+                    })
+                },
+                assert = {
+                    vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
+                        context.verify {
+                            val config = event.body()
+                            assertTrue(config.containsKey("codecs"))
+
+                            val codecs = config.getJsonArray("codecs")
+                            assertEquals(1, codecs.size())
+
+                            val codec = (codecs.first() as JsonObject).mapTo(Codec::class.java)
+                            assertEquals("PCMA", codec.name)
+                            assertEquals(0x08, codec.payloadType)
+                            assertEquals(8000, codec.clockRate)
+                            assertEquals(0.0F, codec.ie)
+                            assertEquals(4.3F, codec.bpl)
+                        }
+
                         context.completeNow()
                     }
                 }
