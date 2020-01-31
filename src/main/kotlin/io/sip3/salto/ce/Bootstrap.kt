@@ -41,7 +41,7 @@ open class Bootstrap : AbstractBootstrap() {
 
     private val logger = KotlinLogging.logger {}
 
-    override val configLocations = listOf("config.location")
+    override val configLocations = listOf("config.location", "codecs.location")
 
     override fun deployVerticles(config: JsonObject) {
         // Read `vertx.instances`
