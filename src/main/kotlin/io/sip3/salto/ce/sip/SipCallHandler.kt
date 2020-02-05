@@ -163,6 +163,7 @@ open class SipCallHandler : AbstractVerticle() {
         when (session.state) {
             SipSession.REDIRECTED, SipSession.CANCELED, SipSession.FAILED -> {
                 terminateCallSession(session)
+                activeSessions.get(transaction.callId)?.remove(transaction.legId)
             }
             SipSession.ANSWERED -> {
                 writeAttributes(session)
