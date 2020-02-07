@@ -42,6 +42,8 @@ class SdpHandler : AbstractVerticle() {
 
         const val CMD_HANDLE = "handle"
         const val CMD_TERMINATE = "terminate"
+
+        const val DEFAULT_PTIME = 20
     }
 
     private var expirationDelay: Long = 1000
@@ -122,6 +124,7 @@ class SdpHandler : AbstractVerticle() {
 
         if (session.request != null && session.response != null) {
             session.codec = defineCodec(session.request!!, session.response!!)
+            definePtime(session.request!!, session.response!!)?.let { session.ptime = it }
             send(session)
         }
     }
@@ -130,12 +133,13 @@ class SdpHandler : AbstractVerticle() {
         val now = System.currentTimeMillis()
 
         val sdpSessions = listOf(session.request!!.sdpSessionId(), session.response!!.sdpSessionId())
-                .map { id ->
+                .map { sdpSessionId ->
                     SdpSession().apply {
-                        this.id = id
+                        id = sdpSessionId
                         timestamp = now
-                        this.callId = session.callId
-                        this.codec = session.codec
+                        callId = session.callId
+                        codec = session.codec
+                        ptime = session.ptime
                     }
                 }
 
@@ -159,12 +163,17 @@ class SdpHandler : AbstractVerticle() {
         return codec
     }
 
+    private fun definePtime(request: MediaDescriptionField, response: MediaDescriptionField): Int? {
+        return response.ptime?.time ?: request.ptime?.time
+    }
+
     private class SdpSessionDescription {
 
         val createdAt = System.currentTimeMillis()
 
         lateinit var callId: String
         lateinit var codec: Codec
+        var ptime: Int = DEFAULT_PTIME
 
         var request: MediaDescriptionField? = null
         var response: MediaDescriptionField? = null
