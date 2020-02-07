@@ -291,7 +291,7 @@ class SdpHandlerTest : VertxTest() {
         a=rtpmap:8 PCMA/8000
         a=rtpmap:99 telephone-event/8000
         a=fmtp:99 0-16
-        a=ptime:20
+        a=ptime:30
         """.trimIndent().toByteArray(), true, false, null)
     }
 
@@ -318,6 +318,7 @@ class SdpHandlerTest : VertxTest() {
                             assertEquals(session1.callId, session2.callId)
                             assertEquals(REQUEST_1.callId(), session1.callId)
                             assertEquals(session1.codec, session2.codec)
+                            assertEquals(20, session1.ptime)
 
                             session1.codec.apply {
                                 assertEquals("UNDEFINED", name)
@@ -356,6 +357,7 @@ class SdpHandlerTest : VertxTest() {
                             assertEquals(session1.callId, session2.callId)
                             assertEquals(REQUEST_3.callId(), session1.callId)
                             assertEquals(session1.codec, session2.codec)
+                            assertEquals(20, session1.ptime)
 
                             session1.codec.apply {
                                 assertEquals(CODEC.name, name)
@@ -436,6 +438,7 @@ class SdpHandlerTest : VertxTest() {
 
                         context.verify {
                             assertEquals(REQUEST_4.callId(), session.callId)
+                            assertEquals(30, session.ptime)
 
                             session.codec.apply {
                                 assertEquals(CODEC.name, name)
