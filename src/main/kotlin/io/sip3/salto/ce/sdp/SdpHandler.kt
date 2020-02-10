@@ -42,8 +42,6 @@ class SdpHandler : AbstractVerticle() {
 
         const val CMD_HANDLE = "handle"
         const val CMD_TERMINATE = "terminate"
-
-        const val DEFAULT_PTIME = 20
     }
 
     private var expirationDelay: Long = 1000
@@ -123,8 +121,7 @@ class SdpHandler : AbstractVerticle() {
         }
 
         if (session.request != null && session.response != null) {
-            session.codec = defineCodec(session.request!!, session.response!!)
-            definePtime(session.request!!, session.response!!)?.let { session.ptime = it }
+            defineCodec(session)
             send(session)
         }
     }
@@ -132,7 +129,7 @@ class SdpHandler : AbstractVerticle() {
     private fun send(session: SdpSessionDescription) {
         val now = System.currentTimeMillis()
 
-        val sdpSessions = listOf(session.request!!.sdpSessionId(), session.response!!.sdpSessionId())
+        val sdpSessions = session.sdpSessionIds
                 .map { sdpSessionId ->
                     SdpSession().apply {
                         id = sdpSessionId
@@ -146,7 +143,10 @@ class SdpHandler : AbstractVerticle() {
         vertx.eventBus().send(RoutesCE.sdp_info, sdpSessions, USE_LOCAL_CODEC)
     }
 
-    private fun defineCodec(request: MediaDescriptionField, response: MediaDescriptionField): Codec {
+    private fun defineCodec(session: SdpSessionDescription) {
+        val request = session.request!!
+        val response = session.response!!
+
         val payloadType = request.payloadTypes
                 .intersect(response.payloadTypes.asIterable())
                 .first()
@@ -160,22 +160,33 @@ class SdpHandler : AbstractVerticle() {
         // Replace with values from SDP
         codec.payloadType = payloadType.toByte()
         payload?.let { codec.clockRate = it.clockRate }
-        return codec
-    }
 
-    private fun definePtime(request: MediaDescriptionField, response: MediaDescriptionField): Int? {
-        return response.ptime?.time ?: request.ptime?.time
+        session.codec = codec
     }
 
     private class SdpSessionDescription {
+
+        companion object {
+
+            const val DEFAULT_PTIME = 20
+        }
 
         val createdAt = System.currentTimeMillis()
 
         lateinit var callId: String
         lateinit var codec: Codec
-        var ptime: Int = DEFAULT_PTIME
 
         var request: MediaDescriptionField? = null
         var response: MediaDescriptionField? = null
+
+        val ptime: Int by lazy {
+            return@lazy response?.ptime?.time
+                    ?: request?.ptime?.time
+                    ?: DEFAULT_PTIME
+        }
+
+        val sdpSessionIds: List<Long> by lazy {
+            listOf(request!!.sdpSessionId(), response!!.sdpSessionId())
+        }
     }
 }
