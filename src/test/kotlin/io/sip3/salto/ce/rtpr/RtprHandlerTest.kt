@@ -100,7 +100,7 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Receive periodic RTP report`() {
+    fun `Write periodic RTP report to database`() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(RtprHandler::class)
@@ -155,7 +155,7 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Receive cumulative RTCP report`() {
+    fun `Write cumulative RTCP report to database`() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(RtprHandler::class)
@@ -177,9 +177,34 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Use periodic RTP report for metrics`() {
+    fun `Update cumulative RTCP report attributes`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(RtprHandler::class)
+                },
+                execute = {
+                    vertx.eventBus().send(RoutesCE.rtpr, PACKET_2, USE_LOCAL_CODEC)
+                },
+                assert = {
+                    vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                        val (prefix, attributes) = event.body()
+
+                        context.verify {
+                            assertEquals("rtp", prefix)
+                            assertEquals(8, attributes.size)
+                            assertEquals("PCMA", attributes["codec"])
+                        }
+                        context.completeNow()
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Generate QoS metrics per each RTP report`() {
         val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
         Metrics.addRegistry(registry)
+
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
