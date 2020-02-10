@@ -121,7 +121,7 @@ class SdpHandler : AbstractVerticle() {
         }
 
         if (session.request != null && session.response != null) {
-            session.codec = defineCodec(session.request!!, session.response!!)
+            defineCodec(session)
             send(session)
         }
     }
@@ -129,20 +129,24 @@ class SdpHandler : AbstractVerticle() {
     private fun send(session: SdpSessionDescription) {
         val now = System.currentTimeMillis()
 
-        val sdpSessions = listOf(session.request!!.sdpSessionId(), session.response!!.sdpSessionId())
-                .map { id ->
+        val sdpSessions = session.sdpSessionIds
+                .map { sdpSessionId ->
                     SdpSession().apply {
-                        this.id = id
+                        id = sdpSessionId
                         timestamp = now
-                        this.callId = session.callId
-                        this.codec = session.codec
+                        callId = session.callId
+                        codec = session.codec
+                        ptime = session.ptime
                     }
                 }
 
         vertx.eventBus().send(RoutesCE.sdp_info, sdpSessions, USE_LOCAL_CODEC)
     }
 
-    private fun defineCodec(request: MediaDescriptionField, response: MediaDescriptionField): Codec {
+    private fun defineCodec(session: SdpSessionDescription) {
+        val request = session.request!!
+        val response = session.response!!
+
         val payloadType = request.payloadTypes
                 .intersect(response.payloadTypes.asIterable())
                 .first()
@@ -156,10 +160,16 @@ class SdpHandler : AbstractVerticle() {
         // Replace with values from SDP
         codec.payloadType = payloadType.toByte()
         payload?.let { codec.clockRate = it.clockRate }
-        return codec
+
+        session.codec = codec
     }
 
     private class SdpSessionDescription {
+
+        companion object {
+
+            const val DEFAULT_PTIME = 20
+        }
 
         val createdAt = System.currentTimeMillis()
 
@@ -168,5 +178,15 @@ class SdpHandler : AbstractVerticle() {
 
         var request: MediaDescriptionField? = null
         var response: MediaDescriptionField? = null
+
+        val ptime: Int by lazy {
+            return@lazy response?.ptime?.time
+                    ?: request?.ptime?.time
+                    ?: DEFAULT_PTIME
+        }
+
+        val sdpSessionIds: List<Long> by lazy {
+            listOf(request!!.sdpSessionId(), response!!.sdpSessionId())
+        }
     }
 }
