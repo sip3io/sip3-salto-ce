@@ -36,6 +36,26 @@ name: sip3-salto
 #        ascending: [created_at]
 #        hashed: [call_id]
 #      max-collections: 30
+#    - prefix: rtpr_rtp_index
+#      indexes:
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor, codec_name, payload_type]
+#        hashed: [call_id]
+#      max-collections: 30
+#    - prefix: rtpr_rtp_raw
+#      indexes:
+#        ascending: [created_at]
+#        hashed: [call_id]
+#      max-collections: 30
+#    - prefix: rtpr_rtcp_index
+#      indexes:
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor, codec_name, payload_type]
+#        hashed: [call_id]
+#      max-collections: 30
+#    - prefix: rtpr_rtcp_raw
+#      indexes:
+#        ascending: [created_at]
+#        hashed: [call_id]
+#      max-collections: 30
 
 #! Server
 server:

@@ -149,7 +149,7 @@ open class RtprHandler : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
-                put("payload_type", report.payloadType.toInt())
+                put("payload_type", report.payloadType.toString())
                 put("ssrc", report.ssrc)
                 report.callId?.let { put("call_id", it) }
                 report.codecName?.let { put("codec_name", it) }
