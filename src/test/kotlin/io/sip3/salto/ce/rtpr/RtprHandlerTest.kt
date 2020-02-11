@@ -95,6 +95,8 @@ class RtprHandlerTest : VertxTest() {
                 cumulative = true
                 payloadType = 1
                 codecName = "PCMA"
+                rFactor = 12F
+                mos = 13F
             }.encode().array()
         }
     }
@@ -191,9 +193,9 @@ class RtprHandlerTest : VertxTest() {
 
                         context.verify {
                             assertEquals("rtp", prefix)
-                            assertEquals(4, attributes.size)
-                            assertEquals("PCMA", attributes["codec_name"])
-                            assertEquals("1", attributes["payload_type"])
+                            assertEquals(2, attributes.size)
+                            assertEquals(12F, attributes["r_factor"])
+                            assertEquals(13F, attributes["mos"])
                         }
                         context.completeNow()
                     }
