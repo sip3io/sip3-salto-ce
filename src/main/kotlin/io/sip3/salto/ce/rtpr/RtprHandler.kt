@@ -80,6 +80,7 @@ open class RtprHandler : AbstractVerticle() {
         val prefix = prefix(report.source)
 
         if (report.cumulative) {
+            writeAttributes(report)
             writeToDatabase("${prefix}_index", packet, report)
         } else {
             writeToDatabase("${prefix}_raw", packet, report)
@@ -117,6 +118,15 @@ open class RtprHandler : AbstractVerticle() {
 
             Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
         }
+    }
+
+    open fun writeAttributes(report: RtpReportPayload) {
+        val attributes = mutableMapOf<String, Any>().apply {
+            put("mos", report.mos)
+            put("r_factor", report.rFactor)
+        }
+
+        vertx.eventBus().send(RoutesCE.attributes, Pair("rtp", attributes), USE_LOCAL_CODEC)
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
