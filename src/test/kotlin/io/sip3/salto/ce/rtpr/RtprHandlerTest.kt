@@ -191,8 +191,9 @@ class RtprHandlerTest : VertxTest() {
 
                         context.verify {
                             assertEquals("rtp", prefix)
-                            assertEquals(8, attributes.size)
-                            assertEquals("PCMA", attributes["codec"])
+                            assertEquals(4, attributes.size)
+                            assertEquals("PCMA", attributes["codec_name"])
+                            assertEquals("1", attributes["payload_type"])
                         }
                         context.completeNow()
                     }

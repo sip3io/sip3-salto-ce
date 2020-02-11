@@ -124,14 +124,8 @@ open class RtprHandler : AbstractVerticle() {
         val attributes = mutableMapOf<String, Any>().apply {
             put("mos", report.mos)
             put("r_factor", report.rFactor)
-
-            put("expected_packets", report.expectedPacketCount)
-            put("received_packets", report.receivedPacketCount)
-            put("lost_packets", report.lostPacketCount)
-            put("rejected_packets", report.rejectedPacketCount)
-
-            put("codec", report.codecName ?: report.payloadType.toString())
-            put("duration", report.duration)
+            report.codecName?.let { put("codec_name", it) }
+            put("payload_type", report.payloadType.toString())
         }
 
         vertx.eventBus().send(RoutesCE.attributes, Pair("rtp", attributes), USE_LOCAL_CODEC)
