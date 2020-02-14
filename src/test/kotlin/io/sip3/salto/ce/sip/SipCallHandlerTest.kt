@@ -25,7 +25,8 @@ import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -469,11 +470,7 @@ class SipCallHandlerTest : VertxTest() {
                         context.verify {
                             assertTrue(collection.startsWith("sip_call_index_"))
                             assertEquals(NOW, document.getLong("created_at"))
-                            if (replace) {
-                                assertEquals(NOW + 2 + 23 + 128 + 221 + 1, document.getLong("terminated_at"))
-                            } else {
-                                assertNull(document.getLong("terminated_at"))
-                            }
+                            document.getLong("terminated_at")?.let { assertEquals(NOW + 2 + 23 + 128 + 221 + 1, it) }
                             assertEquals(ANSWERED_PACKET_1.srcAddr.addr, document.getString("src_addr"))
                             assertEquals(ANSWERED_PACKET_1.srcAddr.port, document.getInteger("src_port"))
                             assertEquals(ANSWERED_PACKET_1.dstAddr.addr, document.getString("dst_addr"))
@@ -482,7 +479,7 @@ class SipCallHandlerTest : VertxTest() {
                             assertEquals("558552290881", document.getString("callee"))
                             assertEquals("answered", document.getString("state"))
                         }
-                        if (replace) {
+                        if (document.containsKey("terminated_at")) {
                             context.completeNow()
                         }
                     }

@@ -167,7 +167,7 @@ open class SipCallHandler : AbstractVerticle() {
             }
             SipSession.ANSWERED -> {
                 writeAttributes(session)
-                writeToDatabase(PREFIX, session)
+                writeToDatabase(PREFIX, session, replace = true)
                 activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
             else -> {
