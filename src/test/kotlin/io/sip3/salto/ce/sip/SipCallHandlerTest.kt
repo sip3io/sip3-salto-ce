@@ -470,7 +470,7 @@ class SipCallHandlerTest : VertxTest() {
                         context.verify {
                             assertTrue(collection.startsWith("sip_call_index_"))
                             assertEquals(NOW, document.getLong("created_at"))
-                            document.getLong("termiated")?.let { assertEquals(NOW + 2 + 23 + 128 + 221 + 1, it) }
+                            document.getLong("terminated_at")?.let { assertEquals(NOW + 2 + 23 + 128 + 221 + 1, it) }
                             assertEquals(ANSWERED_PACKET_1.srcAddr.addr, document.getString("src_addr"))
                             assertEquals(ANSWERED_PACKET_1.srcAddr.port, document.getInteger("src_port"))
                             assertEquals(ANSWERED_PACKET_1.dstAddr.addr, document.getString("dst_addr"))
