@@ -320,7 +320,7 @@ open class SipCallHandler : AbstractVerticle() {
     open fun writeToDatabase(prefix: String, session: SipSession, replace: Boolean = false) {
         val collection = prefix + "_index_" + timeSuffix.format(session.createdAt)
 
-        val document = JsonObject().apply {
+        val operation = JsonObject().apply {
             put("document", JsonObject().apply {
                 put("state", session.state)
 
@@ -359,7 +359,7 @@ open class SipCallHandler : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
     }
 
     private fun excludeSessionAttributes(attributes: Map<String, Any>): Map<String, Any> {

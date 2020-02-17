@@ -25,7 +25,7 @@ import io.vertx.ext.mongo.MongoClient
 import mu.KotlinLogging
 
 /**
- * Writes bulks of documents to MongoDB
+ * Sends bulks of operations to MongoDB
  */
 class MongoBulkWriter : AbstractVerticle() {
 
@@ -50,8 +50,8 @@ class MongoBulkWriter : AbstractVerticle() {
         if (client != null) {
             vertx.eventBus().localConsumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { bulkOperation ->
                 try {
-                    val (collection, document) = bulkOperation.body()
-                    handle(collection, document)
+                    val (collection, operation) = bulkOperation.body()
+                    handle(collection, operation)
                 } catch (e: Exception) {
                     logger.error("MongoBulkWriter 'handle()' failed.", e)
                 }
@@ -63,9 +63,9 @@ class MongoBulkWriter : AbstractVerticle() {
         flushToDatabase()
     }
 
-    private fun handle(collection: String, document: JsonObject) {
+    private fun handle(collection: String, operation: JsonObject) {
         val bulkOperations = documents.computeIfAbsent(collection) { mutableListOf() }
-        document.apply {
+        operation.apply {
             if (!containsKey("type")) {
                 put("type", "INSERT")
             }
@@ -76,7 +76,7 @@ class MongoBulkWriter : AbstractVerticle() {
                 put("upsert", false)
             }
         }
-        bulkOperations.add(BulkOperation(document))
+        bulkOperations.add(BulkOperation(operation))
         size++
         if (size >= bulkSize) {
             flushToDatabase()

@@ -109,7 +109,7 @@ open class AttributesHandler : AbstractVerticle() {
     open fun writeToDatabase(prefix: String, attribute: Attribute) {
         val collection = prefix + "_" + currentTimeSuffix
 
-        val document = JsonObject().apply {
+        val operation = JsonObject().apply {
             put("type", "UPDATE")
             put("upsert", true)
             put("filter", JsonObject().apply {
@@ -132,6 +132,6 @@ open class AttributesHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
     }
 }

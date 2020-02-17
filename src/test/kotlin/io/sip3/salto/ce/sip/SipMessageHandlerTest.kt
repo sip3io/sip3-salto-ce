@@ -89,9 +89,9 @@ class SipMessageHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
+                        var (collection, operation) = event.body()
 
-                        document = document.getJsonObject("document")
+                        val document = operation.getJsonObject("document")
 
                         context.verify {
                             assertTrue(collection.startsWith("sip_call_raw_"))

@@ -38,9 +38,11 @@ class AttributesHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
-                        val filter = document.getJsonObject("filter")
-                        document = document.getJsonObject("document")
+                        var (collection, operation) = event.body()
+
+                        val filter = operation.getJsonObject("filter")
+                        val document = operation.getJsonObject("document")
+
                         context.verify {
                             assertTrue(collection.startsWith("attributes"))
                             assertEquals(Attribute.TYPE_STRING + ".name", filter.getString("name"))
@@ -66,9 +68,11 @@ class AttributesHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
-                        val filter = document.getJsonObject("filter")
-                        document = document.getJsonObject("document")
+                        var (collection, operation) = event.body()
+
+                        val filter = operation.getJsonObject("filter")
+                        val document = operation.getJsonObject("document")
+
                         context.verify {
                             assertTrue(collection.startsWith("attributes"))
                             assertEquals(Attribute.TYPE_NUMBER + ".name", filter.getString("name"))
@@ -93,9 +97,11 @@ class AttributesHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
-                        val filter = document.getJsonObject("filter")
-                        document = document.getJsonObject("document")
+                        var (collection, operation) = event.body()
+
+                        val filter = operation.getJsonObject("filter")
+                        val document = operation.getJsonObject("document")
+
                         context.verify {
                             assertTrue(collection.startsWith("attributes"))
                             assertEquals(Attribute.TYPE_BOOLEAN + ".name", filter.getString("name"))
