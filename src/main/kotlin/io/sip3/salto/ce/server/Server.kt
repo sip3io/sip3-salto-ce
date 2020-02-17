@@ -46,7 +46,7 @@ class Server : AbstractVerticle() {
     private var bufferSize: Int? = null
     private var sslConfig: JsonObject? = null
 
-    private val packetsReceived = Metrics.counter("packets_received", mapOf("proto" to "hep"))
+    private val packetsReceived = Metrics.counter("packets_received")
 
     override fun start() {
         config().getJsonObject("server").let { config ->
