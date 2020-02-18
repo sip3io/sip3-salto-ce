@@ -473,7 +473,6 @@ class SipCallHandlerTest : VertxTest() {
                             assertTrue(collection.startsWith("sip_call_index_"))
 
                             val setOnInsert = document.getJsonObject("\$setOnInsert")
-                            assertEquals("answered", setOnInsert.getString("state"))
                             assertEquals(NOW, setOnInsert.getLong("created_at"))
                             assertEquals(ANSWERED_PACKET_1.srcAddr.addr, setOnInsert.getString("src_addr"))
                             assertEquals(ANSWERED_PACKET_1.srcAddr.port, setOnInsert.getInteger("src_port"))
@@ -483,6 +482,7 @@ class SipCallHandlerTest : VertxTest() {
                             assertEquals("558552290881", setOnInsert.getString("callee"))
 
                             val set = document.getJsonObject("\$set")
+                            assertEquals("answered", set.getString("state"))
                             set.getLong("terminated_at")?.let { terminatedAt ->
                                 assertEquals(NOW + 2 + 23 + 128 + 221 + 1, terminatedAt)
                                 context.completeNow()

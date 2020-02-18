@@ -35,7 +35,7 @@ class MongoBulkWriter : AbstractVerticle() {
     private var bulkSize = 0
     private val bulkWriteOptions = BulkWriteOptions(false)
 
-    private val documents = mutableMapOf<String, MutableList<BulkOperation>>()
+    private val operations = mutableMapOf<String, MutableList<BulkOperation>>()
     private var size = 0
 
     override fun start() {
@@ -64,7 +64,7 @@ class MongoBulkWriter : AbstractVerticle() {
     }
 
     private fun handle(collection: String, operation: JsonObject) {
-        val bulkOperations = documents.computeIfAbsent(collection) { mutableListOf() }
+        val bulkOperations = operations.computeIfAbsent(collection) { mutableListOf() }
         operation.apply {
             if (!containsKey("type")) {
                 put("type", "INSERT")
@@ -84,14 +84,14 @@ class MongoBulkWriter : AbstractVerticle() {
     }
 
     private fun flushToDatabase() {
-        documents.forEach { (collection, bulkOperations) ->
+        operations.forEach { (collection, bulkOperations) ->
             client!!.bulkWriteWithOptions(collection, bulkOperations, bulkWriteOptions) { asr ->
                 if (asr.failed()) {
                     logger.error("MongoClient 'bulkWriteWithOptions()' failed.", asr.cause())
                 }
             }
         }
-        documents.clear()
+        operations.clear()
         size = 0
     }
 }

@@ -339,8 +339,6 @@ open class SipCallHandler : AbstractVerticle() {
                     put("\$setOnInsert", document)
                 }
                 document.apply {
-                    put("state", session.state)
-
                     put("created_at", session.createdAt)
 
                     val src = session.srcAddr
@@ -366,6 +364,7 @@ open class SipCallHandler : AbstractVerticle() {
                     put("\$set", document)
                 }
                 document.apply {
+                    put("state", session.state)
                     session.terminatedAt?.let { put("terminated_at", it) }
                     session.duration?.let { put("duration", it) }
                     session.attributes.forEach { (name, value) -> put(name, value) }
