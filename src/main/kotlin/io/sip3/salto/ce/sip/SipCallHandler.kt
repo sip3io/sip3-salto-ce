@@ -183,6 +183,12 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
+                .toMutableMap()
+                .apply {
+                    transaction.srcAddr.host?.let { put("src_host", it) }
+                    transaction.dstAddr.host?.let { put("dst_host", it) }
+                }
+
         transaction.tryingAt?.let { tryingAt ->
             if (createdAt < tryingAt) {
                 Metrics.timer(TRYING_DELAY, attributes).record(tryingAt - createdAt, TimeUnit.MILLISECONDS)
@@ -226,6 +232,12 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
+                .toMutableMap()
+                .apply {
+                    transaction.srcAddr.host?.let { put("src_host", it) }
+                    transaction.dstAddr.host?.let { put("dst_host", it) }
+                }
+
         transaction.terminatedAt?.let { terminatedAt ->
             if (createdAt < terminatedAt) {
                 Metrics.timer(DISCONNECT_TIME, attributes).record(terminatedAt - createdAt, TimeUnit.MILLISECONDS)
@@ -277,6 +289,8 @@ open class SipCallHandler : AbstractVerticle() {
                 .toMutableMap()
                 .apply {
                     put(Attributes.state, session.state)
+                    session.srcAddr.host?.let { put("src_host", it) }
+                    session.dstAddr.host?.let { put("dst_host", it) }
                     remove(Attributes.caller)
                     remove(Attributes.callee)
                     remove(Attributes.x_call_id)
@@ -326,13 +340,16 @@ open class SipCallHandler : AbstractVerticle() {
                 put("upsert", true)
                 put("filter", JsonObject().apply {
                     put("created_at", session.createdAt)
-                    put("call_id", session.callId)
                     put("src_addr", session.srcAddr.addr)
                     put("dst_addr", session.dstAddr.addr)
+                    put("call_id", session.callId)
                 })
             }
             put("document", JsonObject().apply {
                 var document = this
+
+                val src = session.srcAddr
+                val dst = session.dstAddr
 
                 if (upsert) {
                     document = JsonObject()
@@ -340,23 +357,11 @@ open class SipCallHandler : AbstractVerticle() {
                 }
                 document.apply {
                     put("created_at", session.createdAt)
-
-                    val src = session.srcAddr
                     put("src_addr", src.addr)
                     put("src_port", src.port)
-                    src.host?.let { put("src_host", it) }
-
-                    val dst = session.dstAddr
                     put("dst_addr", dst.addr)
                     put("dst_port", dst.port)
-                    dst.host?.let { put("dst_host", it) }
-
-                    put("caller", session.caller)
-                    put("callee", session.callee)
                     put("call_id", session.callId)
-
-                    session.setupTime?.let { put("setup_time", it) }
-                    session.establishTime?.let { put("establish_time", it) }
                 }
 
                 if (upsert) {
@@ -365,7 +370,17 @@ open class SipCallHandler : AbstractVerticle() {
                 }
                 document.apply {
                     put("state", session.state)
+
                     session.terminatedAt?.let { put("terminated_at", it) }
+
+                    session.srcAddr.host?.let { put("src_host", it) }
+                    session.dstAddr.host?.let { put("dst_host", it) }
+
+                    put("caller", session.caller)
+                    put("callee", session.callee)
+
+                    session.setupTime?.let { put("setup_time", it) }
+                    session.establishTime?.let { put("establish_time", it) }
                     session.duration?.let { put("duration", it) }
                     session.attributes.forEach { (name, value) -> put(name, value) }
                 }

@@ -214,12 +214,10 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
         val attributes = packet.attributes
+                .toMutableMap()
                 .apply {
                     packet.srcAddr.host?.let { put(Attributes.src_host, it) }
                     packet.dstAddr.host?.let { put(Attributes.dst_host, it) }
-                }
-                .toMutableMap()
-                .apply {
                     message.statusCode()?.let {
                         put("status_type", "${it / 100}xx")
                         put("status_code", it)
