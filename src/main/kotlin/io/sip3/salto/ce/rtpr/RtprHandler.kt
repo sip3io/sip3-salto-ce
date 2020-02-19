@@ -132,7 +132,7 @@ open class RtprHandler : AbstractVerticle() {
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
         val collection = prefix + "_" + timeSuffix.format(packet.timestamp)
 
-        val document = JsonObject().apply {
+        val operation = JsonObject().apply {
             put("document", JsonObject().apply {
                 put("created_at", report.createdAt)
                 put("started_at", report.startedAt)
@@ -173,6 +173,6 @@ open class RtprHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
     }
 }

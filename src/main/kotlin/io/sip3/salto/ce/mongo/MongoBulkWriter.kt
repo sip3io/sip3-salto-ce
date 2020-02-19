@@ -25,7 +25,7 @@ import io.vertx.ext.mongo.MongoClient
 import mu.KotlinLogging
 
 /**
- * Writes bulks of documents to MongoDB
+ * Sends bulks of operations to MongoDB
  */
 class MongoBulkWriter : AbstractVerticle() {
 
@@ -35,7 +35,7 @@ class MongoBulkWriter : AbstractVerticle() {
     private var bulkSize = 0
     private val bulkWriteOptions = BulkWriteOptions(false)
 
-    private val documents = mutableMapOf<String, MutableList<BulkOperation>>()
+    private val operations = mutableMapOf<String, MutableList<BulkOperation>>()
     private var size = 0
 
     override fun start() {
@@ -50,8 +50,8 @@ class MongoBulkWriter : AbstractVerticle() {
         if (client != null) {
             vertx.eventBus().localConsumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { bulkOperation ->
                 try {
-                    val (collection, document) = bulkOperation.body()
-                    handle(collection, document)
+                    val (collection, operation) = bulkOperation.body()
+                    handle(collection, operation)
                 } catch (e: Exception) {
                     logger.error("MongoBulkWriter 'handle()' failed.", e)
                 }
@@ -63,9 +63,9 @@ class MongoBulkWriter : AbstractVerticle() {
         flushToDatabase()
     }
 
-    private fun handle(collection: String, document: JsonObject) {
-        val bulkOperations = documents.computeIfAbsent(collection) { mutableListOf() }
-        document.apply {
+    private fun handle(collection: String, operation: JsonObject) {
+        val bulkOperations = operations.computeIfAbsent(collection) { mutableListOf() }
+        operation.apply {
             if (!containsKey("type")) {
                 put("type", "INSERT")
             }
@@ -76,7 +76,7 @@ class MongoBulkWriter : AbstractVerticle() {
                 put("upsert", false)
             }
         }
-        bulkOperations.add(BulkOperation(document))
+        bulkOperations.add(BulkOperation(operation))
         size++
         if (size >= bulkSize) {
             flushToDatabase()
@@ -84,14 +84,14 @@ class MongoBulkWriter : AbstractVerticle() {
     }
 
     private fun flushToDatabase() {
-        documents.forEach { (collection, bulkOperations) ->
+        operations.forEach { (collection, bulkOperations) ->
             client!!.bulkWriteWithOptions(collection, bulkOperations, bulkWriteOptions) { asr ->
                 if (asr.failed()) {
                     logger.error("MongoClient 'bulkWriteWithOptions()' failed.", asr.cause())
                 }
             }
         }
-        documents.clear()
+        operations.clear()
         size = 0
     }
 }
