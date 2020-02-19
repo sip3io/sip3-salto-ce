@@ -158,7 +158,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun validate(message: SIPMessage): Boolean {
         return message.callId() != null
-                && message.toUri() != null && message.fromUri() != null
+                && message.toUserOrNumber() != null && message.fromUserOrNumber() != null
     }
 
     open suspend fun callUserDefinedFunction(packet: Packet, message: SIPMessage) {
@@ -204,6 +204,11 @@ open class SipMessageHandler : AbstractVerticle() {
                 // whose registration is to be created, queried, or modified.
                 val index = message.toUri().hashCode()
                 prefix + "_${abs(index % instances)}"
+            }
+            RoutesCE.sip + "_message",
+            RoutesCE.sip + "_options" -> {
+                val index = message.callId().hashCode()
+                RoutesCE.sip + "_transaction_${abs(index % instances)}"
             }
             else -> return
         }

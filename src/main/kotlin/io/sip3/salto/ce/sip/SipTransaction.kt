@@ -19,18 +19,33 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.callId
+import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.fromUserOrNumber
 import io.sip3.salto.ce.util.toUserOrNumber
 
 class SipTransaction {
 
+    companion object {
+
+        const val UNKNOWN = "unknown"
+        const val FAILED = "failed"
+        const val CANCELED = "canceled"
+        const val SUCCEED = "succeed"
+        const val REDIRECTED = "redirected"
+        const val UNAUTHORIZED = "unauthorized"
+    }
+
     var createdAt: Long = 0
     var tryingAt: Long? = null
     var ringingAt: Long? = null
     var terminatedAt: Long? = null
+
+    lateinit var method: String
+    var state = UNKNOWN
 
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
@@ -53,6 +68,8 @@ class SipTransaction {
         when (message) {
             is SIPRequest -> {
                 if (createdAt == 0L) {
+                    method = message.cseqMethod()!!
+
                     createdAt = packet.createdAt
                     srcAddr = packet.srcAddr
                     dstAddr = packet.dstAddr
@@ -70,6 +87,8 @@ class SipTransaction {
             }
             is SIPResponse -> {
                 if (createdAt == 0L) {
+                    method = message.cseqMethod()!!
+
                     createdAt = packet.createdAt
                     srcAddr = packet.dstAddr
                     dstAddr = packet.srcAddr
@@ -78,7 +97,8 @@ class SipTransaction {
                     caller = message.fromUserOrNumber()!!
                 }
 
-                when (message.statusCode) {
+                val statusCode = message.statusCode
+                when (statusCode) {
                     100 -> if (tryingAt == null) tryingAt = packet.createdAt
                     in 180..183 -> if (ringingAt == null) ringingAt = packet.createdAt
                     in 200..699 -> {
@@ -89,6 +109,7 @@ class SipTransaction {
                             response = message
                             terminatedAt = packet.createdAt
                         }
+                        updateState(statusCode)
                     }
                 }
             }
@@ -96,5 +117,24 @@ class SipTransaction {
 
         // Copy attributes
         packet.attributes.forEach { (name, value) -> attributes[name] = value }
+    }
+
+    private fun updateState(statusCode: Int) {
+        state = when (statusCode) {
+            200 -> SUCCEED
+            in 300..399 -> REDIRECTED
+            401, 407 -> UNAUTHORIZED
+            487 -> CANCELED
+            in 400..699 -> {
+                attributes[Attributes.error_code] = statusCode.toString()
+                attributes[Attributes.error_type] = when (statusCode) {
+                    in 400..499 -> "client"
+                    in 500..599 -> "server"
+                    else -> "global"
+                }
+                FAILED
+            }
+            else -> UNKNOWN
+        }
     }
 }
