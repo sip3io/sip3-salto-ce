@@ -118,7 +118,7 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.eventBus().send(RoutesCE.sip, PACKET_1, USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_call_0") { event ->
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
                         var (packet, message) = event.body()
 
                         context.verify {
@@ -155,7 +155,7 @@ class SipMessageHandlerTest : VertxTest() {
                     }
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_call_0") { event ->
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
                         var (packet, _) = event.body()
 
                         val attributes = packet.attributes
@@ -194,7 +194,7 @@ class SipMessageHandlerTest : VertxTest() {
                     }
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_call_0") { event ->
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
                         var (packet, _) = event.body()
 
                         val attributes = packet.attributes

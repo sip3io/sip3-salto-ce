@@ -32,6 +32,7 @@ class SipTransaction {
     companion object {
 
         const val UNKNOWN = "unknown"
+        const val PROCEEDING = "proceeding"
         const val FAILED = "failed"
         const val CANCELED = "canceled"
         const val SUCCEED = "succeed"
@@ -44,7 +45,12 @@ class SipTransaction {
     var ringingAt: Long? = null
     var terminatedAt: Long? = null
 
-    lateinit var method: String
+    val id by lazy {
+        request?.transactionId ?: response?.transactionId!!
+    }
+    val cseqMethod by lazy {
+        request?.cseqMethod() ?: response?.cseqMethod()!!
+    }
     var state = UNKNOWN
 
     lateinit var srcAddr: Address
@@ -68,8 +74,6 @@ class SipTransaction {
         when (message) {
             is SIPRequest -> {
                 if (createdAt == 0L) {
-                    method = message.cseqMethod()!!
-
                     createdAt = packet.createdAt
                     srcAddr = packet.srcAddr
                     dstAddr = packet.dstAddr
@@ -87,8 +91,6 @@ class SipTransaction {
             }
             is SIPResponse -> {
                 if (createdAt == 0L) {
-                    method = message.cseqMethod()!!
-
                     createdAt = packet.createdAt
                     srcAddr = packet.dstAddr
                     dstAddr = packet.srcAddr
@@ -99,17 +101,27 @@ class SipTransaction {
 
                 val statusCode = message.statusCode
                 when (statusCode) {
-                    100 -> if (tryingAt == null) tryingAt = packet.createdAt
-                    in 180..183 -> if (ringingAt == null) ringingAt = packet.createdAt
+                    100 ->  {
+                        if (tryingAt == null) {
+                            tryingAt = packet.createdAt
+                        }
+                    }
+                    in 180..183 -> {
+                        if (ringingAt == null) {
+                            ringingAt = packet.createdAt
+                            response = message
+                            updateState(statusCode)
+                        }
+                    }
                     in 200..699 -> {
                         // Received message is a retransmit
-                        if (response != null) {
+                        if (response?.statusCode == statusCode) {
                             attributes["retransmits"] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
+                            updateState(statusCode)
                         }
-                        updateState(statusCode)
                     }
                 }
             }
@@ -121,6 +133,8 @@ class SipTransaction {
 
     private fun updateState(statusCode: Int) {
         state = when (statusCode) {
+            100 -> PROCEEDING
+            in 180..183 -> PROCEEDING
             200 -> SUCCEED
             in 300..399 -> REDIRECTED
             401, 407 -> UNAUTHORIZED

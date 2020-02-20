@@ -27,6 +27,7 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 /**
  * Handles SIP Transactions
@@ -46,6 +47,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var terminationTimeout: Long = 5000
 
     private var recordCallUsersAttributes = false
+    private var instances = 1
 
     private var transactions = mutableMapOf<String, SipTransaction>()
 
@@ -67,6 +69,9 @@ open class SipTransactionHandler : AbstractVerticle() {
         config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
             recordCallUsersAttributes = it
         }
+        config().getJsonObject("vertx")?.getInteger("instances")?.let {
+            instances = it
+        }
 
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredTransactions()
@@ -78,14 +83,13 @@ open class SipTransactionHandler : AbstractVerticle() {
                 val (packet, message) = event.body()
                 handle(packet, message)
             } catch (e: Exception) {
-                logger.error("MessageHandler 'handle()' failed.", e)
+                logger.error("SipTransactionHandler 'handle()' failed.", e)
             }
         }
     }
 
     open fun handle(packet: Packet, message: SIPMessage) {
-        val tid = message.transactionId()
-        transactions.getOrPut(tid) { SipTransaction() }.apply {
+        transactions.getOrPut(message.transactionId()) { SipTransaction() }.apply {
             addMessage(packet, message)
         }
     }
@@ -94,14 +98,27 @@ open class SipTransactionHandler : AbstractVerticle() {
         val now = System.currentTimeMillis()
 
         transactions.filterValues { transaction ->
-            (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt
-            + aggregationTimeout) < now
+            (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt + aggregationTimeout) < now
         }.forEach { (tid, transaction) ->
             transactions.remove(tid)
             writeAttributes(transaction)
+            routeTransaction(transaction)
+        }
+    }
 
-            val prefix = RoutesCE.sip + "_${transaction.method.toLowerCase()}"
-            writeToDatabase(prefix, transaction)
+    open fun routeTransaction(transaction: SipTransaction) {
+        val prefix = when (transaction.cseqMethod) {
+            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${transaction.cseqMethod.toLowerCase()}"
+            else -> RoutesCE.sip + "_call"
+        }
+
+        when (prefix) {
+            RoutesCE.sip + "_call" -> {
+                val index = transaction.callId.hashCode()
+                val route = prefix + "_${abs(index % instances)}"
+                vertx.eventBus().send(route, transaction, USE_LOCAL_CODEC)
+            }
+            else -> writeToDatabase(prefix, transaction)
         }
     }
 
@@ -112,7 +129,7 @@ open class SipTransactionHandler : AbstractVerticle() {
                     remove(Attributes.src_host)
                     remove(Attributes.dst_host)
 
-                    put(Attributes.method, transaction.method.toLowerCase())
+                    put(Attributes.method, transaction.cseqMethod.toLowerCase())
 
                     put(Attributes.call_id, "")
                     remove(Attributes.x_call_id)

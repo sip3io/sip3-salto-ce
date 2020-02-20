@@ -16,7 +16,6 @@
 
 package io.sip3.salto.ce.sip
 
-import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.Attributes
@@ -358,6 +357,9 @@ class SipCallHandlerTest : VertxTest() {
 
     @Test
     fun `Aggregate and check 'unknown' session`() {
+        val transaction = SipTransaction().apply {
+            addPacket(UNKNOWN_PACKET_1)
+        }
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
@@ -371,7 +373,7 @@ class SipCallHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(UNKNOWN_PACKET_1), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sip + "_call_0", transaction, USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -398,6 +400,12 @@ class SipCallHandlerTest : VertxTest() {
 
     @Test
     fun `Aggregate and check 'failed' session`() {
+        val transaction = SipTransaction().apply {
+            addPacket(FAILED_PACKET_1)
+            addPacket(FAILED_PACKET_2)
+            addPacket(FAILED_PACKET_3)
+        }
+
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
@@ -411,9 +419,7 @@ class SipCallHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(FAILED_PACKET_1), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(FAILED_PACKET_2), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(FAILED_PACKET_3), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sip + "_call_0", transaction, USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -443,6 +449,16 @@ class SipCallHandlerTest : VertxTest() {
 
     @Test
     fun `Aggregate and check 'answered' session`() {
+        val inviteTransaction = SipTransaction().apply {
+            addPacket(ANSWERED_PACKET_1)
+            addPacket(ANSWERED_PACKET_2)
+            addPacket(ANSWERED_PACKET_3)
+        }
+        val byeTransaction = SipTransaction().apply {
+            addPacket(ANSWERED_PACKET_5)
+            addPacket(ANSWERED_PACKET_6)
+        }
+
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
@@ -456,12 +472,8 @@ class SipCallHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(ANSWERED_PACKET_1), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(ANSWERED_PACKET_2), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(ANSWERED_PACKET_3), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(ANSWERED_PACKET_4), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(ANSWERED_PACKET_5), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", sipCallHandlerMessage(ANSWERED_PACKET_6), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sip + "_call_0", inviteTransaction, USE_LOCAL_CODEC)
+                    vertx.eventBus().send(RoutesCE.sip + "_call_0", byeTransaction, USE_LOCAL_CODEC)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -470,7 +482,7 @@ class SipCallHandlerTest : VertxTest() {
                         var document = operation.getJsonObject("document")
 
                         context.verify {
-                            assertTrue(collection.startsWith("sip_call_index_"))
+                            assertTrue(collection.startsWith ("sip_call_index_"))
 
                             val setOnInsert = document.getJsonObject("\$setOnInsert")
                             assertEquals(NOW, setOnInsert.getLong("created_at"))
@@ -493,8 +505,8 @@ class SipCallHandlerTest : VertxTest() {
         )
     }
 
-    private fun sipCallHandlerMessage(packet: Packet): Pair<Packet, SIPMessage> {
+    private fun SipTransaction.addPacket(packet: Packet) {
         val message = StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
-        return Pair(packet, message)
+        addMessage(packet, message)
     }
 }

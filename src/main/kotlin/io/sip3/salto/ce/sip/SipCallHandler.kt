@@ -16,17 +16,12 @@
 
 package io.sip3.salto.ce.sip
 
-import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
-import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.sdp.SdpHandler
-import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.hasSdp
-import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
@@ -50,7 +45,6 @@ open class SipCallHandler : AbstractVerticle() {
         const val SETUP_TIME = PREFIX + "_setup-time"
         const val ESTABLISH_TIME = PREFIX + "_establish-time"
         const val DISCONNECT_TIME = PREFIX + "_disconnect-time"
-        const val APPROACHING = PREFIX + "_approaching"
         const val ESTABLISHED = PREFIX + "_established"
     }
 
@@ -61,9 +55,6 @@ open class SipCallHandler : AbstractVerticle() {
     private var durationTimeout: Long = 3600000
     private var transactionExclusions = emptyList<String>()
     private var recordCallUsersAttributes = false
-
-    private var inviteTransactions = mutableMapOf<String, SipTransaction>()
-    private var byeTransactions = mutableMapOf<String, SipTransaction>()
 
     private var activeSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
 
@@ -93,71 +84,41 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         vertx.setPeriodic(expirationDelay) {
-            terminateExpiredTransactions()
             terminateExpiredCallSessions()
         }
 
         val index = config().getInteger("index")
-        vertx.eventBus().localConsumer<Pair<Packet, SIPMessage>>(PREFIX + "_$index") { event ->
+        vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_$index") { event ->
             try {
-                val (packet, message) = event.body()
-                handle(packet, message)
+                val transaction = event.body()
+                handle(transaction)
             } catch (e: Exception) {
                 logger.error("SipCallHandler 'handle()' failed.", e)
             }
         }
     }
 
-    open fun handle(packet: Packet, message: SIPMessage) {
-        val tid = message.transactionId()
-        when (message.cseqMethod()) {
+    open fun handle(transaction: SipTransaction) {
+        when (transaction.cseqMethod) {
             "INVITE" -> {
-                inviteTransactions.getOrPut(tid) { SipTransaction() }.apply {
-                    addMessage(packet, message)
-
-                    if (message.hasSdp()) {
-                        vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_HANDLE, message), USE_LOCAL_CODEC)
-                    }
+                if (transaction.response?.hasSdp() ?: false) {
+                    vertx.eventBus().send(RoutesCE.sdp_session, transaction, USE_LOCAL_CODEC)
                 }
+
+                terminateInviteTransaction(transaction)
             }
             "ACK" -> {
                 // To simplify call aggregation we decided to skip ACK transaction.
                 // Moreover, skipped ACK transaction will not affect final result.
             }
             "BYE" -> {
-                byeTransactions.getOrPut(tid) { SipTransaction() }.addMessage(packet, message)
+                terminateByeTransaction(transaction)
             }
-        }
-    }
-
-    open fun terminateExpiredTransactions() {
-        val now = System.currentTimeMillis()
-
-        inviteTransactions.filterValues { transaction ->
-            val isExpired = (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt + aggregationTimeout) < now
-
-            if (!isExpired) {
-                val attributes = excludeSessionAttributes(transaction.attributes)
-                Metrics.counter(APPROACHING, attributes).increment()
-            }
-
-            return@filterValues isExpired
-        }.forEach { (tid, transaction) ->
-            inviteTransactions.remove(tid)
-            terminateInviteTransaction(transaction)
-        }
-
-        byeTransactions.filterValues { transaction ->
-            return@filterValues (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt + aggregationTimeout) < now
-        }.forEach { (tid, transaction) ->
-            byeTransactions.remove(tid)
-            terminateByeTransaction(transaction)
         }
     }
 
     open fun terminateInviteTransaction(transaction: SipTransaction) {
         val session = activeSessions.get(transaction.callId)?.get(transaction.legId) ?: SipSession()
-
         session.addInviteTransaction(transaction)
 
         when (session.state) {
@@ -176,7 +137,6 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         calculateInviteTransactionMetrics(transaction)
-        vertx.eventBus().send(RoutesCE.sdp_session, Pair(SdpHandler.CMD_TERMINATE, session.callId), USE_LOCAL_CODEC)
     }
 
     open fun calculateInviteTransactionMetrics(transaction: SipTransaction) {

@@ -142,6 +142,96 @@ class SipTransactionHandlerTest : VertxTest() {
 
                     """.trimIndent().toByteArray()
         }
+
+        // INVITE
+        val FAILED_PACKET_1 = Packet().apply {
+            timestamp = Timestamp(SipCallHandlerTest.NOW)
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            attributes[Attributes.caller] = "caller"
+            payload = """
+                        INVITE sip:321@116.203.55.139;user=phone SIP/2.0
+                        Via: SIP/2.0/UDP 176.9.119.117:5063;rport;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515
+                        From: <sip:123@176.9.119.117:5063;user=phone>;tag=3997885528-3926998818-1774583950-1258246515
+                        To: <sip:321@116.203.55.139;user=phone>
+                        Call-ID: 58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117
+                        CSeq: 1 INVITE
+                        Allow: ACK,BYE,CANCEL,INFO,INVITE,OPTIONS,REFER,REGISTER,UPDATE
+                        Max-Forwards: 70
+                        Content-Type: application/sdp
+                        Content-Length: 334
+
+                        Content-Type: application/sdp
+
+                        v=0
+                        o=- 1576746605 1576746605 IN IP4 176.9.119.117
+                        s=-
+                        c=IN IP4 176.9.119.117
+                        t=0 0
+                        m=audio 41504 RTP/AVP 8 18 0 96
+                        a=rtpmap:8 PCMA/8000
+                        a=rtpmap:18 G729/8000
+                        
+                    """.trimIndent().toByteArray()
+        }
+
+        // 100 Trying
+        val FAILED_PACKET_2 = Packet().apply {
+            timestamp = Timestamp(SipCallHandlerTest.NOW + 107)
+            srcAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            attributes["include-me"] = true
+            payload = """
+                        SIP/2.0 100 Trying
+                        Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063
+                        From: <sip:123@176.9.119.117:5063;user=phone>;tag=3997885528-3926998818-1774583950-1258246515
+                        To: <sip:321@116.203.55.139;user=phone>
+                        Call-ID: 58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117
+                        CSeq: 1 INVITE
+                        Server: Asterisk PBX 13.29.1
+                        Allow: INVITE,ACK,CANCEL,OPTIONS,BYE,REFER,SUBSCRIBE,NOTIFY,INFO,PUBLISH,MESSAGE
+                        Supported: replaces,timer
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
+
+        // 503 Service Unavailable
+        val FAILED_PACKET_3 = Packet().apply {
+            timestamp = Timestamp(SipCallHandlerTest.NOW + 107 + 342)
+            srcAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            payload = """
+                        SIP/2.0 503 Service Unavailable
+                        Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063
+                        From: <sip:123@176.9.119.117:5063;user=phone>;tag=3997885528-3926998818-1774583950-1258246515
+                        To: <sip:321@116.203.55.139;user=phone>;tag=as50d13c8f
+                        Call-ID: 58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117
+                        CSeq: 1 INVITE
+                        Server: Asterisk PBX 13.29.1
+                        Allow: INVITE,ACK,CANCEL,OPTIONS,BYE,REFER,SUBSCRIBE,NOTIFY,INFO,PUBLISH,MESSAGE
+                        Supported: replaces,timer
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
+
     }
 
     @Test
@@ -223,6 +313,41 @@ class SipTransactionHandlerTest : VertxTest() {
                 }
         )
     }
+
+    @Test
+    fun `Aggregate failed INVITE transaction`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
+                        put("index", 0)
+                        put("sip", JsonObject().apply {
+                            put("transaction", JsonObject().apply {
+                                put("expiration-delay", 100)
+                                put("aggregation-timeout", 100)
+                                put("termination-timeout", 100)
+                            })
+                        })
+                    })
+                },
+                execute = {
+                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_1), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_2), USE_LOCAL_CODEC)
+                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_3), USE_LOCAL_CODEC)
+                },
+                assert = {
+                    vertx.eventBus().consumer<SipTransaction>(RoutesCE.sip + "_call_0") { event ->
+                        val transaction = event.body()
+
+                        context.verify {
+                            assertEquals("INVITE", transaction.cseqMethod)
+                            assertEquals(SipTransaction.FAILED, transaction.state)
+                        }
+                        context.completeNow()
+                    }
+                }
+        )
+    }
+
 
     private fun handlerMessage(packet: Packet): Pair<Packet, SIPMessage> {
         val message = StringMsgParser().parseSIPMessage(packet.payload, true, false, null)

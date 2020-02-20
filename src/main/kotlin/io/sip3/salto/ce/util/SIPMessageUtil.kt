@@ -97,14 +97,18 @@ fun SIPMessage.hasSdp(): Boolean {
 }
 
 fun SIPMessage.sessionDescription(): SessionDescription? {
-    if (this.contentTypeHeader?.mediaSubType == "sdp") {
-        return SessionDescriptionParser.parse(this.messageContent)
-    } else {
-        this.multipartMimeContent?.contents?.forEach { mimeContent ->
-            if (mimeContent.matches("sdp")) {
-                return SessionDescriptionParser.parse(mimeContent.content.toString())
+    try {
+        if (this.contentTypeHeader?.mediaSubType == "sdp") {
+            return SessionDescriptionParser.parse(this.messageContent)
+        } else {
+            this.multipartMimeContent?.contents?.forEach { mimeContent ->
+                if (mimeContent.matches("sdp")) {
+                    return SessionDescriptionParser.parse(mimeContent.content.toString())
+                }
             }
         }
+    } catch (e: Exception) {
+        // Ignore parsing errors
     }
 
     return null
