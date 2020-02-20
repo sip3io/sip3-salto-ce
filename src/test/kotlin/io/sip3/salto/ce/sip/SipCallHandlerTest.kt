@@ -375,9 +375,10 @@ class SipCallHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
+                        var (collection, operation) = event.body()
 
-                        document = document.getJsonObject("document")
+                        val document = operation.getJsonObject("document")
+
                         context.verify {
                             assertTrue(collection.startsWith("sip_call_index_"))
                             assertEquals(NOW, document.getLong("created_at"))
@@ -416,9 +417,10 @@ class SipCallHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
+                        var (collection, operation) = event.body()
 
-                        document = document.getJsonObject("document")
+                        val document = operation.getJsonObject("document")
+
                         context.verify {
                             assertTrue(collection.startsWith("sip_call_index_"))
                             assertEquals(NOW, document.getLong("created_at"))
@@ -463,24 +465,28 @@ class SipCallHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
-                        val replace = document.containsKey("upsert")
+                        var (collection, operation) = event.body()
 
-                        document = document.getJsonObject("document")
+                        var document = operation.getJsonObject("document")
+
                         context.verify {
                             assertTrue(collection.startsWith("sip_call_index_"))
-                            assertEquals(NOW, document.getLong("created_at"))
-                            document.getLong("terminated_at")?.let { assertEquals(NOW + 2 + 23 + 128 + 221 + 1, it) }
-                            assertEquals(ANSWERED_PACKET_1.srcAddr.addr, document.getString("src_addr"))
-                            assertEquals(ANSWERED_PACKET_1.srcAddr.port, document.getInteger("src_port"))
-                            assertEquals(ANSWERED_PACKET_1.dstAddr.addr, document.getString("dst_addr"))
-                            assertEquals(ANSWERED_PACKET_1.dstAddr.port, document.getInteger("dst_port"))
-                            assertEquals("4801370F02092417", document.getString("caller"))
-                            assertEquals("558552290881", document.getString("callee"))
-                            assertEquals("answered", document.getString("state"))
-                        }
-                        if (document.containsKey("terminated_at")) {
-                            context.completeNow()
+
+                            val setOnInsert = document.getJsonObject("\$setOnInsert")
+                            assertEquals(NOW, setOnInsert.getLong("created_at"))
+                            assertEquals(ANSWERED_PACKET_1.srcAddr.addr, setOnInsert.getString("src_addr"))
+                            assertEquals(ANSWERED_PACKET_1.srcAddr.port, setOnInsert.getInteger("src_port"))
+                            assertEquals(ANSWERED_PACKET_1.dstAddr.addr, setOnInsert.getString("dst_addr"))
+                            assertEquals(ANSWERED_PACKET_1.dstAddr.port, setOnInsert.getInteger("dst_port"))
+
+                            val set = document.getJsonObject("\$set")
+                            assertEquals("4801370F02092417", set.getString("caller"))
+                            assertEquals("558552290881", set.getString("callee"))
+                            assertEquals("answered", set.getString("state"))
+                            set.getLong("terminated_at")?.let { terminatedAt ->
+                                assertEquals(NOW + 2 + 23 + 128 + 221 + 1, terminatedAt)
+                                context.completeNow()
+                            }
                         }
                     }
                 }

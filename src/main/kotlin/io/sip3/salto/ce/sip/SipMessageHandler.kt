@@ -219,12 +219,10 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
         val attributes = packet.attributes
+                .toMutableMap()
                 .apply {
                     packet.srcAddr.host?.let { put(Attributes.src_host, it) }
                     packet.dstAddr.host?.let { put(Attributes.dst_host, it) }
-                }
-                .toMutableMap()
-                .apply {
                     message.statusCode()?.let {
                         put("status_type", "${it / 100}xx")
                         put("status_code", it)
@@ -242,7 +240,7 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage) {
         val collection = prefix + "_raw_" + timeSuffix.format(packet.timestamp)
 
-        val document = JsonObject().apply {
+        val operation = JsonObject().apply {
             put("document", JsonObject().apply {
                 val timestamp = packet.timestamp
                 put("created_at", timestamp.time)
@@ -263,6 +261,6 @@ open class SipMessageHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
     }
 }

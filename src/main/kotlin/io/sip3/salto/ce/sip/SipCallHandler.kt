@@ -167,7 +167,7 @@ open class SipCallHandler : AbstractVerticle() {
             }
             SipSession.ANSWERED -> {
                 writeAttributes(session)
-                writeToDatabase(PREFIX, session, replace = true)
+                writeToDatabase(PREFIX, session, upsert = true)
                 activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
             else -> {
@@ -183,6 +183,12 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
+                .toMutableMap()
+                .apply {
+                    transaction.srcAddr.host?.let { put("src_host", it) }
+                    transaction.dstAddr.host?.let { put("dst_host", it) }
+                }
+
         transaction.tryingAt?.let { tryingAt ->
             if (createdAt < tryingAt) {
                 Metrics.timer(TRYING_DELAY, attributes).record(tryingAt - createdAt, TimeUnit.MILLISECONDS)
@@ -226,6 +232,12 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
+                .toMutableMap()
+                .apply {
+                    transaction.srcAddr.host?.let { put("src_host", it) }
+                    transaction.dstAddr.host?.let { put("dst_host", it) }
+                }
+
         transaction.terminatedAt?.let { terminatedAt ->
             if (createdAt < terminatedAt) {
                 Metrics.timer(DISCONNECT_TIME, attributes).record(terminatedAt - createdAt, TimeUnit.MILLISECONDS)
@@ -268,7 +280,7 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         writeAttributes(session)
-        writeToDatabase(PREFIX, session, replace = (session.state == SipSession.ANSWERED))
+        writeToDatabase(PREFIX, session, upsert = (session.state == SipSession.ANSWERED))
         calculateCallSessionMetrics(session)
     }
 
@@ -277,6 +289,8 @@ open class SipCallHandler : AbstractVerticle() {
                 .toMutableMap()
                 .apply {
                     put(Attributes.state, session.state)
+                    session.srcAddr.host?.let { put("src_host", it) }
+                    session.dstAddr.host?.let { put("dst_host", it) }
                     remove(Attributes.caller)
                     remove(Attributes.callee)
                     remove(Attributes.x_call_id)
@@ -317,49 +331,63 @@ open class SipCallHandler : AbstractVerticle() {
         vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
     }
 
-    open fun writeToDatabase(prefix: String, session: SipSession, replace: Boolean = false) {
+    open fun writeToDatabase(prefix: String, session: SipSession, upsert: Boolean = false) {
         val collection = prefix + "_index_" + timeSuffix.format(session.createdAt)
 
-        val document = JsonObject().apply {
-            put("document", JsonObject().apply {
-                put("state", session.state)
-
-                put("created_at", session.createdAt)
-                put("terminated_at", session.terminatedAt)
-
-                val src = session.srcAddr
-                put("src_addr", src.addr)
-                put("src_port", src.port)
-                src.host?.let { put("src_host", it) }
-
-                val dst = session.dstAddr
-                put("dst_addr", dst.addr)
-                put("dst_port", dst.port)
-                dst.host?.let { put("dst_host", it) }
-
-                put("caller", session.caller)
-                put("callee", session.callee)
-                put("call_id", session.callId)
-
-                session.duration?.let { put("duration", it) }
-                session.setupTime?.let { put("setup_time", it) }
-                session.establishTime?.let { put("establish_time", it) }
-
-                session.attributes.forEach { (name, value) -> put(name, value) }
-            })
-            if (replace) {
-                put("type", "REPLACE")
+        val operation = JsonObject().apply {
+            if (upsert) {
+                put("type", "UPDATE")
+                put("upsert", true)
                 put("filter", JsonObject().apply {
                     put("created_at", session.createdAt)
-                    put("call_id", session.callId)
                     put("src_addr", session.srcAddr.addr)
                     put("dst_addr", session.dstAddr.addr)
+                    put("call_id", session.callId)
                 })
-                put("upsert", true)
             }
+            put("document", JsonObject().apply {
+                var document = this
+
+                val src = session.srcAddr
+                val dst = session.dstAddr
+
+                if (upsert) {
+                    document = JsonObject()
+                    put("\$setOnInsert", document)
+                }
+                document.apply {
+                    put("created_at", session.createdAt)
+                    put("src_addr", src.addr)
+                    put("src_port", src.port)
+                    put("dst_addr", dst.addr)
+                    put("dst_port", dst.port)
+                    put("call_id", session.callId)
+                }
+
+                if (upsert) {
+                    document = JsonObject()
+                    put("\$set", document)
+                }
+                document.apply {
+                    put("state", session.state)
+
+                    session.terminatedAt?.let { put("terminated_at", it) }
+
+                    session.srcAddr.host?.let { put("src_host", it) }
+                    session.dstAddr.host?.let { put("dst_host", it) }
+
+                    put("caller", session.caller)
+                    put("callee", session.callee)
+
+                    session.setupTime?.let { put("setup_time", it) }
+                    session.establishTime?.let { put("establish_time", it) }
+                    session.duration?.let { put("duration", it) }
+                    session.attributes.forEach { (name, value) -> put(name, value) }
+                }
+            })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
     }
 
     private fun excludeSessionAttributes(attributes: Map<String, Any>): Map<String, Any> {
