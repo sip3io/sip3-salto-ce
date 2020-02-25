@@ -89,7 +89,7 @@ open class SipOptionsHandler : AbstractVerticle() {
     }
 
     open fun writeToDatabase(prefix: String, transaction: SipTransaction) {
-        val collection = prefix + "_" + timeSuffix.format(transaction.createdAt)
+        val collection = prefix + "_index_" + timeSuffix.format(transaction.createdAt)
 
         val document = JsonObject().apply {
             put("document", JsonObject().apply {

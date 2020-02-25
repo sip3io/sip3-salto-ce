@@ -330,7 +330,6 @@ class SipTransactionHandlerTest : VertxTest() {
         )
     }
 
-
     private fun handlerMessage(packet: Packet): Pair<Packet, SIPMessage> {
         val message = StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         return Pair(packet, message)
