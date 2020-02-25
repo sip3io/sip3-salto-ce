@@ -104,23 +104,95 @@ class SipTransaction {
                     100 ->  {
                         if (tryingAt == null) {
                             tryingAt = packet.createdAt
+                            state = PROCEEDING
                         }
                     }
                     in 180..183 -> {
                         if (ringingAt == null) {
                             ringingAt = packet.createdAt
-                            response = message
-                            updateState(statusCode)
+                            if (terminatedAt == null) {
+                                response = message
+                                state = PROCEEDING
+                            }
                         }
                     }
-                    in 200..699 -> {
+                    200 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             attributes["retransmits"] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
-                            updateState(statusCode)
+                            state = SUCCEED
+                        }
+                    }
+                    in 300..399 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+                            state = REDIRECTED
+                        }
+                    }
+                    401, 407 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+                            state = UNAUTHORIZED
+                        }
+                    }
+                    487 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+                            state = CANCELED
+                        }
+                    }
+                    in 400..499 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+
+                            attributes[Attributes.error_code] = statusCode.toString()
+                            attributes[Attributes.error_type] = "client"
+                            state = FAILED
+                        }
+                    }
+                    in 500..599 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+
+                            attributes[Attributes.error_code] = statusCode.toString()
+                            attributes[Attributes.error_type] = "server"
+                            state = FAILED
+                        }
+                    }
+                    in 600..699 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+
+                            attributes[Attributes.error_code] = statusCode.toString()
+                            attributes[Attributes.error_type] = "global"
+                            state = FAILED
                         }
                     }
                 }
@@ -129,26 +201,5 @@ class SipTransaction {
 
         // Copy attributes
         packet.attributes.forEach { (name, value) -> attributes[name] = value }
-    }
-
-    private fun updateState(statusCode: Int) {
-        state = when (statusCode) {
-            100 -> PROCEEDING
-            in 180..183 -> PROCEEDING
-            200 -> SUCCEED
-            in 300..399 -> REDIRECTED
-            401, 407 -> UNAUTHORIZED
-            487 -> CANCELED
-            in 400..699 -> {
-                attributes[Attributes.error_code] = statusCode.toString()
-                attributes[Attributes.error_type] = when (statusCode) {
-                    in 400..499 -> "client"
-                    in 500..599 -> "server"
-                    else -> "global"
-                }
-                FAILED
-            }
-            else -> UNKNOWN
-        }
     }
 }

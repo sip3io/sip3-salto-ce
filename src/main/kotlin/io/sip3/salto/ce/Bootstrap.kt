@@ -28,6 +28,8 @@ import io.sip3.salto.ce.sdp.SdpHandler
 import io.sip3.salto.ce.server.Server
 import io.sip3.salto.ce.sip.SipCallHandler
 import io.sip3.salto.ce.sip.SipMessageHandler
+import io.sip3.salto.ce.sip.SipMessagesHandler
+import io.sip3.salto.ce.sip.SipOptionsHandler
 import io.sip3.salto.ce.sip.SipTransactionHandler
 import io.sip3.salto.ce.socket.ManagementSocket
 import io.vertx.core.json.JsonObject
@@ -55,6 +57,8 @@ open class Bootstrap : AbstractBootstrap() {
         vertx.deployVerticle(SipCallHandler::class, config, instances)
         vertx.deployVerticle(SipMessageHandler::class, config, instances)
         vertx.deployVerticle(SipTransactionHandler::class, config, instances)
+        vertx.deployVerticle(SipMessagesHandler::class, config, instances)
+        vertx.deployVerticle(SipOptionsHandler::class, config, instances)
         vertx.deployVerticle(RtprHandler::class, config, instances)
         vertx.deployVerticle(HepDecoder::class, config, instances)
         vertx.deployVerticle(Decoder::class, config, instances)

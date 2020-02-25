@@ -22,6 +22,8 @@ import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.util.cseqMethod
+import io.sip3.salto.ce.util.toUri
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -89,8 +91,11 @@ open class SipTransactionHandler : AbstractVerticle() {
     }
 
     open fun handle(packet: Packet, message: SIPMessage) {
-        transactions.getOrPut(message.transactionId()) { SipTransaction() }.apply {
-            addMessage(packet, message)
+        when (message.cseqMethod()) {
+            // To simplify call aggregation we decided to skip ACK and CANCEL transaction.
+            // Moreover, skipped ACK and CANCEL transactions will not affect final result.
+            "ACK", "CANCEL" -> return
+            else -> transactions.getOrPut(message.transactionId()) { SipTransaction() }.addMessage(packet, message)
         }
     }
 
@@ -101,7 +106,6 @@ open class SipTransactionHandler : AbstractVerticle() {
             (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt + aggregationTimeout) < now
         }.forEach { (tid, transaction) ->
             transactions.remove(tid)
-            writeAttributes(transaction)
             routeTransaction(transaction)
         }
     }
@@ -118,7 +122,24 @@ open class SipTransactionHandler : AbstractVerticle() {
                 val route = prefix + "_${abs(index % instances)}"
                 vertx.eventBus().send(route, transaction, USE_LOCAL_CODEC)
             }
-            else -> writeToDatabase(prefix, transaction)
+            RoutesCE.sip + "_register" -> {
+                // RFC-3261 10.2: The To header field contains the address of record
+                // whose registration is to be created, queried, or modified.
+                val index = (transaction.request?.toUri() ?: transaction.response?.toUri()).hashCode()
+                val route = prefix + "_${abs(index % instances)}"
+                vertx.eventBus().send(route, transaction, USE_LOCAL_CODEC)
+            }
+            RoutesCE.sip + "_message",
+            RoutesCE.sip + "_options" -> {
+                val index = transaction.callId.hashCode()
+                val route = prefix + "_${abs(index % instances)}"
+                vertx.eventBus().send(route, transaction, USE_LOCAL_CODEC)
+            }
+
+            else -> {
+                writeAttributes(transaction)
+                writeToDatabase(prefix, transaction)
+            }
         }
     }
 
@@ -129,7 +150,7 @@ open class SipTransactionHandler : AbstractVerticle() {
                     remove(Attributes.src_host)
                     remove(Attributes.dst_host)
 
-                    put(Attributes.method, transaction.cseqMethod.toLowerCase())
+                    put(Attributes.method, transaction.cseqMethod)
 
                     put(Attributes.call_id, "")
                     remove(Attributes.x_call_id)

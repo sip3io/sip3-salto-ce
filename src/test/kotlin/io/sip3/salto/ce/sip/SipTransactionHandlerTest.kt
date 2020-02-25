@@ -26,7 +26,6 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -231,7 +230,6 @@ class SipTransactionHandlerTest : VertxTest() {
                         Content-Length: 0
                     """.trimIndent().toByteArray()
         }
-
     }
 
     @Test
@@ -253,20 +251,12 @@ class SipTransactionHandlerTest : VertxTest() {
                     vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_2), USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
+                    vertx.eventBus().consumer<SipTransaction>(RoutesCE.sip + "_options_0") { event ->
+                        val transaction = event.body()
 
-                        document = document.getJsonObject("document")
                         context.verify {
-                            assertTrue(collection.startsWith("sip_options_index"))
-                            assertEquals(NOW, document.getLong("created_at"))
-                            assertEquals(NOW + 25, document.getLong("terminated_at"))
-                            assertEquals(PACKET_OPTIONS_1.srcAddr.addr, document.getString("src_addr"))
-                            assertEquals(PACKET_OPTIONS_1.srcAddr.port, document.getInteger("src_port"))
-                            assertEquals(PACKET_OPTIONS_1.dstAddr.addr, document.getString("dst_addr"))
-                            assertEquals(PACKET_OPTIONS_1.dstAddr.port, document.getInteger("dst_port"))
-                            assertEquals("caller", document.getString("caller"))
-                            assertEquals("succeed", document.getString("state"))
+                            assertEquals("OPTIONS", transaction.cseqMethod)
+                            assertEquals(SipTransaction.SUCCEED, transaction.state)
                         }
                         context.completeNow()
                     }
@@ -293,20 +283,12 @@ class SipTransactionHandlerTest : VertxTest() {
                     vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_2), USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
+                    vertx.eventBus().consumer<SipTransaction>(RoutesCE.sip + "_message_0") { event ->
+                        val transaction = event.body()
 
-                        document = document.getJsonObject("document")
                         context.verify {
-                            assertTrue(collection.startsWith("sip_message_index"))
-                            assertEquals(NOW, document.getLong("created_at"))
-                            assertEquals(NOW + 25, document.getLong("terminated_at"))
-                            assertEquals(PACKET_MESSAGE_1.srcAddr.addr, document.getString("src_addr"))
-                            assertEquals(PACKET_MESSAGE_1.srcAddr.port, document.getInteger("src_port"))
-                            assertEquals(PACKET_MESSAGE_1.dstAddr.addr, document.getString("dst_addr"))
-                            assertEquals(PACKET_MESSAGE_1.dstAddr.port, document.getInteger("dst_port"))
-                            assertEquals("caller", document.getString("caller"))
-                            assertEquals("succeed", document.getString("state"))
+                            assertEquals("MESSAGE", transaction.cseqMethod)
+                            assertEquals(SipTransaction.SUCCEED, transaction.state)
                         }
                         context.completeNow()
                     }

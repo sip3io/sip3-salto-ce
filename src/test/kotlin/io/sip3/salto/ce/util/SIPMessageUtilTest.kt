@@ -18,7 +18,11 @@ package io.sip3.salto.ce.util
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class SIPMessageUtilTest {
@@ -178,6 +182,32 @@ class SIPMessageUtilTest {
         --unique-boundary-1--
 
         """.trimIndent().toByteArray(), true, false, null)
+
+        val REQUEST_T38: SIPMessage = StringMsgParser().parseSIPMessage("""
+        INVITE sip:+1-650-555-2222@ss1.wcom.com;user=phone SIP/2.0
+        Via: SIP/2.0/UDP iftgw.there.com:5060
+        From: sip:+1-303-555-1111@ift.here.com;user=phone
+        To: sip:+1-650-555-2222@ss1.wcom.com;user=phone
+        Call-ID: 1717@ift.here.com
+        CSeq: 56 INVITE
+        Content-Type: application/sdp
+        Content-Length: 320
+    
+        v=0
+        o=faxgw1 2890844527 2890844527 IN IP4 iftgw.there.com
+        s=Session SDP
+        c=IN IP4 iftmg.there.com
+        t=0 0
+        m=image 49172 udptl t38
+        a=T38FaxVersion:0
+        a=T38maxBitRate:14400
+        a=T38FaxFillBitRemoval:0
+        a=T38FaxTranscodingMMR:0
+        a=T38FaxTranscodingJBIG:0
+        a=T38FaxRateManagement:transferredTCF
+        a=T38FaxMaxBuffer:260
+        a=T38FaxUdpEC:t38UDPRedundancy
+        """.trimIndent().toByteArray(), true, false, null)
     }
 
     @Test
@@ -263,6 +293,7 @@ class SIPMessageUtilTest {
         assertNotNull(REQUEST_MULTIPART.sessionDescription())
 
         assertNull(RESPONSE_100.sessionDescription())
+        assertNull(REQUEST_T38.sessionDescription())
     }
 
     @Test
