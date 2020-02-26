@@ -21,7 +21,6 @@ import io.sip3.commons.util.format
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
-import io.sip3.salto.ce.util.hasSdp
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
@@ -100,20 +99,8 @@ open class SipCallHandler : AbstractVerticle() {
 
     open fun handle(transaction: SipTransaction) {
         when (transaction.cseqMethod) {
-            "INVITE" -> {
-                if (transaction.response?.hasSdp() ?: false) {
-                    vertx.eventBus().send(RoutesCE.sdp_session, transaction, USE_LOCAL_CODEC)
-                }
-
-                terminateInviteTransaction(transaction)
-            }
-            "ACK" -> {
-                // To simplify call aggregation we decided to skip ACK transaction.
-                // Moreover, skipped ACK transaction will not affect final result.
-            }
-            "BYE" -> {
-                terminateByeTransaction(transaction)
-            }
+            "INVITE" -> terminateInviteTransaction(transaction)
+            "BYE" -> terminateByeTransaction(transaction)
         }
     }
 

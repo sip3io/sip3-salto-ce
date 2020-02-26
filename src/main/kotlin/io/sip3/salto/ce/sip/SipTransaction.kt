@@ -32,7 +32,8 @@ class SipTransaction {
     companion object {
 
         const val UNKNOWN = "unknown"
-        const val PROCEEDING = "proceeding"
+        const val TRYING = "trying"
+        const val RINGING = "ringing"
         const val FAILED = "failed"
         const val CANCELED = "canceled"
         const val SUCCEED = "succeed"
@@ -104,7 +105,7 @@ class SipTransaction {
                     100 ->  {
                         if (tryingAt == null) {
                             tryingAt = packet.createdAt
-                            state = PROCEEDING
+                            state = TRYING
                         }
                     }
                     in 180..183 -> {
@@ -112,7 +113,7 @@ class SipTransaction {
                             ringingAt = packet.createdAt
                             if (terminatedAt == null) {
                                 response = message
-                                state = PROCEEDING
+                                state = RINGING
                             }
                         }
                     }

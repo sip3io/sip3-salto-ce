@@ -23,6 +23,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.cseqMethod
+import io.sip3.salto.ce.util.hasSdp
 import io.sip3.salto.ce.util.toUri
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
@@ -41,6 +42,10 @@ open class SipTransactionHandler : AbstractVerticle() {
     companion object {
 
         val PREFIX = RoutesCE.sip + "_transaction"
+
+        // To simplify call aggregation we decided to skip ACK and CANCEL transaction.
+        // Moreover, skipped ACK and CANCEL transactions will not affect final result.
+        val EXCLUDED_METHODS = listOf("ACK", "CANCEL")
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
@@ -91,11 +96,16 @@ open class SipTransactionHandler : AbstractVerticle() {
     }
 
     open fun handle(packet: Packet, message: SIPMessage) {
-        when (message.cseqMethod()) {
-            // To simplify call aggregation we decided to skip ACK and CANCEL transaction.
-            // Moreover, skipped ACK and CANCEL transactions will not affect final result.
-            "ACK", "CANCEL" -> return
-            else -> transactions.getOrPut(message.transactionId()) { SipTransaction() }.addMessage(packet, message)
+        if (message.cseqMethod() in EXCLUDED_METHODS) {
+            return
+        }
+
+        val transaction = transactions.getOrPut(message.transactionId()) { SipTransaction() }
+        transaction.addMessage(packet, message)
+
+        // Send SDP Session Description
+        if (transaction.cseqMethod == "INVITE" && transaction.response?.hasSdp() == true) {
+            vertx.eventBus().send(RoutesCE.sdp_session, transaction, USE_LOCAL_CODEC)
         }
     }
 
@@ -129,13 +139,6 @@ open class SipTransactionHandler : AbstractVerticle() {
                 val route = prefix + "_${abs(index % instances)}"
                 vertx.eventBus().send(route, transaction, USE_LOCAL_CODEC)
             }
-            RoutesCE.sip + "_message",
-            RoutesCE.sip + "_options" -> {
-                val index = transaction.callId.hashCode()
-                val route = prefix + "_${abs(index % instances)}"
-                vertx.eventBus().send(route, transaction, USE_LOCAL_CODEC)
-            }
-
             else -> {
                 writeAttributes(transaction)
                 writeToDatabase(prefix, transaction)
