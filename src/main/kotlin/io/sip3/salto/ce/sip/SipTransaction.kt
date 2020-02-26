@@ -19,18 +19,40 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.callId
+import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.fromUserOrNumber
 import io.sip3.salto.ce.util.toUserOrNumber
 
 class SipTransaction {
 
+    companion object {
+
+        const val UNKNOWN = "unknown"
+        const val TRYING = "trying"
+        const val RINGING = "ringing"
+        const val FAILED = "failed"
+        const val CANCELED = "canceled"
+        const val SUCCEED = "succeed"
+        const val REDIRECTED = "redirected"
+        const val UNAUTHORIZED = "unauthorized"
+    }
+
     var createdAt: Long = 0
     var tryingAt: Long? = null
     var ringingAt: Long? = null
     var terminatedAt: Long? = null
+
+    val id by lazy {
+        request?.transactionId ?: response?.transactionId!!
+    }
+    val cseqMethod by lazy {
+        request?.cseqMethod() ?: response?.cseqMethod()!!
+    }
+    var state = UNKNOWN
 
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
@@ -78,16 +100,100 @@ class SipTransaction {
                     caller = message.fromUserOrNumber()!!
                 }
 
-                when (message.statusCode) {
-                    100 -> if (tryingAt == null) tryingAt = packet.createdAt
-                    in 180..183 -> if (ringingAt == null) ringingAt = packet.createdAt
-                    in 200..699 -> {
+                val statusCode = message.statusCode
+                when (statusCode) {
+                    100 ->  {
+                        if (tryingAt == null) {
+                            tryingAt = packet.createdAt
+                            state = TRYING
+                        }
+                    }
+                    in 180..183 -> {
+                        if (ringingAt == null) {
+                            ringingAt = packet.createdAt
+                            if (terminatedAt == null) {
+                                response = message
+                                state = RINGING
+                            }
+                        }
+                    }
+                    200 -> {
                         // Received message is a retransmit
-                        if (response != null) {
+                        if (response?.statusCode == statusCode) {
                             attributes["retransmits"] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
+                            state = SUCCEED
+                        }
+                    }
+                    in 300..399 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+                            state = REDIRECTED
+                        }
+                    }
+                    401, 407 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+                            state = UNAUTHORIZED
+                        }
+                    }
+                    487 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+                            state = CANCELED
+                        }
+                    }
+                    in 400..499 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+
+                            attributes[Attributes.error_code] = statusCode.toString()
+                            attributes[Attributes.error_type] = "client"
+                            state = FAILED
+                        }
+                    }
+                    in 500..599 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+
+                            attributes[Attributes.error_code] = statusCode.toString()
+                            attributes[Attributes.error_type] = "server"
+                            state = FAILED
+                        }
+                    }
+                    in 600..699 -> {
+                        // Received message is a retransmit
+                        if (response?.statusCode == statusCode) {
+                            attributes["retransmits"] = true
+                        } else {
+                            response = message
+                            terminatedAt = packet.createdAt
+
+                            attributes[Attributes.error_code] = statusCode.toString()
+                            attributes[Attributes.error_type] = "global"
+                            state = FAILED
                         }
                     }
                 }

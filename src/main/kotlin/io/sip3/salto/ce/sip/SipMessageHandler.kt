@@ -158,7 +158,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun validate(message: SIPMessage): Boolean {
         return message.callId() != null
-                && message.toUri() != null && message.fromUri() != null
+                && message.toUserOrNumber() != null && message.fromUserOrNumber() != null
     }
 
     open suspend fun callUserDefinedFunction(packet: Packet, message: SIPMessage) {
@@ -194,19 +194,8 @@ open class SipMessageHandler : AbstractVerticle() {
     }
 
     open fun routeSipMessage(prefix: String, packet: Packet, message: SIPMessage) {
-        val route = when (prefix) {
-            RoutesCE.sip + "_call" -> {
-                val index = message.callId().hashCode()
-                prefix + "_${abs(index % instances)}"
-            }
-            RoutesCE.sip + "_register" -> {
-                // RFC-3261 10.2: The To header field contains the address of record
-                // whose registration is to be created, queried, or modified.
-                val index = message.toUri().hashCode()
-                prefix + "_${abs(index % instances)}"
-            }
-            else -> return
-        }
+        val index = message.callId().hashCode()
+        val route = RoutesCE.sip + "_transaction_${abs(index % instances)}"
 
         writeToDatabase(prefix, packet, message)
         vertx.eventBus().send(route, Pair(packet, message), USE_LOCAL_CODEC)

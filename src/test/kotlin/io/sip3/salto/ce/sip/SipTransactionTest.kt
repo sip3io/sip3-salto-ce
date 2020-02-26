@@ -20,7 +20,10 @@ import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -146,7 +149,8 @@ class SipTransactionTest {
         assertEquals(PACKET_2.dstAddr.port, transaction.srcAddr.port)
         assertEquals(PACKET_2.srcAddr.addr, transaction.dstAddr.addr)
         assertEquals(PACKET_2.srcAddr.port, transaction.dstAddr.port)
-        assertNull(transaction.response)
+        assertNotNull(transaction.response)
+        assertNull(transaction.terminatedAt)
         assertEquals("000260971282", transaction.caller)
         assertEquals("000155917690", transaction.callee)
         assertTrue(transaction.attributes["invite"] as Boolean)
