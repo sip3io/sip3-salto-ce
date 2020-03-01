@@ -18,7 +18,6 @@ package io.sip3.salto.ce.sip
 
 import io.mockk.every
 import io.mockk.mockk
-import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -122,7 +121,6 @@ class SipSessionTest {
         assertEquals("callee", session.callee)
         assertEquals("caller", session.caller)
         assertEquals(SipSession.FAILED, session.state)
-        assertEquals("404", session.attributes[Attributes.error_code])
     }
 
     @Test
