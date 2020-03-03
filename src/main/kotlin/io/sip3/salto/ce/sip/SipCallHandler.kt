@@ -341,6 +341,8 @@ open class SipCallHandler : AbstractVerticle() {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
+            remove(Attributes.error_code)
+            remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.retransmits)
             transactionExclusions.forEach { remove(it) }
