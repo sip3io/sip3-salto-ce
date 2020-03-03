@@ -22,15 +22,15 @@ class Address {
     var port: Int = 0
     var host: String? = null
 
-    fun hostOrAddr(): String {
-        return host ?: addr
+    private val hostOrAddr: String by lazy {
+        host ?: addr
     }
 
     fun compositeKey(other: Address): String {
-        return if (addr > other.addr) {
-            "$addr:${other.addr}"
+        return if (hostOrAddr > other.hostOrAddr) {
+            "$hostOrAddr:${other.hostOrAddr}"
         } else {
-            "${other.addr}:$addr"
+            "${other.hostOrAddr}:$hostOrAddr"
         }
     }
 
