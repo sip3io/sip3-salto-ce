@@ -24,8 +24,7 @@ import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -90,6 +89,7 @@ class SipCallHandlerTest : VertxTest() {
             }
             dstAddr = Address().apply {
                 addr = "127.0.0.2"
+                host = "Test"
                 port = 5061
             }
             attributes[Attributes.caller] = "caller"
@@ -124,6 +124,7 @@ class SipCallHandlerTest : VertxTest() {
             timestamp = Timestamp(NOW + 107)
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
+                host = "Test"
                 port = 5061
             }
             dstAddr = Address().apply {
@@ -149,7 +150,8 @@ class SipCallHandlerTest : VertxTest() {
         val FAILED_PACKET_3 = Packet().apply {
             timestamp = Timestamp(NOW + 107 + 342)
             srcAddr = Address().apply {
-                addr = "127.0.0.2"
+                addr = "127.0.0.3"
+                host = "Test"
                 port = 5061
             }
             dstAddr = Address().apply {
@@ -179,6 +181,7 @@ class SipCallHandlerTest : VertxTest() {
             }
             dstAddr = Address().apply {
                 addr = "127.0.0.2"
+                host = "Test"
                 port = 5061
             }
             payload = """
@@ -216,6 +219,7 @@ class SipCallHandlerTest : VertxTest() {
             timestamp = Timestamp(NOW + 2)
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
+                host = "Test"
                 port = 5061
             }
             dstAddr = Address().apply {
@@ -238,7 +242,8 @@ class SipCallHandlerTest : VertxTest() {
         val ANSWERED_PACKET_3 = Packet().apply {
             timestamp = Timestamp(NOW + 2 + 23)
             srcAddr = Address().apply {
-                addr = "127.0.0.2"
+                addr = "127.0.0.3"
+                host = "Test"
                 port = 5061
             }
             dstAddr = Address().apply {
@@ -287,6 +292,7 @@ class SipCallHandlerTest : VertxTest() {
             }
             dstAddr = Address().apply {
                 addr = "127.0.0.2"
+                host = "Test"
                 port = 5061
             }
             payload = """
@@ -311,6 +317,7 @@ class SipCallHandlerTest : VertxTest() {
             }
             dstAddr = Address().apply {
                 addr = "127.0.0.2"
+                host = "Test"
                 port = 5061
             }
             payload = """
@@ -333,7 +340,8 @@ class SipCallHandlerTest : VertxTest() {
         val ANSWERED_PACKET_6 = Packet().apply {
             timestamp = Timestamp(NOW + 2 + 23 + 128 + 221 + 1)
             srcAddr = Address().apply {
-                addr = "127.0.0.2"
+                addr = "127.0.0.3"
+                host = "Test"
                 port = 5061
             }
             dstAddr = Address().apply {
@@ -477,12 +485,21 @@ class SipCallHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
+                        val (collection, operation) = event.body()
 
-                        var document = operation.getJsonObject("document")
+                        val filter = operation.getJsonObject("filter")
+                        val document = operation.getJsonObject("document")
 
                         context.verify {
                             assertTrue(collection.startsWith ("sip_call_index_"))
+
+                            assertEquals(NOW, filter.getLong("created_at"))
+                            assertEquals(ANSWERED_PACKET_1.srcAddr.addr, filter.getString("src_addr"))
+                            assertNull(filter.getString("src_host"))
+                            assertNull(filter.getString("dst_addr"))
+                            assertEquals(ANSWERED_PACKET_1.dstAddr.host, filter.getString("dst_host"))
+                            assertEquals("0a778dd44d9cc00e16ac97a623d5202a@192.168.0.21", filter.getString("call_id"))
+
 
                             val setOnInsert = document.getJsonObject("\$setOnInsert")
                             assertEquals(NOW, setOnInsert.getLong("created_at"))
