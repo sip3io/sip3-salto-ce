@@ -18,7 +18,7 @@ vertx.eventBus().localConsumer("sip_message_udf", { event ->
     // def sip_message = packet['payload']
     // def from_header = sip_message['from']
     // def matcher = (from_header =~ /1(\d*)/)
-    // if (matcher.hasGroup()) {
+    // if (matcher) {
     //     packet['attributes']['caller'] = matcher[0][1]
     // }
     event.reply(true)
