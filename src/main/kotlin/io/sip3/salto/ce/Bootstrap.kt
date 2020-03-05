@@ -17,19 +17,6 @@
 package io.sip3.salto.ce
 
 import io.sip3.commons.vertx.AbstractBootstrap
-import io.sip3.salto.ce.attributes.AttributesHandler
-import io.sip3.salto.ce.decoder.Decoder
-import io.sip3.salto.ce.decoder.HepDecoder
-import io.sip3.salto.ce.mongo.MongoBulkWriter
-import io.sip3.salto.ce.mongo.MongoCollectionManager
-import io.sip3.salto.ce.router.Router
-import io.sip3.salto.ce.rtpr.RtprHandler
-import io.sip3.salto.ce.sdp.SdpHandler
-import io.sip3.salto.ce.server.Server
-import io.sip3.salto.ce.sip.SipCallHandler
-import io.sip3.salto.ce.sip.SipMessageHandler
-import io.sip3.salto.ce.sip.SipTransactionHandler
-import io.sip3.salto.ce.socket.ManagementSocket
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.deploymentOptionsOf
 import io.vertx.kotlin.core.eventbus.deliveryOptionsOf
@@ -45,26 +32,8 @@ open class Bootstrap : AbstractBootstrap() {
     override val configLocations = listOf("config.location", "codecs.location")
 
     override fun deployVerticles(config: JsonObject) {
-        // Read `vertx.instances`
-        val instances = config.getJsonObject("vertx")?.getInteger("instances") ?: 1
-        // Deploy verticles
-        deployUdfVerticles(config, instances)
-        vertx.deployVerticle(MongoCollectionManager::class, config)
-        vertx.deployVerticle(MongoBulkWriter::class, config, instances)
-        vertx.deployVerticle(AttributesHandler::class, config)
-        vertx.deployVerticle(SipCallHandler::class, config, instances)
-        vertx.deployVerticle(SdpHandler::class, config)
-        vertx.deployVerticle(SipTransactionHandler::class, config, instances)
-        vertx.deployVerticle(SipMessageHandler::class, config, instances)
-        vertx.deployVerticle(RtprHandler::class, config, instances)
-        vertx.deployVerticle(HepDecoder::class, config, instances)
-        vertx.deployVerticle(Decoder::class, config, instances)
-        vertx.deployVerticle(Router::class, config, instances)
-        vertx.deployVerticle(Server::class, config)
-
-        if (config.containsKey("management")) {
-            vertx.deployVerticle(ManagementSocket::class, config)
-        }
+        super.deployVerticles(config)
+        deployUdfVerticles(config, config.getJsonObject("vertx")?.getInteger("instances") ?: 1)
     }
 
     open fun deployUdfVerticles(config: JsonObject, instances: Int = 1) {

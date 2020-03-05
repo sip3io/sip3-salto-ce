@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.commons.util.format
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -35,6 +36,7 @@ import kotlin.math.abs
 /**
  * Handles SIP Transactions
  */
+@Instance
 open class SipTransactionHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}

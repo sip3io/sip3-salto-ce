@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.util.format
+import io.sip3.commons.vertx.annotations.Instance
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
@@ -34,6 +35,7 @@ import java.time.format.DateTimeFormatter
 /**
  * Manages MongoDB collections
  */
+@Instance
 class MongoCollectionManager : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}

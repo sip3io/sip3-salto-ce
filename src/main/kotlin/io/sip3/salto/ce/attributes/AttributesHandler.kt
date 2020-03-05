@@ -18,6 +18,7 @@ package io.sip3.salto.ce.attributes
 
 import io.sip3.commons.domain.Attribute
 import io.sip3.commons.util.format
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.AbstractVerticle
@@ -29,6 +30,7 @@ import java.time.format.DateTimeFormatter
 /**
  * Manages `attributes` collection
  */
+@Instance
 open class AttributesHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
