@@ -64,20 +64,24 @@ open class Router : AbstractVerticle() {
         vertx.eventBus().localConsumer<Packet>(RoutesCE.router) { event ->
             try {
                 val packet = event.body()
-                route(packet)
+                handle(packet)
             } catch (e: Exception) {
-                logger.error("Router 'route()' failed.", e)
+                logger.error("Router 'handle()' failed.", e)
             }
         }
     }
 
-    open fun route(packet: Packet) {
+    open fun handle(packet: Packet) {
         val src = packet.srcAddr
         (hostMap[src.addr] ?: hostMap["${src.addr}:${src.port}"])?.let { src.host = it }
 
         val dst = packet.dstAddr
         (hostMap[dst.addr] ?: hostMap["${dst.addr}:${dst.port}"])?.let { dst.host = it }
 
+        route(packet)
+    }
+
+    open fun route(packet: Packet) {
         val route = when (packet.protocolCode) {
             PacketTypes.SIP -> RoutesCE.sip
             PacketTypes.RTPR -> RoutesCE.rtpr
