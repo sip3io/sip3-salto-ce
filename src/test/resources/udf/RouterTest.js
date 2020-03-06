@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-package udf
+vertx.eventBus().localConsumer("packet_udf", function (event) {
+    var packet = event.body();
 
-vertx.eventBus().localConsumer("groovy", { event ->
-    vertx.eventBus().send("kotlin", event.body())
-})
+    if (packet['sender_host'] == 'sip3-captain') {
+        event.reply(true);
+    } else {
+        event.reply(false);
+    }
+});

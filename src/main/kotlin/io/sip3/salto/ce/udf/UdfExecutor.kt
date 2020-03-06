@@ -39,6 +39,7 @@ class UdfExecutor(val vertx: Vertx) {
             }
         }
 
+        vertx.eventBus().endpoints().let { endpoints = it }
         vertx.setPeriodic(checkPeriod) {
             vertx.eventBus().endpoints().let { endpoints = it }
         }
@@ -47,6 +48,7 @@ class UdfExecutor(val vertx: Vertx) {
     fun execute(endpoint: String, payload: MutableMap<String, Any>, completionHandler: (AsyncResult<Pair<Boolean, Map<String, Any>>>) -> Unit) {
         if (!endpoints.contains(endpoint)) {
             completionHandler.invoke(NO_RESULT_FUTURE)
+            return
         }
 
         GlobalScope.launch(vertx.dispatcher()) {

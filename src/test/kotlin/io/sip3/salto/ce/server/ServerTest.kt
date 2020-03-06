@@ -18,11 +18,12 @@ package io.sip3.salto.ce.server
 
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.domain.Address
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.datagram.sendAwait
 import io.vertx.kotlin.core.net.connectAwait
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.nio.charset.Charset
@@ -50,9 +51,10 @@ class ServerTest : VertxTest() {
                     vertx.createDatagramSocket().sendAwait(MESSAGE_1, 15060, "127.0.0.1")
                 },
                 assert = {
-                    vertx.eventBus().consumer<Buffer>(RoutesCE.sip3) { event ->
-                        val buffer = event.body()
+                    vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
+                        val (sender, buffer) = event.body()
                         context.verify {
+                            assertEquals("127.0.0.1", sender.addr)
                             assertEquals(MESSAGE_1, buffer.toString(Charset.defaultCharset()))
                         }
                         context.completeNow()
@@ -75,9 +77,10 @@ class ServerTest : VertxTest() {
                     vertx.createNetClient().connectAwait(15060, "127.0.0.1").write(MESSAGE_2)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Buffer>(RoutesCE.hep3) { event ->
-                        val buffer = event.body()
+                    vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
+                        val (sender, buffer) = event.body()
                         context.verify {
+                            assertEquals("127.0.0.1", sender.addr)
                             assertEquals(MESSAGE_2, buffer.toString(Charset.defaultCharset()))
                         }
                         context.completeNow()
@@ -100,10 +103,11 @@ class ServerTest : VertxTest() {
                     vertx.createNetClient().connectAwait(15061, "127.0.0.1").write(Buffer.buffer(MESSAGE_3))
                 },
                 assert = {
-                    vertx.eventBus().consumer<Buffer>(RoutesCE.hep2) { event ->
-                        val buffer = event.body()
+                    vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->
+                        val (sender, buffer) = event.body()
                         context.verify {
-                            Assertions.assertArrayEquals(MESSAGE_3, buffer.bytes)
+                            assertEquals("127.0.0.1", sender.addr)
+                            assertArrayEquals(MESSAGE_3, buffer.bytes)
                         }
                         context.completeNow()
                     }

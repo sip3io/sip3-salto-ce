@@ -47,19 +47,17 @@ class MongoCollectionManager : AbstractVerticle() {
     private var collections: JsonArray = JsonArray()
 
     override fun start() {
-        config().let { config ->
-            config.getString("time-suffix")?.let {
-                timeSuffix = DateTimeFormatter.ofPattern(it)
-            }
+        config().getString("time-suffix")?.let {
+            timeSuffix = DateTimeFormatter.ofPattern(it)
+        }
 
-            config.getJsonObject("mongo")?.let { config ->
-                client = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
-                    put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
-                })
-                config.getLong("update-period")?.let { updatePeriod = it }
-                config.getJsonArray("collections")?.let { collections = it }
-            }
+        config().getJsonObject("mongo")?.let { config ->
+            client = MongoClient.createShared(vertx, JsonObject().apply {
+                put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
+                put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
+            })
+            config.getLong("update-period")?.let { updatePeriod = it }
+            config.getJsonArray("collections")?.let { collections = it }
         }
 
         if (client != null) {

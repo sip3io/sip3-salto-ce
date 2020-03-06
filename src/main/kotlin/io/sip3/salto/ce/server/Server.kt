@@ -20,6 +20,7 @@ import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
+import io.sip3.salto.ce.domain.Address
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.datagram.DatagramSocketOptions
@@ -71,8 +72,12 @@ class Server : AbstractVerticle() {
 
         val socket = vertx.createDatagramSocket(options)
         socket.handler { packet ->
+            val sender = Address().apply {
+                addr = packet.sender().host()
+                port = packet.sender().port()
+            }
             val buffer = packet.data()
-            onRawPacket(buffer)
+            onRawPacket(sender, buffer)
         }
 
         socket.listen(uri.port, uri.host) { connection ->
@@ -98,8 +103,12 @@ class Server : AbstractVerticle() {
 
         val server = vertx.createNetServer(options)
         server.connectHandler { socket ->
+            val sender = Address().apply {
+                addr = socket.remoteAddress().host()
+                port = socket.remoteAddress().port()
+            }
             socket.handler { buffer ->
-                onRawPacket(buffer)
+                onRawPacket(sender, buffer)
             }
         }
 
@@ -112,20 +121,20 @@ class Server : AbstractVerticle() {
         }
     }
 
-    fun onRawPacket(buffer: Buffer) {
+    fun onRawPacket(sender: Address, buffer: Buffer) {
         packetsReceived.increment()
 
         if (buffer.length() >= 4) {
             // SIP3 and HEP3
             when (buffer.getString(0, 4)) {
-                PROTO_SIP3 -> vertx.eventBus().send(RoutesCE.sip3, buffer, USE_LOCAL_CODEC)
-                PROTO_HEP3 -> vertx.eventBus().send(RoutesCE.hep3, buffer, USE_LOCAL_CODEC)
+                PROTO_SIP3 -> vertx.eventBus().send(RoutesCE.sip3, Pair(sender, buffer), USE_LOCAL_CODEC)
+                PROTO_HEP3 -> vertx.eventBus().send(RoutesCE.hep3, Pair(sender, buffer), USE_LOCAL_CODEC)
             }
 
             // HEP2
             val prefix = buffer.getBytes(0, 3)
             if (prefix.contentEquals(PROTO_HEP2)) {
-                vertx.eventBus().send(RoutesCE.hep2, buffer, USE_LOCAL_CODEC)
+                vertx.eventBus().send(RoutesCE.hep2, Pair(sender, buffer), USE_LOCAL_CODEC)
             }
         }
     }

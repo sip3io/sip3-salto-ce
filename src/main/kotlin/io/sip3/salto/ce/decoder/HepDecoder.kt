@@ -46,26 +46,26 @@ class HepDecoder : AbstractVerticle() {
     private val packetsDecoded = Metrics.counter("packets_decoded", mapOf("proto" to "hep"))
 
     override fun start() {
-        vertx.eventBus().localConsumer<Buffer>(RoutesCE.hep2) { event ->
+        vertx.eventBus().localConsumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->
             try {
-                val buffer = event.body()
-                decodeHep2(buffer)
+                val (sender, buffer) = event.body()
+                decodeHep2(sender, buffer)
             } catch (e: Exception) {
                 logger.error("HepDecoder 'decodeHep2()' failed.", e)
             }
         }
 
-        vertx.eventBus().localConsumer<Buffer>(RoutesCE.hep3) { event ->
+        vertx.eventBus().localConsumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
             try {
-                val buffer = event.body()
-                decodeHep3(buffer)
+                val (sender, buffer) = event.body()
+                decodeHep3(sender, buffer)
             } catch (e: Exception) {
                 logger.error("HepDecoder 'decodeHep3()' failed.", e)
             }
         }
     }
 
-    fun decodeHep2(buffer: Buffer) {
+    fun decodeHep2(sender: Address, buffer: Buffer) {
         val packetLength = buffer.length()
         if (packetLength < 31) {
             logger.warn("HEP2 payload is to short: $packetLength")
@@ -95,10 +95,10 @@ class HepDecoder : AbstractVerticle() {
         }
 
         packetsDecoded.increment()
-        vertx.eventBus().send(RoutesCE.router, packet, USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC)
     }
 
-    fun decodeHep3(buffer: Buffer) {
+    fun decodeHep3(sender: Address, buffer: Buffer) {
         var seconds: Long? = null
         var uSeconds: Long? = null
         var srcAddr: ByteArray? = null
@@ -149,6 +149,6 @@ class HepDecoder : AbstractVerticle() {
         }
 
         packetsDecoded.increment()
-        vertx.eventBus().send(RoutesCE.router, packet, USE_LOCAL_CODEC)
+        vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC)
     }
 }

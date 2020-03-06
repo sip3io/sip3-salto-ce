@@ -25,6 +25,10 @@ interface RoutesCE : Routes {
     // Attributes
     val attributes get() = "attributes"
 
+    // UDF
+    val packet_udf get() = "packet_udf"
+    val sip_message_udf get() = "sip_message_udf"
+
     // Decoder
     val sip3 get() = "sip3"
     val hep2 get() = "hep2"
@@ -42,7 +46,6 @@ interface RoutesCE : Routes {
 
     // SIP
     val sip get() = "sip"
-    val sip_message_udf get() = "sip_message_udf"
 
     // Mongo
     val mongo_bulk_writer get() = "mongo_bulk_writer"

@@ -44,17 +44,17 @@ class Decoder : AbstractVerticle() {
     private val packetsDecoded = Metrics.counter("packets_decoded", mapOf("proto" to "sip3"))
 
     override fun start() {
-        vertx.eventBus().localConsumer<Buffer>(RoutesCE.sip3) { event ->
+        vertx.eventBus().localConsumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
             try {
-                val buffer = event.body()
-                decode(buffer)
+                val (sender, buffer) = event.body()
+                decode(sender, buffer)
             } catch (e: Exception) {
                 logger.error("Decoder 'decode()' failed.", e)
             }
         }
     }
 
-    fun decode(buffer: Buffer) {
+    fun decode(sender: Address, buffer: Buffer) {
         var offset = HEADER_LENGTH
 
         val compressed = buffer.getByte(offset++)
@@ -124,7 +124,7 @@ class Decoder : AbstractVerticle() {
             }
 
             packetsDecoded.increment()
-            vertx.eventBus().send(RoutesCE.router, packet, USE_LOCAL_CODEC)
+            vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC)
 
             offset += packetLength
         }

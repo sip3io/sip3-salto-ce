@@ -17,11 +17,14 @@
 package io.sip3.salto.ce.router
 
 import io.sip3.commons.PacketTypes
+import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
+import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.udf.UdfExecutor
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
@@ -42,6 +45,10 @@ open class Router : AbstractVerticle() {
 
     open var hostMap = emptyMap<String, String>()
 
+    private val packetsRouted = Metrics.counter("packets_routed")
+
+    private lateinit var udfExecutor: UdfExecutor
+
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
             client = MongoClient.createShared(vertx, JsonObject().apply {
@@ -61,24 +68,54 @@ open class Router : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<Packet>(RoutesCE.router) { event ->
+        udfExecutor = UdfExecutor(vertx)
+
+        vertx.eventBus().localConsumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
             try {
-                val packet = event.body()
-                handle(packet)
+                val (sender, packet) = event.body()
+                handle(sender, packet)
             } catch (e: Exception) {
                 logger.error("Router 'handle()' failed.", e)
             }
         }
     }
 
-    open fun handle(packet: Packet) {
-        val src = packet.srcAddr
-        (hostMap[src.addr] ?: hostMap["${src.addr}:${src.port}"])?.let { src.host = it }
+    open fun handle(sender: Address, packet: Packet) {
+        // Map all addresses to host
+        mapAddressToHost(sender)
+        mapAddressToHost(packet.srcAddr)
+        mapAddressToHost(packet.dstAddr)
 
-        val dst = packet.dstAddr
-        (hostMap[dst.addr] ?: hostMap["${dst.addr}:${dst.port}"])?.let { dst.host = it }
+        // Prepare UDF payload
+        val payload = mutableMapOf<String, Any>().apply {
+            put("sender_addr", sender.addr)
+            put("sender_port", sender.port)
+            sender.host?.let { put("sender_host", it) }
 
-        route(packet)
+            put("payload", mutableMapOf<String, Any>().apply {
+                val src = packet.srcAddr
+                put("src_addr", src.addr)
+                put("src_port", src.port)
+                src.host?.let { put("src_host", it) }
+
+                val dst = packet.dstAddr
+                put("dst_addr", dst.addr)
+                put("dst_port", dst.port)
+                dst.host?.let { put("dst_host", it) }
+            })
+        }
+
+        // Call UDF
+        udfExecutor.execute(RoutesCE.packet_udf, payload) { asr ->
+            val (result, _) = asr.result()
+            if (result) {
+                route(packet)
+            }
+        }
+    }
+
+    private fun mapAddressToHost(address: Address) {
+        (hostMap[address.addr] ?: hostMap["${address.addr}:${address.port}"])?.let { address.host = it }
     }
 
     open fun route(packet: Packet) {
@@ -89,9 +126,24 @@ open class Router : AbstractVerticle() {
         }
 
         if (route != null) {
+            packetsRouted.increment()
             writeAttributes(packet)
             vertx.eventBus().send(route, packet, USE_LOCAL_CODEC)
         }
+    }
+
+    open fun writeAttributes(packet: Packet) {
+        val attributes = mutableMapOf<String, Any>().apply {
+            val src = packet.srcAddr
+            put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
+            src.host?.let { put(Attributes.src_host, it) }
+
+            val dst = packet.dstAddr
+            put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
+            dst.host?.let { put(Attributes.dst_host, it) }
+        }
+
+        vertx.eventBus().send(RoutesCE.attributes, Pair("ip", attributes), USE_LOCAL_CODEC)
     }
 
     open fun updateHostMap() {
@@ -112,20 +164,6 @@ open class Router : AbstractVerticle() {
             }
             hostMap = tmpHostMap
         }
-    }
-
-    open fun writeAttributes(packet: Packet) {
-        val attributes = mutableMapOf<String, Any>().apply {
-            val src = packet.srcAddr
-            put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
-            src.host?.let { put(Attributes.src_host, it) }
-
-            val dst = packet.dstAddr
-            put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
-            dst.host?.let { put(Attributes.dst_host, it) }
-        }
-
-        vertx.eventBus().send(RoutesCE.attributes, Pair("ip", attributes), USE_LOCAL_CODEC)
     }
 
     private fun mapHostToAddr(host: JsonObject, type: String): MutableMap<String, String> {
