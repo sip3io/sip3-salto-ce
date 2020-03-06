@@ -18,6 +18,7 @@ package io.sip3.salto.ce.decoder
 
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
@@ -30,6 +31,7 @@ import java.sql.Timestamp
 /**
  * Decodes packets in SIP3 protocol
  */
+@Instance
 class Decoder : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}

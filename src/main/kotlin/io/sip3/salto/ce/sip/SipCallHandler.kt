@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Handles SIP calls
  */
+@Instance
 open class SipCallHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}

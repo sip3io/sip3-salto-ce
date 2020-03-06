@@ -19,6 +19,7 @@ package io.sip3.salto.ce.decoder
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
@@ -31,6 +32,7 @@ import java.sql.Timestamp
 /**
  * Decodes packets in HEP2 and HEP3 protocols
  */
+@Instance
 class HepDecoder : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}

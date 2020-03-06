@@ -20,6 +20,7 @@ import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
@@ -32,6 +33,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Handles RTP reports
  */
+@Instance
 open class RtprHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}

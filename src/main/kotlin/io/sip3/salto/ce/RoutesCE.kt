@@ -22,13 +22,13 @@ interface RoutesCE : Routes {
 
     companion object : RoutesCE
 
+    // Attributes
+    val attributes get() = "attributes"
+
     // Decoder
     val sip3 get() = "sip3"
     val hep2 get() = "hep2"
     val hep3 get() = "hep3"
-
-    // Attributes
-    val attributes get() = "attributes"
 
     // Router
     val router get() = "router"

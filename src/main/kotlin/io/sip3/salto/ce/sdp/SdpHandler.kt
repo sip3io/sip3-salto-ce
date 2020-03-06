@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sdp
 
 import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.sip.SipTransaction
@@ -29,6 +30,10 @@ import mu.KotlinLogging
 import org.restcomm.media.sdp.attributes.RtpMapAttribute
 import org.restcomm.media.sdp.fields.MediaDescriptionField
 
+/**
+ * Handles SIP Transactions with SDP
+ */
+@Instance
 class SdpHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}

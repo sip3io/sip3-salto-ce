@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.router
 
 import io.sip3.commons.PacketTypes
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -30,6 +31,7 @@ import org.apache.commons.net.util.SubnetUtils
 /**
  * Routes packets by `protocolCode`
  */
+@Instance
 open class Router : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
