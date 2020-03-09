@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+package udf
+
 vertx.eventBus().localConsumer("sip_message_udf", { event ->
     def packet = event.body()
 

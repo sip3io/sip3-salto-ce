@@ -16,6 +16,12 @@
 
 package udf
 
-vertx.eventBus().localConsumer("groovy", { event ->
-    vertx.eventBus().send("kotlin", event.body())
+vertx.eventBus().localConsumer("packet_udf", { event ->
+    def packet = event.body()
+
+    if (packet['sender_host'] == 'sip3-captain') {
+        event.reply(true)
+    } else {
+        event.reply(false)
+    }
 })

@@ -45,8 +45,6 @@ class MongoExtension : BeforeTestExecutionCallback, AfterTestExecutionCallback {
     }
 
     override fun afterTestExecution(context: ExtensionContext?) {
-        if (mongo != null) {
-            mongo.stop()
-        }
+        mongo.stop()
     }
 }

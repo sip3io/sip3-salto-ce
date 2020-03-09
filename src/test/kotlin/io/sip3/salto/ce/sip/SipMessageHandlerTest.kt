@@ -119,11 +119,10 @@ class SipMessageHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
-                        var (packet, message) = event.body()
+                        var (packet, _) = event.body()
 
                         context.verify {
                             assertEquals(PACKET_1, packet)
-                            assertTrue(message is SIPMessage)
                         }
                         context.completeNow()
                     }

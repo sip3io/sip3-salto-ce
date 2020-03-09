@@ -19,6 +19,7 @@ package io.sip3.salto.ce.decoder
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
+import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.buffer.Buffer
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -70,11 +71,15 @@ class HepDecoderTest : VertxTest() {
                     vertx.deployTestVerticle(HepDecoder::class)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.hep2, Buffer.buffer(PACKET_1), USE_LOCAL_CODEC)
+                    val sender = Address().apply {
+                        addr = "127.0.0.1"
+                        port = 5060
+                    }
+                    vertx.eventBus().send(RoutesCE.hep2, Pair(sender, Buffer.buffer(PACKET_1)), USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Packet>(RoutesCE.router) { event ->
-                        val packet = event.body()
+                    vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
+                        val (_, packet) = event.body()
                         context.verify {
                             assertEquals(1571254062044, packet.timestamp.time)
                             assertEquals(44000436, packet.timestamp.nanos)
@@ -99,11 +104,15 @@ class HepDecoderTest : VertxTest() {
                     vertx.deployTestVerticle(HepDecoder::class)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.hep3, Buffer.buffer(PACKET_2), USE_LOCAL_CODEC)
+                    val sender = Address().apply {
+                        addr = "127.0.0.1"
+                        port = 5060
+                    }
+                    vertx.eventBus().send(RoutesCE.hep3, Pair(sender, Buffer.buffer(PACKET_2)), USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Packet>(RoutesCE.router) { event ->
-                        val packet = event.body()
+                    vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
+                        val (_, packet) = event.body()
                         context.verify {
                             assertEquals(1550492760263, packet.timestamp.time)
                             assertEquals(263000774, packet.timestamp.nanos)

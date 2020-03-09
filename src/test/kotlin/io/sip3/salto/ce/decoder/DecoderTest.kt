@@ -19,6 +19,7 @@ package io.sip3.salto.ce.decoder
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
+import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.buffer.Buffer
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -51,11 +52,15 @@ class DecoderTest : VertxTest() {
                     vertx.deployTestVerticle(Decoder::class)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip3, Buffer.buffer(PACKET_1), USE_LOCAL_CODEC)
+                    val sender = Address().apply {
+                        addr = "127.0.0.1"
+                        port = 5060
+                    }
+                    vertx.eventBus().send(RoutesCE.sip3, Pair(sender, Buffer.buffer(PACKET_1)), USE_LOCAL_CODEC)
                 },
                 assert = {
-                    vertx.eventBus().consumer<Packet>(RoutesCE.router) { event ->
-                        val packet = event.body()
+                    vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
+                        val (_, packet) = event.body()
                         context.verify {
                             assertEquals(1549880240852, packet.timestamp.time)
                             assertEquals(852000000, packet.timestamp.nanos)
