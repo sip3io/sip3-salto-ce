@@ -42,7 +42,7 @@ class UdfExecutor(val vertx: Vertx) {
 
         vertx.setPeriodic(0, checkPeriod) {
             endpoints = vertx.eventBus().endpoints()
-            logger.debug("Update UDF endpoints: $endpoints")
+            logger.debug { "Update UDF endpoints: $endpoints" }
         }
     }
 
@@ -56,7 +56,7 @@ class UdfExecutor(val vertx: Vertx) {
             var attributes: Map<String, Any> = mutableMapOf()
             payload["attributes"] = attributes
 
-            logger.debug("Call '$endpoint' UDF. Payload: $payload")
+            logger.debug { "Call '$endpoint' UDF. Payload: $payload" }
             try {
                 val result = withTimeout(executionTimeout) {
                     vertx.eventBus().requestAwait<Boolean>(endpoint, payload, USE_LOCAL_CODEC).body()
