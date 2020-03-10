@@ -73,8 +73,8 @@ class SdpHandler : AbstractVerticle() {
     private fun handle(transaction: SipTransaction) {
         val session = SdpSessionDescription().apply {
             callId = transaction.callId
-            request = transaction.request!!.sessionDescription()?.getMediaDescription("audio") ?: return
-            response = transaction.response!!.sessionDescription()?.getMediaDescription("audio") ?: return
+            request = transaction.request?.sessionDescription()?.getMediaDescription("audio") ?: return
+            response = transaction.response?.sessionDescription()?.getMediaDescription("audio") ?: return
         }
 
         defineCodec(session)
