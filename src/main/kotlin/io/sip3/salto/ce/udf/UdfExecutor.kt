@@ -1,6 +1,7 @@
 package io.sip3.salto.ce.udf
 
 import io.sip3.commons.vertx.util.endpoints
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
@@ -39,9 +40,9 @@ class UdfExecutor(val vertx: Vertx) {
             }
         }
 
-        vertx.eventBus().endpoints().let { endpoints = it }
-        vertx.setPeriodic(checkPeriod) {
-            vertx.eventBus().endpoints().let { endpoints = it }
+        vertx.setPeriodic(0, checkPeriod) {
+            endpoints = vertx.eventBus().endpoints()
+            logger.debug { "Update UDF endpoints: $endpoints" }
         }
     }
 
@@ -55,6 +56,7 @@ class UdfExecutor(val vertx: Vertx) {
             var attributes: Map<String, Any> = mutableMapOf()
             payload["attributes"] = attributes
 
+            logger.debug { "Call '$endpoint' UDF. Payload: $payload" }
             try {
                 val result = withTimeout(executionTimeout) {
                     vertx.eventBus().requestAwait<Boolean>(endpoint, payload, USE_LOCAL_CODEC).body()

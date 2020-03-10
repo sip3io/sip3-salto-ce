@@ -99,7 +99,7 @@ open class SipMessageHandler : AbstractVerticle() {
         val message: SIPMessage? = try {
             StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         } catch (e: Exception) {
-            logger.debug("StringMsgParser `parseSIPMessage()` failed.\n $packet")
+            logger.debug { "StringMsgParser `parseSIPMessage()` failed.\n $packet" }
             return
         }
 
