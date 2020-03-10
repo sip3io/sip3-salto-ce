@@ -117,6 +117,31 @@ class SipTransactionTest {
 
                     """.trimIndent().toByteArray()
         }
+
+        val PACKET_3 = Packet().apply {
+            timestamp = Timestamp(System.currentTimeMillis())
+            srcAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            attributes["ringing"] = true
+            payload = """
+                        SIP/2.0 100 Trying
+                        Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063
+                        From: <sip:123@176.9.119.117:5063;user=phone>;tag=3997885528-3926998818-1774583950-1258246515
+                        To: <sip:321@116.203.55.139;user=phone>
+                        Call-ID: 58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117
+                        CSeq: 1 INVITE
+                        Server: Asterisk PBX 13.29.1
+                        Allow: INVITE,ACK,CANCEL,OPTIONS,BYE,REFER,SUBSCRIBE,NOTIFY,INFO,PUBLISH,MESSAGE
+                        Supported: replaces,timer
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
     }
 
     @Test
@@ -156,5 +181,22 @@ class SipTransactionTest {
         assertTrue(transaction.attributes["invite"] as Boolean)
         assertTrue(transaction.attributes["ringing"] as Boolean)
         assertTrue(transaction.attributes["retransmits"] as Boolean)
+    }
+
+    @Test
+    fun `SIP Transaction with only TRYING message`() {
+        val message = StringMsgParser().parseSIPMessage(PACKET_3.payload, true, false, null)
+        val transaction = SipTransaction()
+        transaction.addMessage(PACKET_3, message)
+
+        assertEquals("INVITE", transaction.cseqMethod)
+        assertEquals(PACKET_3.dstAddr.addr, transaction.srcAddr.addr)
+        assertEquals(PACKET_3.dstAddr.port, transaction.srcAddr.port)
+        assertEquals(PACKET_3.srcAddr.addr, transaction.dstAddr.addr)
+        assertEquals(PACKET_3.srcAddr.port, transaction.dstAddr.port)
+        assertNull(transaction.response)
+        assertEquals("123", transaction.caller)
+        assertEquals("321", transaction.callee)
+        assertEquals("58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117", transaction.callId)
     }
 }

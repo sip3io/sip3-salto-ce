@@ -49,9 +49,7 @@ class SipTransaction {
     val id by lazy {
         request?.transactionId ?: response?.transactionId!!
     }
-    val cseqMethod by lazy {
-        request?.cseqMethod() ?: response?.cseqMethod()!!
-    }
+    lateinit var cseqMethod: String
     var state = UNKNOWN
 
     lateinit var srcAddr: Address
@@ -81,6 +79,7 @@ class SipTransaction {
                     callId = message.callId()!!
                     callee = message.toUserOrNumber()!!
                     caller = message.fromUserOrNumber()!!
+                    cseqMethod = message.cseqMethod()!!
                 }
 
                 // Received message is a retransmit
@@ -98,6 +97,7 @@ class SipTransaction {
                     callId = message.callId()!!
                     callee = message.toUserOrNumber()!!
                     caller = message.fromUserOrNumber()!!
+                    cseqMethod = message.cseqMethod()!!
                 }
 
                 val statusCode = message.statusCode
