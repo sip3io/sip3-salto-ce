@@ -45,9 +45,9 @@ open class Router : AbstractVerticle() {
 
     open var hostMap = emptyMap<String, String>()
 
-    private val packetsRouted = Metrics.counter("packets_routed")
+    val packetsRouted = Metrics.counter("packets_routed")
 
-    private lateinit var udfExecutor: UdfExecutor
+    lateinit var udfExecutor: UdfExecutor
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
@@ -114,7 +114,7 @@ open class Router : AbstractVerticle() {
         }
     }
 
-    private fun mapAddressToHost(address: Address) {
+    open fun mapAddressToHost(address: Address) {
         (hostMap[address.addr] ?: hostMap["${address.addr}:${address.port}"])?.let { address.host = it }
     }
 
@@ -166,7 +166,7 @@ open class Router : AbstractVerticle() {
         }
     }
 
-    private fun mapHostToAddr(host: JsonObject, type: String): MutableMap<String, String> {
+    open fun mapHostToAddr(host: JsonObject, type: String): MutableMap<String, String> {
         return mutableMapOf<String, String>().apply {
             val name = host.getString("name")
             host.getJsonArray(type)?.forEach { addr ->
