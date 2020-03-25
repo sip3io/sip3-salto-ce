@@ -413,6 +413,7 @@ open class SipCallHandler : AbstractVerticle() {
                     }
                     401, 407 -> {
                         state = UNAUTHORIZED
+                        terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                     }
                     487 -> {
                         state = CANCELED
