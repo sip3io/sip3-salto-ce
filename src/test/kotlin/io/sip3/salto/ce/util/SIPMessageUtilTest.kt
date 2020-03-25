@@ -18,11 +18,7 @@ package io.sip3.salto.ce.util
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class SIPMessageUtilTest {
@@ -112,7 +108,7 @@ class SIPMessageUtilTest {
         To: "000155917690 000155917690" <sip:000155917690@10.249.177.194>;tag=20ZvpaH15K34m
         Call-ID: BW135623909170919-10105426@10.64.248.6
         CSeq: 527360435 INVITE
-        Contact: <sip:000155917690@10.177.94.5:5080;transport=udp>
+        Contact: <sip:000155917690@10.177.94.5:5080;transport=udp>;expires=180
         User-Agent: FreeSWITCH
         Allow: INVITE, ACK, BYE, CANCEL, OPTIONS, MESSAGE, INFO, UPDATE, REGISTER, REFER, NOTIFY
         Require: timer
@@ -277,7 +273,7 @@ class SIPMessageUtilTest {
     }
 
     @Test
-    fun `Check hasSdp() method`() {
+    fun `Check hasSdp() method extension`() {
         assertTrue(REQUEST.hasSdp())
         assertTrue(RESPONSE_183.hasSdp())
         assertTrue(RESPONSE_200.hasSdp())
@@ -306,5 +302,11 @@ class SIPMessageUtilTest {
         assertEquals(12, headersMap.size)
         assertEquals("SIP/2.0 183 Session Progress", headersMap["status-line"])
         assertEquals("100rel,precondition,timer", headersMap["supported"])
+    }
+
+    @Test
+    fun `Call expires() method extension`() {
+        assertEquals(300, REQUEST.expires())
+        assertEquals(180, RESPONSE_200.expires())
     }
 }
