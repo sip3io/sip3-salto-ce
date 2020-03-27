@@ -401,10 +401,10 @@ open class SipCallHandler : AbstractVerticle() {
                         state = ANSWERED
                         answeredAt = transaction.terminatedAt ?: transaction.createdAt
                         transaction.ringingAt?.let { ringingAt ->
-                            setupTime = ringingAt - transaction.createdAt
+                            setupTime = ringingAt - createdAt
                         }
                         transaction.terminatedAt?.let { terminatedAt ->
-                            establishTime = terminatedAt - transaction.createdAt
+                            establishTime = terminatedAt - createdAt
                         }
                     }
                     in 300..399 -> {
@@ -413,7 +413,6 @@ open class SipCallHandler : AbstractVerticle() {
                     }
                     401, 407 -> {
                         state = UNAUTHORIZED
-                        terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                     }
                     487 -> {
                         state = CANCELED
