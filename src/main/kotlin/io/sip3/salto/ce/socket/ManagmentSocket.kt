@@ -77,7 +77,10 @@ class ManagementSocket : AbstractVerticle() {
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
             remoteHosts.filterValues { it.lastUpdate + expirationTimeout < now }
-                    .forEach { remoteHosts.remove(it.key) }
+                    .forEach { (name, remoteHost) ->
+                        logger.info("Expired: $remoteHost")
+                        remoteHosts.remove(name)
+                    }
         }
     }
 
@@ -130,7 +133,10 @@ class ManagementSocket : AbstractVerticle() {
                     val host = socketAddress.host()
                     val port = socketAddress.port()
                     val uri = URI("${uri.scheme}://$host:$port")
-                    RemoteHost(name, uri)
+
+                    val remoteHost = RemoteHost(name, uri)
+                    logger.info("Registered: $remoteHost")
+                    return@computeIfAbsent remoteHost
                 }.apply {
                     lastUpdate = System.currentTimeMillis()
                 }
