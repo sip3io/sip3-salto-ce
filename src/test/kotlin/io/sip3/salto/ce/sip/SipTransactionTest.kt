@@ -20,10 +20,7 @@ import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -194,7 +191,7 @@ class SipTransactionTest {
         assertEquals(PACKET_3.dstAddr.port, transaction.srcAddr.port)
         assertEquals(PACKET_3.srcAddr.addr, transaction.dstAddr.addr)
         assertEquals(PACKET_3.srcAddr.port, transaction.dstAddr.port)
-        assertNull(transaction.response)
+        assertNotNull(transaction.response)
         assertEquals("123", transaction.caller)
         assertEquals("321", transaction.callee)
         assertEquals("58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117", transaction.callId)

@@ -104,6 +104,7 @@ class SipTransaction {
                 when (statusCode) {
                     100 ->  {
                         if (tryingAt == null) {
+                            response = message
                             tryingAt = packet.createdAt
                             state = TRYING
                         }
