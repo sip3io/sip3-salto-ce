@@ -44,8 +44,7 @@ server:
 #    transaction-exclusions: [exclude-me]
 #  register:
 #    expiration-delay: 1000
-#    termination-timeout: 5000
-#    aggregation-timeout: 60000
+#    aggregation-timeout: 5000
 #    update-period: 60000
 #    duration-timeout: 3600000
 #    transaction-exclusions: [exclude-me]
