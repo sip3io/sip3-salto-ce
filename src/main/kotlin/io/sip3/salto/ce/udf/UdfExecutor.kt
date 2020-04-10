@@ -6,6 +6,7 @@ import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
 import io.vertx.core.Vertx
+import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.eventbus.requestAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
@@ -80,7 +81,7 @@ class UdfExecutor(val vertx: Vertx) {
                     }
                 }
             } catch (e: Exception) {
-                logger.error("UdfExecutor 'execute()' failed. Endpoint: $endpoint", e)
+                logger.error(e) { "UdfExecutor 'execute()' failed. Endpoint: $endpoint, payload: ${JsonObject(payload).encodePrettily()}" }
                 completionHandler.invoke(NO_RESULT_FUTURE)
             }
         }
