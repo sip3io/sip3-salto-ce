@@ -18,6 +18,7 @@ package io.sip3.salto.ce
 
 import io.sip3.commons.domain.Codec
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.setPeriodic
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -75,7 +76,7 @@ class BootstrapTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.setPeriodic(100) {
+                    vertx.setPeriodic(500, 100) {
                         vertx.eventBus().send("js", message)
                     }
                 },

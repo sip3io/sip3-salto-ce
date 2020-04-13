@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -54,7 +55,7 @@ class MongoBulkWriterTest : VertxTest() {
                         put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
                         put("db_name", "sip3")
                     })
-                    vertx.setPeriodic(100) {
+                    vertx.setPeriodic(500, 100) {
                         mongo.find("test", JsonObject()) { asr ->
                             if (asr.succeeded()) {
                                 val documents = asr.result()
