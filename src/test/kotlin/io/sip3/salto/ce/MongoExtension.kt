@@ -24,13 +24,14 @@ import de.flapdoodle.embed.mongo.distribution.Version
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback
 import org.junit.jupiter.api.extension.BeforeTestExecutionCallback
 import org.junit.jupiter.api.extension.ExtensionContext
+import java.net.ServerSocket
 
 class MongoExtension : BeforeTestExecutionCallback, AfterTestExecutionCallback {
 
     companion object {
 
         const val HOST = "127.0.0.1"
-        const val PORT = 27017
+        val PORT: Int = ServerSocket(0).use { it.localPort }
     }
 
     private lateinit var mongo: MongodExecutable
