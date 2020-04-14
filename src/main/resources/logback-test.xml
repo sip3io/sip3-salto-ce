@@ -10,7 +10,7 @@
         <appender-ref ref="DEFAULT"/>
     </logger>
 
-    <logger name="io.sip3" level="DEBUG" additivity="false">
+    <logger name="io.sip3" level="INFO" additivity="false">
         <appender-ref ref="DEFAULT"/>
     </logger>
 
