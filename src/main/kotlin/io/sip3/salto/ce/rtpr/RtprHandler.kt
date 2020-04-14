@@ -125,7 +125,7 @@ open class RtprHandler : AbstractVerticle() {
     open fun writeAttributes(report: RtpReportPayload) {
         val attributes = mutableMapOf<String, Any>().apply {
             put("mos", report.mos)
-            put("r_factor", report.rFactor)
+            put("r-factor", report.rFactor)
         }
 
         vertx.eventBus().send(RoutesCE.attributes, Pair("rtp", attributes), USE_LOCAL_CODEC)

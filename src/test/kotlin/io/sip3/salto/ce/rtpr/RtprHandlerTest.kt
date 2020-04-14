@@ -194,7 +194,7 @@ class RtprHandlerTest : VertxTest() {
                         context.verify {
                             assertEquals("rtp", prefix)
                             assertEquals(2, attributes.size)
-                            assertEquals(12F, attributes["r_factor"])
+                            assertEquals(12F, attributes["r-factor"])
                             assertEquals(13F, attributes["mos"])
                         }
                         context.completeNow()
