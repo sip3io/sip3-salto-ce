@@ -62,7 +62,7 @@ open class SipCallHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var expirationDelay: Long = 1000
-    private var aggregationTimeout: Long = 60000
+    private var aggregationTimeout: Long = 5000
     private var terminationTimeout: Long = 5000
     private var durationTimeout: Long = 3600000
     private var transactionExclusions = emptyList<String>()
