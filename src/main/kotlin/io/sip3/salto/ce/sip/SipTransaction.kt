@@ -84,7 +84,7 @@ class SipTransaction {
 
                 // Received message is a retransmit
                 if (request != null) {
-                    attributes["retransmits"] = true
+                    attributes[Attributes.retransmits] = true
                 } else {
                     request = message
                 }
@@ -121,7 +121,7 @@ class SipTransaction {
                     200 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes["retransmits"] = true
+                            attributes[Attributes.retransmits] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
@@ -131,7 +131,7 @@ class SipTransaction {
                     in 300..399 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes["retransmits"] = true
+                            attributes[Attributes.retransmits] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
@@ -141,7 +141,7 @@ class SipTransaction {
                     401, 407 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes["retransmits"] = true
+                            attributes[Attributes.retransmits] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
@@ -151,7 +151,7 @@ class SipTransaction {
                     487 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes["retransmits"] = true
+                            attributes[Attributes.retransmits] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
@@ -161,7 +161,7 @@ class SipTransaction {
                     in 400..499 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes["retransmits"] = true
+                            attributes[Attributes.retransmits] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
@@ -174,7 +174,7 @@ class SipTransaction {
                     in 500..599 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes["retransmits"] = true
+                            attributes[Attributes.retransmits] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
@@ -187,7 +187,7 @@ class SipTransaction {
                     in 600..699 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes["retransmits"] = true
+                            attributes[Attributes.retransmits] = true
                         } else {
                             response = message
                             terminatedAt = packet.createdAt
