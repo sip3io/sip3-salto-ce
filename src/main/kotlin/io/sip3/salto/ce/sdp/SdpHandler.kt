@@ -76,13 +76,13 @@ class SdpHandler : AbstractVerticle() {
             try {
                 request = transaction.request?.sessionDescription()?.getMediaDescription("audio") ?: return
             } catch (e: Exception) {
-                logger.debug(e) { "request.sessionDescription() failed. CallId: $callId" }
+                logger.debug(e) { "Couldn't parse SDP. Message: ${transaction.request}" }
             }
 
             try {
                 response = transaction.response?.sessionDescription()?.getMediaDescription("audio") ?: return
             } catch (e: Exception) {
-                logger.debug(e) { "response.sessionDescription() failed. CallId: $callId" }
+                logger.debug(e) { "Couldn't parse SDP. Message: ${transaction.response}" }
             }
         }
 
@@ -104,7 +104,7 @@ class SdpHandler : AbstractVerticle() {
                     }
                 }
 
-        logger.debug { "Send SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
+        logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
         vertx.eventBus().send(RoutesCE.sdp_info, sdpSessions, USE_LOCAL_CODEC)
     }
 
