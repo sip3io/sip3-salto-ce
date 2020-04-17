@@ -73,8 +73,17 @@ class SdpHandler : AbstractVerticle() {
     private fun handle(transaction: SipTransaction) {
         val session = SdpSessionDescription().apply {
             callId = transaction.callId
-            request = transaction.request?.sessionDescription()?.getMediaDescription("audio") ?: return
-            response = transaction.response?.sessionDescription()?.getMediaDescription("audio") ?: return
+            try {
+                request = transaction.request?.sessionDescription()?.getMediaDescription("audio") ?: return
+            } catch (e: Exception) {
+                logger.debug(e) { "request.sessionDescription() failed. CallId: $callId" }
+            }
+
+            try {
+                response = transaction.response?.sessionDescription()?.getMediaDescription("audio") ?: return
+            } catch (e: Exception) {
+                logger.debug(e) { "response.sessionDescription() failed. CallId: $callId" }
+            }
         }
 
         defineCodec(session)
@@ -95,6 +104,7 @@ class SdpHandler : AbstractVerticle() {
                     }
                 }
 
+        logger.debug { "Send SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
         vertx.eventBus().send(RoutesCE.sdp_info, sdpSessions, USE_LOCAL_CODEC)
     }
 
@@ -136,6 +146,13 @@ class SdpHandler : AbstractVerticle() {
             return@lazy response.ptime?.time
                     ?: request.ptime?.time
                     ?: DEFAULT_PTIME
+        }
+
+        val requestAddress:String by lazy {
+            "${request.connection.address}:${request.port}"
+        }
+        val responseAddress:String by lazy {
+            "${response.connection.address}:${request.port}"
         }
 
         val sdpSessionIds: List<Long> by lazy {

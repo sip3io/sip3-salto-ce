@@ -143,7 +143,7 @@ class ManagementSocket : AbstractVerticle() {
 
                 payload.getJsonObject("host")?.let { updateHost(it) }
             }
-            else -> logger.error("Unknown message type. Message: ${message.encodePrettily()}")
+            else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
         }
     }
 
