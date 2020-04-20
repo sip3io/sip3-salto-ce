@@ -71,6 +71,7 @@ class SdpHandler : AbstractVerticle() {
     }
 
     private fun handle(transaction: SipTransaction) {
+        logger.debug { "Execute handle(). TransactionId: ${transaction.id}" }
         val session = SdpSessionDescription().apply {
             callId = transaction.callId
             try {
@@ -152,7 +153,7 @@ class SdpHandler : AbstractVerticle() {
             "${request.connection.address}:${request.port}"
         }
         val responseAddress:String by lazy {
-            "${response.connection.address}:${request.port}"
+            "${response.connection.address}:${response.port}"
         }
 
         val sdpSessionIds: List<Long> by lazy {

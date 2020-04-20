@@ -24,6 +24,8 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.restcomm.media.sdp.SdpException
 
 class SIPMessageUtilTest {
 
@@ -293,7 +295,7 @@ class SIPMessageUtilTest {
         assertNotNull(REQUEST_MULTIPART.sessionDescription())
 
         assertNull(RESPONSE_100.sessionDescription())
-        assertNull(REQUEST_T38.sessionDescription())
+        assertThrows<SdpException> {  REQUEST_T38.sessionDescription() }
     }
 
     @Test
