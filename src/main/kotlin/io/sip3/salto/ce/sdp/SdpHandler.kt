@@ -75,16 +75,20 @@ class SdpHandler : AbstractVerticle() {
         val session = SdpSessionDescription().apply {
             callId = transaction.callId
             try {
-                request = transaction.request?.sessionDescription()?.getMediaDescription("audio") ?: return
+                request = transaction.request?.sessionDescription()?.getMediaDescription("audio")
             } catch (e: Exception) {
                 logger.debug(e) { "Couldn't parse SDP. Message: ${transaction.request}" }
             }
 
             try {
-                response = transaction.response?.sessionDescription()?.getMediaDescription("audio") ?: return
+                response = transaction.response?.sessionDescription()?.getMediaDescription("audio")
             } catch (e: Exception) {
                 logger.debug(e) { "Couldn't parse SDP. Message: ${transaction.response}" }
             }
+        }
+
+        if (session.request == null && session.response == null) {
+            return
         }
 
         defineCodec(session)
@@ -113,11 +117,15 @@ class SdpHandler : AbstractVerticle() {
         val request = session.request
         val response = session.response
 
-        val payloadType = request.payloadTypes
-                .intersect(response.payloadTypes.asIterable())
-                .first()
+        val payloadType = if (request != null && response != null) {
+            request.payloadTypes
+                    .intersect(response.payloadTypes.asIterable())
+                    .first()
+        } else {
+            request?.payloadTypes?.firstOrNull() ?: response?.payloadTypes?.first()!!
+        }
 
-        val payload: RtpMapAttribute? = response.getFormat(payloadType) ?: request.getFormat(payloadType)
+        val payload: RtpMapAttribute? = response?.getFormat(payloadType) ?: request?.getFormat(payloadType)
 
         val codec = codecs[payload?.codec]
                 ?: codecs.values.firstOrNull { it.payloadType.toInt() == payloadType }
@@ -140,24 +148,24 @@ class SdpHandler : AbstractVerticle() {
         lateinit var callId: String
         lateinit var codec: Codec
 
-        lateinit var request: MediaDescriptionField
-        lateinit var response: MediaDescriptionField
+        var request: MediaDescriptionField? = null
+        var response: MediaDescriptionField? = null
 
         val ptime: Int by lazy {
-            return@lazy response.ptime?.time
-                    ?: request.ptime?.time
+            return@lazy response?.ptime?.time
+                    ?: request?.ptime?.time
                     ?: DEFAULT_PTIME
         }
 
-        val requestAddress:String by lazy {
-            "${request.connection.address}:${request.port}"
+        val requestAddress:String? by lazy {
+            request?.let { "${it.connection.address}:${it.port}" }
         }
-        val responseAddress:String by lazy {
-            "${response.connection.address}:${response.port}"
+        val responseAddress:String? by lazy {
+            response?.let { "${it.connection.address}:${it.port}" }
         }
 
         val sdpSessionIds: List<Long> by lazy {
-            listOf(request.sdpSessionId(), response.sdpSessionId())
+            listOfNotNull(request?.sdpSessionId(), response?.sdpSessionId())
         }
     }
 }
