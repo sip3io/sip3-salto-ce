@@ -19,6 +19,7 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.endpoints
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -231,6 +232,31 @@ class SipTransactionHandlerTest : VertxTest() {
                         Content-Length: 0
                     """.trimIndent().toByteArray()
         }
+    }
+
+    @Test
+    fun `Deploy multiple 'SipTransactionHandler' instances`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject(), instances = 4)
+                },
+                execute = {
+                    // Do nothing...
+                },
+                assert = {
+                    vertx.setPeriodic(100) {
+                        val endpoints = vertx.eventBus().endpoints()
+                        if (endpoints.size == 4) {
+                            context.verify {
+                                (0..3).forEach { i ->
+                                    assertTrue(endpoints.contains(SipTransactionHandler.PREFIX + "_$i"))
+                                }
+                            }
+                            context.completeNow()
+                        }
+                    }
+                }
+        )
     }
 
     @Test
