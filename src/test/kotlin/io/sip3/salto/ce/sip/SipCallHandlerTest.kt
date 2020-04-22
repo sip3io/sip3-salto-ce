@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.endpoints
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -361,6 +362,31 @@ class SipCallHandlerTest : VertxTest() {
                         Content-Length: 0
                     """.trimIndent().toByteArray()
         }
+    }
+
+    @Test
+    fun `Deploy multiple 'SipCallHandler' instances`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject(), instances = 4)
+                },
+                execute = {
+                    // Do nothing...
+                },
+                assert = {
+                    vertx.setPeriodic(100) {
+                        val endpoints = vertx.eventBus().endpoints()
+                        if (endpoints.size == 4) {
+                            context.verify {
+                                (0..3).forEach { i ->
+                                    assertTrue(endpoints.contains(SipCallHandler.PREFIX + "_$i"))
+                                }
+                            }
+                            context.completeNow()
+                        }
+                    }
+                }
+        )
     }
 
     @Test

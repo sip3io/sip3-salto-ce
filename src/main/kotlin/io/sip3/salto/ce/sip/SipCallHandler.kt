@@ -24,6 +24,11 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
+import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.dispatcher
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -88,13 +93,15 @@ open class SipCallHandler : AbstractVerticle() {
             terminateExpiredCallSessions()
         }
 
-        val index = config().getInteger("index")
-        vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_$index") { event ->
-            try {
-                val transaction = event.body()
-                handle(transaction)
-            } catch (e: Exception) {
-                logger.error("SipCallHandler 'handle()' failed.", e)
+        GlobalScope.launch(vertx.dispatcher()) {
+            val index = vertx.sharedData().getLocalCounterAwait(PREFIX)
+            vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.getAndIncrementAwait()}") { event ->
+                try {
+                    val transaction = event.body()
+                    handle(transaction)
+                } catch (e: Exception) {
+                    logger.error("SipCallHandler 'handle()' failed.", e)
+                }
             }
         }
     }
