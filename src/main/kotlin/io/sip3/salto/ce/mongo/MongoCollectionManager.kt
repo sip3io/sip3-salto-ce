@@ -18,6 +18,7 @@ package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.setPeriodic
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
@@ -35,7 +36,7 @@ import java.time.format.DateTimeFormatter
 /**
  * Manages MongoDB collections
  */
-@Instance
+@Instance(singleton = true)
 class MongoCollectionManager : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -61,8 +62,7 @@ class MongoCollectionManager : AbstractVerticle() {
         }
 
         if (client != null) {
-            manageCollections()
-            vertx.setPeriodic(updatePeriod) { manageCollections() }
+            vertx.setPeriodic(0L, updatePeriod) { manageCollections() }
         }
     }
 

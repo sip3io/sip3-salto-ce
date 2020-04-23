@@ -100,6 +100,44 @@ class SdpHandlerTest : VertxTest() {
                         """.trimIndent().toByteArray()
         }
 
+        // SIP Message (INVITE) with invalid SDP
+        val PACKET_REQUEST_2 = Packet().apply {
+            timestamp = Timestamp(NOW)
+            srcAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            payload = """
+                        INVITE sip:+1-650-555-2222@ss1.wcom.com;user=phone SIP/2.0
+                        Via: SIP/2.0/UDP iftgw.there.com:5060
+                        From: sip:+1-303-555-1111@ift.here.com;user=phone
+                        To: sip:+1-650-555-2222@ss1.wcom.com;user=phone
+                        Call-ID: 1717@ift.here.com
+                        CSeq: 56 INVITE
+                        Content-Type: application/sdp
+                        Content-Length: 320
+                    
+                        v=0
+                        o=faxgw1 2890844527 2890844527 IN IP4 iftgw.there.com
+                        s=Session SDP
+                        c=IN IP4 iftmg.there.com
+                        t=0 0
+                        m=image 49172 udptl t38
+                        a=T38FaxVersion:0
+                        a=T38maxBitRate:14400
+                        a=T38FaxFillBitRemoval:0
+                        a=T38FaxTranscodingMMR:0
+                        a=T38FaxTranscodingJBIG:0
+                        a=T38FaxRateManagement:transferredTCF
+                        a=T38FaxMaxBuffer:260
+                        a=T38FaxUdpEC:t38UDPRedundancy
+                                """.trimIndent().toByteArray()
+        }
+
         // Valid SIP Message response (200 Ok) on REQUEST_1 (INVITE)
         val PACKET_RESPONSE_1 = Packet().apply {
             timestamp = Timestamp(SipTransactionHandlerTest.NOW + 25)
@@ -371,6 +409,104 @@ class SdpHandlerTest : VertxTest() {
 
                             context.completeNow()
                         }
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Handle INVITE transaction with Request only`() {
+        val transaction = SipTransaction().apply {
+            addPacket(PACKET_REQUEST_1)
+        }
+
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SdpHandler::class, JsonObject())
+                },
+                execute = {
+                    vertx.eventBus().send(RoutesCE.sdp_session, transaction, USE_LOCAL_CODEC)
+                },
+                assert = {
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+                        context.verify {
+                            val sessions = event.body()
+                            assertEquals(1, sessions.size)
+                            val session = sessions.first()
+
+                            assertEquals(transaction.callId, session.callId)
+
+                            session.codec.apply {
+                                assertEquals("UNDEFINED", name)
+                                assertEquals(8000, clockRate)
+                                assertEquals(0x08.toByte(), payloadType)
+                                assertEquals(5.0F, ie)
+                                assertEquals(10.0F, bpl)
+                            }
+
+                            context.completeNow()
+                        }
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Handle INVITE transaction with Response only`() {
+        val transaction = SipTransaction().apply {
+            addPacket(PACKET_RESPONSE_1)
+        }
+
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SdpHandler::class, JsonObject())
+                },
+                execute = {
+                    vertx.eventBus().send(RoutesCE.sdp_session, transaction, USE_LOCAL_CODEC)
+                },
+                assert = {
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+                        context.verify {
+                            val sessions = event.body()
+                            assertEquals(1, sessions.size)
+                            val session = sessions.first()
+
+                            assertEquals(transaction.callId, session.callId)
+
+                            session.codec.apply {
+                                assertEquals("UNDEFINED", name)
+                                assertEquals(8000, clockRate)
+                                assertEquals(0x08.toByte(), payloadType)
+                                assertEquals(5.0F, ie)
+                                assertEquals(10.0F, bpl)
+                            }
+
+                            context.completeNow()
+                        }
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Handle INVITE transaction with invalid SDP`() {
+        val transaction = SipTransaction().apply {
+            addPacket(PACKET_REQUEST_2)
+        }
+
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SdpHandler::class, JsonObject())
+                },
+                execute = {
+                    vertx.eventBus().send(RoutesCE.sdp_session, transaction, USE_LOCAL_CODEC)
+                    vertx.setTimer(2000L) {
+                        context.completeNow()
+                    }
+                },
+                assert = {
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) {
+                        context.failNow(IllegalStateException("No sdp_info expected"))
                     }
                 }
         )

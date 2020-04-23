@@ -19,6 +19,7 @@ package io.sip3.salto.ce.socket
 import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.USE_LOCAL_CODEC
@@ -87,7 +88,7 @@ class ManagementSocketTest : VertxTest() {
                         put("db_name", "sip3")
                     })
 
-                    vertx.setPeriodic(500) {
+                    vertx.setPeriodic(500, 100) {
                         mongo.findOne("hosts", HOST, JsonObject()) { asr ->
                             if (asr.succeeded() && asr.result() != null) {
                                 context.completeNow()

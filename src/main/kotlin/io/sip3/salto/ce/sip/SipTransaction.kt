@@ -26,6 +26,7 @@ import io.sip3.salto.ce.util.callId
 import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.fromUserOrNumber
 import io.sip3.salto.ce.util.toUserOrNumber
+import io.sip3.salto.ce.util.transactionId
 
 class SipTransaction {
 
@@ -47,7 +48,7 @@ class SipTransaction {
     var terminatedAt: Long? = null
 
     val id by lazy {
-        request?.transactionId ?: response?.transactionId!!
+        request?.transactionId() ?: response?.transactionId()!!
     }
     lateinit var cseqMethod: String
     var state = UNKNOWN

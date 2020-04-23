@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018-2020 SIP3.IO, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.sip3.salto.ce.udf
 
 import io.sip3.commons.vertx.util.endpoints
@@ -6,11 +22,8 @@ import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
 import io.vertx.core.Vertx
-import io.vertx.kotlin.core.eventbus.requestAwait
-import io.vertx.kotlin.coroutines.dispatcher
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
+import io.vertx.core.eventbus.DeliveryOptions
+import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
 
 /**
@@ -27,6 +40,7 @@ class UdfExecutor(val vertx: Vertx) {
 
     private var checkPeriod: Long = 300000
     private var executionTimeout: Long = 100
+    private val deliveryOptions = DeliveryOptions(USE_LOCAL_CODEC)
 
     private var endpoints = emptySet<String>()
 
@@ -38,6 +52,10 @@ class UdfExecutor(val vertx: Vertx) {
             config.getLong("execution-timeout")?.let {
                 executionTimeout = it
             }
+        }
+
+        deliveryOptions.apply {
+            sendTimeout = executionTimeout
         }
 
         vertx.setPeriodic(0, checkPeriod) {
@@ -52,17 +70,17 @@ class UdfExecutor(val vertx: Vertx) {
             return
         }
 
-        GlobalScope.launch(vertx.dispatcher()) {
-            var attributes: Map<String, Any> = mutableMapOf()
-            payload["attributes"] = attributes
+        var attributes: Map<String, Any> = mutableMapOf()
+        payload["attributes"] = attributes
 
-            logger.debug { "Call '$endpoint' UDF. Payload: $payload" }
-            try {
-                val result = withTimeout(executionTimeout) {
-                    vertx.eventBus().requestAwait<Boolean>(endpoint, payload, USE_LOCAL_CODEC).body()
-                }
-
-                when (result) {
+        logger.debug { "Call '$endpoint' UDF. Payload: $payload" }
+        vertx.eventBus().request<Boolean>(endpoint, payload, deliveryOptions) { asr ->
+            if (asr.failed()) {
+                logger.error(asr.cause()) { "UdfExecutor 'execute()' failed. Endpoint: $endpoint, payload: ${JsonObject(payload).encodePrettily()}" }
+                completionHandler.invoke(NO_RESULT_FUTURE)
+            } else {
+                val result = asr.result()
+                when (result.body()) {
                     true -> {
                         attributes = attributes.filter { (k, v) ->
                             when (v) {
@@ -79,9 +97,6 @@ class UdfExecutor(val vertx: Vertx) {
                         completionHandler.invoke(Future.succeededFuture(Pair(false, emptyMap())))
                     }
                 }
-            } catch (e: Exception) {
-                logger.error("UdfExecutor 'execute()' failed. Endpoint: $endpoint", e)
-                completionHandler.invoke(NO_RESULT_FUTURE)
             }
         }
     }

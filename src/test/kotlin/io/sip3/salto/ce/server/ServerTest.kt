@@ -39,16 +39,17 @@ class ServerTest : VertxTest() {
 
     @Test
     fun `Retrieve SIP3 packet via UDP`() {
+        val port = findRandomPort()
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(Server::class, JsonObject().apply {
                         put("server", JsonObject().apply {
-                            put("uri", "udp://127.0.0.1:15060")
+                            put("uri", "udp://127.0.0.1:$port")
                         })
                     })
                 },
                 execute = {
-                    vertx.createDatagramSocket().sendAwait(MESSAGE_1, 15060, "127.0.0.1")
+                    vertx.createDatagramSocket().sendAwait(MESSAGE_1, port, "127.0.0.1")
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
@@ -65,16 +66,17 @@ class ServerTest : VertxTest() {
 
     @Test
     fun `Retrieve HEP3 packet via TCP`() {
+        val port = findRandomPort()
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(Server::class, JsonObject().apply {
                         put("server", JsonObject().apply {
-                            put("uri", "tcp://127.0.0.1:15060")
+                            put("uri", "tcp://127.0.0.1:$port")
                         })
                     })
                 },
                 execute = {
-                    vertx.createNetClient().connectAwait(15060, "127.0.0.1").write(MESSAGE_2)
+                    vertx.createNetClient().connectAwait(port, "127.0.0.1").write(MESSAGE_2)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
@@ -91,16 +93,17 @@ class ServerTest : VertxTest() {
 
     @Test
     fun `Retrieve HEP2 packet via TCP`() {
+        val port = findRandomPort()
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(Server::class, JsonObject().apply {
                         put("server", JsonObject().apply {
-                            put("uri", "tcp://127.0.0.1:15061")
+                            put("uri", "tcp://127.0.0.1:$port")
                         })
                     })
                 },
                 execute = {
-                    vertx.createNetClient().connectAwait(15061, "127.0.0.1").write(Buffer.buffer(MESSAGE_3))
+                    vertx.createNetClient().connectAwait(port, "127.0.0.1").write(Buffer.buffer(MESSAGE_3))
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->

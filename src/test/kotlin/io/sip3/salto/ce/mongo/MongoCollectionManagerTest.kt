@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoExtension
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
@@ -48,7 +49,7 @@ class MongoCollectionManagerTest : VertxTest() {
                         put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
                         put("db_name", "sip3")
                     })
-                    vertx.setPeriodic(100) {
+                    vertx.setPeriodic(500, 100) {
                         mongo.getCollections { asr ->
                             if (asr.succeeded()) {
                                 val collection = asr.result().firstOrNull { name -> name.startsWith("test") }
