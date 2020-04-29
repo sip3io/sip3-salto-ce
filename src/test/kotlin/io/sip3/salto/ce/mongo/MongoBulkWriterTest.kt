@@ -17,10 +17,10 @@
 package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -46,9 +46,7 @@ class MongoBulkWriterTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair("test", JsonObject().apply {
-                        put("document", document)
-                    }), USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair("test", JsonObject().apply { put("document", document) }))
                 },
                 assert = {
                     val mongo = MongoClient.createShared(vertx, JsonObject().apply {

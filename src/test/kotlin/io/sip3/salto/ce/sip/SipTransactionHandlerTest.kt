@@ -20,9 +20,9 @@ import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
@@ -274,8 +274,8 @@ class SipTransactionHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_1), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_2), USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_1))
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_2))
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -314,8 +314,8 @@ class SipTransactionHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_1), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_2), USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_1))
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_2))
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -355,9 +355,9 @@ class SipTransactionHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_1), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_2), USE_LOCAL_CODEC)
-                    vertx.eventBus().send(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_3), USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_1))
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_2))
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_3))
                 },
                 assert = {
                     vertx.eventBus().consumer<SipTransaction>(RoutesCE.sip + "_call_0") { event ->

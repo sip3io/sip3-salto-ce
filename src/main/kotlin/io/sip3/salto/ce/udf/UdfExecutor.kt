@@ -17,8 +17,8 @@
 package io.sip3.salto.ce.udf
 
 import io.sip3.commons.vertx.util.endpoints
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.commons.vertx.util.setPeriodic
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
 import io.vertx.core.Vertx
@@ -36,11 +36,11 @@ class UdfExecutor(val vertx: Vertx) {
     companion object {
 
         val NO_RESULT_FUTURE: Future<Pair<Boolean, Map<String, Any>>> = Future.succeededFuture(Pair(true, emptyMap()))
+        val DELIVERY_OPTIONS = DeliveryOptions()
     }
 
     private var checkPeriod: Long = 300000
     private var executionTimeout: Long = 100
-    private val deliveryOptions = DeliveryOptions(USE_LOCAL_CODEC)
 
     private var endpoints = emptySet<String>()
 
@@ -54,7 +54,7 @@ class UdfExecutor(val vertx: Vertx) {
             }
         }
 
-        deliveryOptions.apply {
+        DELIVERY_OPTIONS.apply {
             sendTimeout = executionTimeout
         }
 
@@ -74,7 +74,7 @@ class UdfExecutor(val vertx: Vertx) {
         payload["attributes"] = attributes
 
         logger.debug { "Call '$endpoint' UDF. Payload: $payload" }
-        vertx.eventBus().request<Boolean>(endpoint, payload, deliveryOptions) { asr ->
+        vertx.eventBus().localRequest<Boolean>(endpoint, payload, DELIVERY_OPTIONS) { asr ->
             if (asr.failed()) {
                 logger.error(asr.cause()) { "UdfExecutor 'execute()' failed. Endpoint: $endpoint, payload: ${JsonObject(payload).encodePrettily()}" }
                 completionHandler.invoke(NO_RESULT_FUTURE)

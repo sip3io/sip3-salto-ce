@@ -19,9 +19,9 @@ package io.sip3.salto.ce.router
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.udf.UdfExecutor
@@ -128,7 +128,7 @@ open class Router : AbstractVerticle() {
         if (route != null) {
             packetsRouted.increment()
             writeAttributes(packet)
-            vertx.eventBus().send(route, packet, USE_LOCAL_CODEC)
+            vertx.eventBus().localRequest<Any>(route, packet)
         }
     }
 
@@ -143,7 +143,7 @@ open class Router : AbstractVerticle() {
             dst.host?.let { put(Attributes.dst_host, it) }
         }
 
-        vertx.eventBus().send(RoutesCE.attributes, Pair("ip", attributes), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("ip", attributes))
     }
 
     open fun updateHostMap() {

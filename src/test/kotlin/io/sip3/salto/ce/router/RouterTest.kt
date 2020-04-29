@@ -18,9 +18,9 @@ package io.sip3.salto.ce.router
 
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonArray
@@ -64,7 +64,7 @@ class RouterTest : VertxTest() {
                         }
                         protocolCode = 3
                     }
-                    vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
                 },
                 assert = {
                     vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
@@ -104,7 +104,7 @@ class RouterTest : VertxTest() {
                         }
                         protocolCode = 3
                     }
-                    vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
@@ -161,7 +161,7 @@ class RouterTest : VertxTest() {
                         }
                         protocolCode = 3
                     }
-                    vertx.setPeriodic(100) { vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC) }
+                    vertx.setPeriodic(100) { vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet)) }
                 },
                 assert = {
                     vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
@@ -222,7 +222,7 @@ class RouterTest : VertxTest() {
                         }
                         protocolCode = 3
                     }
-                    vertx.setPeriodic(100) { vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC) }
+                    vertx.setPeriodic(100) { vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet)) }
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
@@ -288,8 +288,8 @@ class RouterTest : VertxTest() {
                     }
                     vertx.setPeriodic(100) {
                         if (vertx.eventBus().endpoints().contains("packet_udf")) {
-                            vertx.eventBus().send(RoutesCE.router, Pair(sender1, packet1), USE_LOCAL_CODEC)
-                            vertx.eventBus().send(RoutesCE.router, Pair(sender2, packet2), USE_LOCAL_CODEC)
+                            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender1, packet1))
+                            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender2, packet2))
                         }
                     }
                 },
@@ -354,8 +354,8 @@ class RouterTest : VertxTest() {
                     }
                     vertx.setPeriodic(100) {
                         if (vertx.eventBus().endpoints().contains("packet_udf")) {
-                            vertx.eventBus().send(RoutesCE.router, Pair(sender1, packet1), USE_LOCAL_CODEC)
-                            vertx.eventBus().send(RoutesCE.router, Pair(sender2, packet2), USE_LOCAL_CODEC)
+                            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender1, packet1))
+                            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender2, packet2))
                         }
                     }
                 },

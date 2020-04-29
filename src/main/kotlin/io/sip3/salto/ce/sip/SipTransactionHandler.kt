@@ -19,9 +19,9 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.hasSdp
@@ -114,7 +114,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
         // Send SDP Session Description
         if (transaction.cseqMethod == "INVITE" && transaction.response?.hasSdp() == true) {
-            vertx.eventBus().send(RoutesCE.sdp_session, transaction, USE_LOCAL_CODEC)
+            vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
         }
     }
 
@@ -139,14 +139,14 @@ open class SipTransactionHandler : AbstractVerticle() {
             RoutesCE.sip + "_call" -> {
                 val index = transaction.callId.hashCode()
                 val route = prefix + "_${abs(index % instances)}"
-                vertx.eventBus().send(route, transaction, USE_LOCAL_CODEC)
+                vertx.eventBus().localRequest<Any>(route, transaction)
             }
             RoutesCE.sip + "_register" -> {
                 // RFC-3261 10.2: The To header field contains the address of record
                 // whose registration is to be created, queried, or modified.
                 val index = (transaction.request?.toUri() ?: transaction.response?.toUri()).hashCode()
                 val route = prefix + "_${abs(index % instances)}"
-                vertx.eventBus().send(route, transaction, USE_LOCAL_CODEC)
+                vertx.eventBus().localRequest<Any>(route, transaction)
             }
             else -> {
                 writeAttributes(transaction)
@@ -174,7 +174,7 @@ open class SipTransactionHandler : AbstractVerticle() {
                     put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
                 }
 
-        vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
 
     }
 
@@ -206,6 +206,6 @@ open class SipTransactionHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, document), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, document))
     }
 }
