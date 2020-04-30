@@ -19,11 +19,8 @@ package io.sip3.salto.ce
 import io.sip3.commons.vertx.AbstractBootstrap
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.deploymentOptionsOf
-import io.vertx.kotlin.core.eventbus.deliveryOptionsOf
 import mu.KotlinLogging
 import java.io.File
-
-val USE_LOCAL_CODEC = deliveryOptionsOf(codecName = "local", localOnly = true)
 
 open class Bootstrap : AbstractBootstrap() {
 

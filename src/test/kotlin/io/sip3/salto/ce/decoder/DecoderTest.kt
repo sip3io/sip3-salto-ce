@@ -17,8 +17,8 @@
 package io.sip3.salto.ce.decoder
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.buffer.Buffer
@@ -56,7 +56,7 @@ class DecoderTest : VertxTest() {
                         addr = "127.0.0.1"
                         port = 5060
                     }
-                    vertx.eventBus().send(RoutesCE.sip3, Pair(sender, Buffer.buffer(PACKET_1)), USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip3, Pair(sender, Buffer.buffer(PACKET_1)))
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->

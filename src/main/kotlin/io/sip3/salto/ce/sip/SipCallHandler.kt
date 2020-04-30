@@ -19,9 +19,9 @@ package io.sip3.salto.ce.sip
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
@@ -284,7 +284,7 @@ open class SipCallHandler : AbstractVerticle() {
                     session.establishTime?.let { put(Attributes.establish_time, it) }
                 }
 
-        vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
     }
 
     open fun writeToDatabase(prefix: String, session: SipSession, upsert: Boolean = false) {
@@ -345,7 +345,7 @@ open class SipCallHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
     private fun excludeSessionAttributes(attributes: Map<String, Any>): Map<String, Any> {
