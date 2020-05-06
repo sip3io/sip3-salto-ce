@@ -81,19 +81,23 @@ class MongoCollectionManager : AbstractVerticle() {
                     // Create collection `${prefix}_${System.currentTimeMillis()}`
                     var name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis())}"
                     if (!names.contains(name)) {
-                        createCollectionAndIndexes(name, collection.getJsonObject("indexes"))
+                        client!!.createCollectionAwait(name)
                         names.add(name)
-                    } else {
-                        val indexes = client!!.listIndexesAwait(name)
-                        if (indexes.size() <= 1) {
-                            createIndexes(name, collection.getJsonObject("indexes"))
+                    }
+
+                    // Create collection indexes
+                    collection.getJsonObject("indexes")?.let { indexes ->
+                        val indexCount = client!!.listIndexesAwait(name).count()
+                        if (indexCount <= 1) {
+                            createIndexes(name, indexes)
                         }
                     }
 
                     // Create collection `${prefix}_${System.currentTimeMillis() + updatePeriod}`
                     name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis() + updatePeriod)}"
                     if (!names.contains(name)) {
-                        createCollectionAndIndexes(name, collection.getJsonObject("indexes"))
+                        client!!.createCollectionAwait(name)
+                        collection.getJsonObject("indexes")?.let { createIndexes(name, it) }
                         names.add(name)
                     }
                 }
@@ -111,24 +115,16 @@ class MongoCollectionManager : AbstractVerticle() {
                 .forEach { name -> client!!.dropCollectionAwait(name) }
     }
 
-    private suspend fun createCollectionAndIndexes(name: String, indexes: JsonObject? = null) {
-        // Create collection
-        client!!.createCollectionAwait(name)
-
-        // Create indexes
-        createIndexes(name, indexes)
-    }
-
-    private suspend fun createIndexes(name: String, indexes: JsonObject? = null) {
+    private suspend fun createIndexes(name: String, indexes: JsonObject) {
         // Create ascending indexes if needed
-        indexes?.getJsonArray("ascending")?.forEach { index ->
+        indexes.getJsonArray("ascending")?.forEach { index ->
             client!!.createIndexAwait(name, JsonObject().apply {
                 put(index as String, 1)
             })
         }
 
         // Create hashed indexes if needed
-        indexes?.getJsonArray("hashed")?.forEach { index ->
+        indexes.getJsonArray("hashed")?.forEach { index ->
             client!!.createIndexAwait(name, JsonObject().apply {
                 put(index as String, "hashed")
             })
