@@ -28,6 +28,7 @@ import io.vertx.kotlin.ext.mongo.createCollectionAwait
 import io.vertx.kotlin.ext.mongo.createIndexAwait
 import io.vertx.kotlin.ext.mongo.dropCollectionAwait
 import io.vertx.kotlin.ext.mongo.getCollectionsAwait
+import io.vertx.kotlin.ext.mongo.listIndexesAwait
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
@@ -70,7 +71,7 @@ class MongoCollectionManager : AbstractVerticle() {
         GlobalScope.launch(vertx.dispatcher()) {
             try {
                 // Retrieve collections
-                var names = client!!.getCollectionsAwait() as MutableList<String>
+                val names = client!!.getCollectionsAwait() as MutableList<String>
 
                 // Drop and create collections
                 collections.forEach { collection ->
@@ -80,14 +81,23 @@ class MongoCollectionManager : AbstractVerticle() {
                     // Create collection `${prefix}_${System.currentTimeMillis()}`
                     var name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis())}"
                     if (!names.contains(name)) {
-                        createCollectionAndIndexes(name, collection.getJsonObject("indexes"))
+                        client!!.createCollectionAwait(name)
                         names.add(name)
+                    }
+
+                    // Create collection indexes
+                    collection.getJsonObject("indexes")?.let { indexes ->
+                        val indexCount = client!!.listIndexesAwait(name).count()
+                        if (indexCount <= 1) {
+                            createIndexes(name, indexes)
+                        }
                     }
 
                     // Create collection `${prefix}_${System.currentTimeMillis() + updatePeriod}`
                     name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis() + updatePeriod)}"
                     if (!names.contains(name)) {
-                        createCollectionAndIndexes(name, collection.getJsonObject("indexes"))
+                        client!!.createCollectionAwait(name)
+                        collection.getJsonObject("indexes")?.let { createIndexes(name, it) }
                         names.add(name)
                     }
                 }
@@ -105,19 +115,16 @@ class MongoCollectionManager : AbstractVerticle() {
                 .forEach { name -> client!!.dropCollectionAwait(name) }
     }
 
-    private suspend fun createCollectionAndIndexes(name: String, indexes: JsonObject? = null) {
-        // Create collection
-        client!!.createCollectionAwait(name)
-
+    private suspend fun createIndexes(name: String, indexes: JsonObject) {
         // Create ascending indexes if needed
-        indexes?.getJsonArray("ascending")?.forEach { index ->
+        indexes.getJsonArray("ascending")?.forEach { index ->
             client!!.createIndexAwait(name, JsonObject().apply {
                 put(index as String, 1)
             })
         }
 
         // Create hashed indexes if needed
-        indexes?.getJsonArray("hashed")?.forEach { index ->
+        indexes.getJsonArray("hashed")?.forEach { index ->
             client!!.createIndexAwait(name, JsonObject().apply {
                 put(index as String, "hashed")
             })
