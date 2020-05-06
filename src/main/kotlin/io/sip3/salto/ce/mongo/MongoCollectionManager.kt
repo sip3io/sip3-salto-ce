@@ -28,6 +28,7 @@ import io.vertx.kotlin.ext.mongo.createCollectionAwait
 import io.vertx.kotlin.ext.mongo.createIndexAwait
 import io.vertx.kotlin.ext.mongo.dropCollectionAwait
 import io.vertx.kotlin.ext.mongo.getCollectionsAwait
+import io.vertx.kotlin.ext.mongo.listIndexesAwait
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
@@ -70,7 +71,7 @@ class MongoCollectionManager : AbstractVerticle() {
         GlobalScope.launch(vertx.dispatcher()) {
             try {
                 // Retrieve collections
-                var names = client!!.getCollectionsAwait() as MutableList<String>
+                val names = client!!.getCollectionsAwait() as MutableList<String>
 
                 // Drop and create collections
                 collections.forEach { collection ->
@@ -82,6 +83,11 @@ class MongoCollectionManager : AbstractVerticle() {
                     if (!names.contains(name)) {
                         createCollectionAndIndexes(name, collection.getJsonObject("indexes"))
                         names.add(name)
+                    } else {
+                        val indexes = client!!.listIndexesAwait(name)
+                        if (indexes.size() <= 1) {
+                            createIndexes(name, collection.getJsonObject("indexes"))
+                        }
                     }
 
                     // Create collection `${prefix}_${System.currentTimeMillis() + updatePeriod}`
@@ -109,6 +115,11 @@ class MongoCollectionManager : AbstractVerticle() {
         // Create collection
         client!!.createCollectionAwait(name)
 
+        // Create indexes
+        createIndexes(name, indexes)
+    }
+
+    private suspend fun createIndexes(name: String, indexes: JsonObject? = null) {
         // Create ascending indexes if needed
         indexes?.getJsonArray("ascending")?.forEach { index ->
             client!!.createIndexAwait(name, JsonObject().apply {
