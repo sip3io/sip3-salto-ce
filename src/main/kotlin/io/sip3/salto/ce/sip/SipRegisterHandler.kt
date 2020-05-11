@@ -1,11 +1,27 @@
+/*
+ * Copyright 2018-2020 SIP3.IO, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.util.expires
 import io.vertx.core.AbstractVerticle
@@ -215,7 +231,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                     put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
                 }
 
-        vertx.eventBus().send(RoutesCE.attributes, Pair("sip", attributes), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
     }
 
     open fun writeToDatabase(prefix: String, registration: SipRegistration, upsert: Boolean = false) {
@@ -273,7 +289,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
     private fun excludeRegistrationAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {

@@ -22,6 +22,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.domain.Address
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
