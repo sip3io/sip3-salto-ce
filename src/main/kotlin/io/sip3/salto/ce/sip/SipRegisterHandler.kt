@@ -1,6 +1,7 @@
 package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -8,6 +9,12 @@ import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.util.expires
 import io.vertx.core.AbstractVerticle
+import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.core.shareddata.incrementAndGetAwait
+import io.vertx.kotlin.coroutines.dispatcher
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -77,13 +84,15 @@ open class SipRegisterHandler : AbstractVerticle() {
             terminateExpiredRegistrations()
         }
 
-        val index = config().getInteger("index")
-        vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_$index") { event ->
-            try {
-                val transaction = event.body()
-                handle(transaction)
-            } catch (e: Exception) {
-                logger.error("SipRegisterHandler 'handle()' failed.", e)
+        GlobalScope.launch(vertx.dispatcher()) {
+            val index = vertx.sharedData().getLocalCounterAwait(PREFIX)
+            vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.incrementAndGetAwait()}") { event ->
+                try {
+                    val transaction = event.body()
+                    handle(transaction)
+                } catch (e: Exception) {
+                    logger.error("SipRegisterHandler 'handle()' failed.", e)
+                }
             }
         }
     }
@@ -91,7 +100,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     open fun handle(transaction: SipTransaction) {
         val id = "${transaction.legId}:${transaction.callId}"
 
-        val registration = activeRegistrations[id] ?: SipRegistration()
+        var registration = activeRegistrations[id] ?: SipRegistration()
         registration.addRegisterTransaction(transaction)
 
         when (registration.state) {
@@ -135,12 +144,15 @@ open class SipRegisterHandler : AbstractVerticle() {
         activeRegistrations.filterValues { registration ->
             when (registration.state) {
                 REGISTERED -> {
+                    val expiredAt = registration.expiredAt!!
+
                     // Check if registration exceeded `durationTimeout`
                     if (registration.createdAt + durationTimeout < now) {
+                        registration.terminatedAt = expiredAt
+
                         return@filterValues true
                     }
 
-                    val expiredAt = registration.expiredAt!!
                     if (expiredAt >= now) {
                         // Check `updated_at` and write to database if needed
                         val updatedAt = registration.updatedAt
@@ -156,9 +168,13 @@ open class SipRegisterHandler : AbstractVerticle() {
                                     registration.dstAddr.host?.let { put("dst_host", it) }
                                 }
                         Metrics.counter(ACTIVE, attributes).increment()
-                    }
 
-                    return@filterValues expiredAt < now
+                        return@filterValues false
+                    } else {
+                        registration.terminatedAt = expiredAt
+
+                        return@filterValues true
+                    }
                 }
                 else -> {
                     return@filterValues registration.createdAt + aggregationTimeout < now
@@ -203,7 +219,61 @@ open class SipRegisterHandler : AbstractVerticle() {
     }
 
     open fun writeToDatabase(prefix: String, registration: SipRegistration, upsert: Boolean = false) {
-        // TODO...
+        val collection = prefix + "_index_" + timeSuffix.format(registration.createdAt)
+
+        val operation = JsonObject().apply {
+            if (upsert) {
+                put("type", "UPDATE")
+                put("upsert", true)
+                put("filter", JsonObject().apply {
+                    put("created_at", registration.createdAt)
+                    val src = registration.srcAddr
+                    src.host?.let { put("src_host", it) } ?: put("src_addr", src.addr)
+                    val dst = registration.dstAddr
+                    dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
+                    put("call_id", registration.callId)
+                })
+            }
+            put("document", JsonObject().apply {
+                var document = this
+
+                val src = registration.srcAddr
+                val dst = registration.dstAddr
+
+                if (upsert) {
+                    document = JsonObject()
+                    put("\$setOnInsert", document)
+                }
+                document.apply {
+                    put("created_at", registration.createdAt)
+                    put("src_addr", src.addr)
+                    put("src_port", src.port)
+                    put("dst_addr", dst.addr)
+                    put("dst_port", dst.port)
+                    put("call_id", registration.callId)
+                }
+
+                if (upsert) {
+                    document = JsonObject()
+                    put("\$set", document)
+                }
+                document.apply {
+                    put("state", registration.state)
+
+                    registration.terminatedAt?.let { put("terminated_at", it) }
+
+                    registration.srcAddr.host?.let { put("src_host", it) }
+                    registration.dstAddr.host?.let { put("dst_host", it) }
+
+                    put("caller", registration.caller)
+                    put("callee", registration.callee)
+
+                    registration.attributes.forEach { (name, value) -> put(name, value) }
+                }
+            })
+        }
+
+        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
     }
 
     private fun excludeRegistrationAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
@@ -238,7 +308,23 @@ open class SipRegisterHandler : AbstractVerticle() {
         var attributes = mutableMapOf<String, Any>()
 
         fun addRegisterTransaction(transaction: SipTransaction) {
-            // TODO...
+            if (createdAt == 0L) {
+                createdAt = transaction.createdAt
+                srcAddr = transaction.srcAddr
+                dstAddr = transaction.dstAddr
+                callId = transaction.callId
+                callee = transaction.callee
+                caller = transaction.caller
+            }
+
+            transaction.response?.expires()?.let { expires ->
+                if (expires > 0) {
+
+                } else {
+                    // Registration has to be removed
+                    terminatedAt = transaction.terminatedAt ?: transaction.createdAt
+                }
+            }
         }
     }
 }

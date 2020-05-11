@@ -22,11 +22,7 @@ import gov.nist.javax.sip.message.SIPResponse
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.util.callId
-import io.sip3.salto.ce.util.cseqMethod
-import io.sip3.salto.ce.util.fromUserOrNumber
-import io.sip3.salto.ce.util.toUserOrNumber
-import io.sip3.salto.ce.util.transactionId
+import io.sip3.salto.ce.util.*
 
 class SipTransaction {
 
@@ -42,15 +38,18 @@ class SipTransaction {
         const val UNAUTHORIZED = "unauthorized"
     }
 
+    val id by lazy {
+        request?.transactionId() ?: response?.transactionId()!!
+    }
+
+    lateinit var cseqMethod: String
+    var cseqNumber: Long = 0
+
     var createdAt: Long = 0
     var tryingAt: Long? = null
     var ringingAt: Long? = null
     var terminatedAt: Long? = null
 
-    val id by lazy {
-        request?.transactionId() ?: response?.transactionId()!!
-    }
-    lateinit var cseqMethod: String
     var state = UNKNOWN
 
     lateinit var srcAddr: Address
@@ -74,13 +73,16 @@ class SipTransaction {
         when (message) {
             is SIPRequest -> {
                 if (createdAt == 0L) {
+                    cseqMethod = message.cseqMethod()!!
+                    cseqNumber = message.cseqNumber()!!
+
                     createdAt = packet.createdAt
                     srcAddr = packet.srcAddr
                     dstAddr = packet.dstAddr
+
                     callId = message.callId()!!
                     callee = message.toUserOrNumber()!!
                     caller = message.fromUserOrNumber()!!
-                    cseqMethod = message.cseqMethod()!!
                 }
 
                 // Received message is a retransmit
@@ -92,18 +94,21 @@ class SipTransaction {
             }
             is SIPResponse -> {
                 if (createdAt == 0L) {
+                    cseqMethod = message.cseqMethod()!!
+                    cseqNumber = message.cseqNumber()!!
+
                     createdAt = packet.createdAt
                     srcAddr = packet.dstAddr
                     dstAddr = packet.srcAddr
+
                     callId = message.callId()!!
                     callee = message.toUserOrNumber()!!
                     caller = message.fromUserOrNumber()!!
-                    cseqMethod = message.cseqMethod()!!
                 }
 
                 val statusCode = message.statusCode
                 when (statusCode) {
-                    100 ->  {
+                    100 -> {
                         if (tryingAt == null) {
                             response = message
                             tryingAt = packet.createdAt
