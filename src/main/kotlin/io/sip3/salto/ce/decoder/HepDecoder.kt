@@ -20,8 +20,8 @@ import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
@@ -95,7 +95,7 @@ class HepDecoder : AbstractVerticle() {
         }
 
         packetsDecoded.increment()
-        vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
     }
 
     fun decodeHep3(sender: Address, buffer: Buffer) {
@@ -149,6 +149,6 @@ class HepDecoder : AbstractVerticle() {
         }
 
         packetsDecoded.increment()
-        vertx.eventBus().send(RoutesCE.router, Pair(sender, packet), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
     }
 }

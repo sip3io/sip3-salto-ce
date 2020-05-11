@@ -23,9 +23,9 @@ import io.sip3.commons.SipMethods
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.sip3.salto.ce.util.*
@@ -159,7 +159,7 @@ open class SipMessageHandler : AbstractVerticle() {
         val route = RoutesCE.sip + "_transaction_${abs(index % instances)}"
 
         writeToDatabase(prefix, packet, message)
-        vertx.eventBus().send(route, Pair(packet, message), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(route, Pair(packet, message))
     }
 
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
@@ -206,6 +206,6 @@ open class SipMessageHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 }

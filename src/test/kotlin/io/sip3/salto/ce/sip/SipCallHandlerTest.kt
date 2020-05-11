@@ -19,9 +19,10 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
+import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
@@ -397,7 +398,6 @@ class SipCallHandlerTest : VertxTest() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
-                        put("index", 0)
                         put("sip", JsonObject().apply {
                             put("call", JsonObject().apply {
                                 put("expiration-delay", 100)
@@ -407,7 +407,9 @@ class SipCallHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", transaction, USE_LOCAL_CODEC)
+                    vertx.setPeriodic(200, 100) {
+                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
+                    }
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -443,7 +445,6 @@ class SipCallHandlerTest : VertxTest() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
-                        put("index", 0)
                         put("sip", JsonObject().apply {
                             put("call", JsonObject().apply {
                                 put("expiration-delay", 100)
@@ -453,7 +454,9 @@ class SipCallHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", transaction, USE_LOCAL_CODEC)
+                    vertx.setPeriodic(200, 200) {
+                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
+                    }
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -496,7 +499,6 @@ class SipCallHandlerTest : VertxTest() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
-                        put("index", 0)
                         put("sip", JsonObject().apply {
                             put("call", JsonObject().apply {
                                 put("expiration-delay", 100)
@@ -506,8 +508,10 @@ class SipCallHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", inviteTransaction, USE_LOCAL_CODEC)
-                    vertx.eventBus().send(RoutesCE.sip + "_call_0", byeTransaction, USE_LOCAL_CODEC)
+                    vertx.setPeriodic(200, 100) {
+                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", inviteTransaction)
+                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", byeTransaction)
+                    }
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->

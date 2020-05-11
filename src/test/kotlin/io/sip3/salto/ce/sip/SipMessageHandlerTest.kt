@@ -18,8 +18,8 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
@@ -85,7 +85,7 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SipMessageHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip, PACKET_1, USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -115,7 +115,7 @@ class SipMessageHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SipMessageHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.sip, PACKET_1, USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
@@ -150,7 +150,7 @@ class SipMessageHandlerTest : VertxTest() {
                             dstAddr = PACKET_1.dstAddr
                             payload = PACKET_1.payload
                         }
-                        vertx.eventBus().send(RoutesCE.sip, packet, USE_LOCAL_CODEC)
+                        vertx.eventBus().localRequest<Any>(RoutesCE.sip, packet)
                     }
                 },
                 assert = {
@@ -189,7 +189,7 @@ class SipMessageHandlerTest : VertxTest() {
                             dstAddr = PACKET_1.dstAddr
                             payload = PACKET_1.payload
                         }
-                        vertx.eventBus().send(RoutesCE.sip, packet, USE_LOCAL_CODEC)
+                        vertx.eventBus().localRequest<Any>(RoutesCE.sip, packet)
                     }
                 },
                 assert = {

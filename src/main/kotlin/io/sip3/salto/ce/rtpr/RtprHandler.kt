@@ -21,8 +21,8 @@ import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -128,7 +128,7 @@ open class RtprHandler : AbstractVerticle() {
             put("r-factor", report.rFactor)
         }
 
-        vertx.eventBus().send(RoutesCE.attributes, Pair("rtp", attributes), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("rtp", attributes))
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
@@ -175,6 +175,6 @@ open class RtprHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().send(RoutesCE.mongo_bulk_writer, Pair(collection, operation), USE_LOCAL_CODEC)
+        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 }

@@ -22,8 +22,8 @@ import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.USE_LOCAL_CODEC
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
@@ -108,11 +108,11 @@ class RtprHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(RtprHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.rtpr, PACKET_1, USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, PACKET_1)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
+                        val (collection, operation) = event.body()
 
                         val document = operation.getJsonObject("document")
 
@@ -163,7 +163,7 @@ class RtprHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(RtprHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.rtpr, PACKET_2, USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, PACKET_2)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -185,7 +185,7 @@ class RtprHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(RtprHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.rtpr, PACKET_2, USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, PACKET_2)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
@@ -217,7 +217,7 @@ class RtprHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().send(RoutesCE.rtpr, PACKET_1, USE_LOCAL_CODEC)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, PACKET_1)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
