@@ -98,6 +98,7 @@ class SdpHandler : AbstractVerticle() {
     private fun send(session: SdpSessionDescription) {
         val now = System.currentTimeMillis()
 
+        // TODO: Remove this `try-catch` once we will add IPv6 support
         try {
             val sdpSessions = session.sdpSessionIds
                     .map { sdpSessionId ->
