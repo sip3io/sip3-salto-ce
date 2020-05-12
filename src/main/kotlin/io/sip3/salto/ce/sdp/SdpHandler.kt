@@ -98,19 +98,24 @@ class SdpHandler : AbstractVerticle() {
     private fun send(session: SdpSessionDescription) {
         val now = System.currentTimeMillis()
 
-        val sdpSessions = session.sdpSessionIds
-                .map { sdpSessionId ->
-                    SdpSession().apply {
-                        id = sdpSessionId
-                        timestamp = now
-                        callId = session.callId
-                        codec = session.codec
-                        ptime = session.ptime
+        // TODO: Remove this `try-catch` once we will add IPv6 support
+        try {
+            val sdpSessions = session.sdpSessionIds
+                    .map { sdpSessionId ->
+                        SdpSession().apply {
+                            id = sdpSessionId
+                            timestamp = now
+                            callId = session.callId
+                            codec = session.codec
+                            ptime = session.ptime
+                        }
                     }
-                }
 
-        logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
-        vertx.eventBus().localRequest<Any>(RoutesCE.sdp_info, sdpSessions)
+            logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
+            vertx.eventBus().localRequest<Any>(RoutesCE.sdp_info, sdpSessions)
+        } catch (e: Exception) {
+            logger.debug(e) { "Couldn't retrieve session IDs. Request: ${session.request}, Response: ${session.response}" }
+        }
     }
 
     private fun defineCodec(session: SdpSessionDescription) {
