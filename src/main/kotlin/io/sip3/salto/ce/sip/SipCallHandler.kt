@@ -139,7 +139,6 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
-                .toMutableMap()
                 .apply {
                     transaction.srcAddr.host?.let { put("src_host", it) }
                     transaction.dstAddr.host?.let { put("dst_host", it) }
@@ -188,7 +187,6 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
-                .toMutableMap()
                 .apply {
                     transaction.srcAddr.host?.let { put("src_host", it) }
                     transaction.dstAddr.host?.let { put("dst_host", it) }
@@ -211,6 +209,10 @@ open class SipCallHandler : AbstractVerticle() {
 
                 if (!isExpired && session.state == SipSession.ANSWERED) {
                     val attributes = excludeSessionAttributes(session.attributes)
+                            .apply {
+                                session.srcAddr.host?.let { put("src_host", it) }
+                                session.dstAddr.host?.let { put("dst_host", it) }
+                            }
                     Metrics.counter(ESTABLISHED, attributes).increment()
                 }
 
@@ -348,7 +350,7 @@ open class SipCallHandler : AbstractVerticle() {
         vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
-    private fun excludeSessionAttributes(attributes: Map<String, Any>): Map<String, Any> {
+    private fun excludeSessionAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
