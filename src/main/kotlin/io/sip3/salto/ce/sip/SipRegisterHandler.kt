@@ -18,7 +18,6 @@ package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
-import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -38,7 +37,9 @@ import java.util.concurrent.TimeUnit
 /**
  * Handles SIP registrations
  */
-@Instance
+// TODO: There is some work in progress.
+//       This class will be modified soon.
+//@Instance
 open class SipRegisterHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
