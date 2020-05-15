@@ -21,6 +21,9 @@ server:
 
 #! Application
 #time-suffix: yyyyMMdd
+#udf:
+#  check-period: 300000
+#  execution-timeout: 100
 #attributes:
 #  record-ip-addresses: true
 #  record-call-users: true
@@ -30,19 +33,23 @@ server:
 #    x-correlation-header: X-Call-ID
 #  transaction:
 #    expiration-delay: 1000
+#    response-timeout: 5000
 #    aggregation-timeout: 60000
 #    termination-timeout: 5000
 #  call:
 #    expiration-delay: 1000
-#    aggregation-timeout: 60000
+#    aggregation-timeout: 5000
 #    termination-timeout: 5000
+#    duration-timeout: 3600000
+#    transaction-exclusions: [exclude-me]
+#  register:
+#    expiration-delay: 1000
+#    aggregation-timeout: 5000
+#    update-period: 60000
 #    duration-timeout: 3600000
 #    transaction-exclusions: [exclude-me]
 #rtp-r:
 #  cumulative-metrics: true
-#udf:
-#  check-period: 300000
-#  execution-timeout: 100
 
 #! Metrics
 #metrics:
@@ -87,7 +94,7 @@ server:
 #    - prefix: sip_register_index
 #      indexes:
 #        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state]
-#        hashed: [call_id, x_call_id]
+#        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: sip_register_raw
 #      indexes:
@@ -97,7 +104,7 @@ server:
 #    - prefix: sip_message_index
 #      indexes:
 #        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state]
-#        hashed: [call_id, x_call_id]
+#        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: sip_message_raw
 #      indexes:
@@ -107,7 +114,7 @@ server:
 #    - prefix: sip_options_index
 #      indexes:
 #        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state]
-#        hashed: [call_id, x_call_id]
+#        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: sip_options_raw
 #      indexes:

@@ -22,6 +22,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.domain.Address
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
@@ -43,8 +44,18 @@ open class SipCallHandler : AbstractVerticle() {
 
     companion object {
 
+        // Prefix
         const val PREFIX = "sip_call"
 
+        // State
+        const val UNKNOWN = "unknown"
+        const val FAILED = "failed"
+        const val CANCELED = "canceled"
+        const val ANSWERED = "answered"
+        const val REDIRECTED = "redirected"
+        const val UNAUTHORIZED = "unauthorized"
+
+        // Metric
         const val ATTEMPTS = PREFIX + "_attempts"
         const val DURATION = PREFIX + "_duration"
         const val TRYING_DELAY = PREFIX + "_trying-delay"
@@ -56,7 +67,7 @@ open class SipCallHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var expirationDelay: Long = 1000
-    private var aggregationTimeout: Long = 60000
+    private var aggregationTimeout: Long = 5000
     private var terminationTimeout: Long = 5000
     private var durationTimeout: Long = 3600000
     private var transactionExclusions = emptyList<String>()
@@ -118,11 +129,11 @@ open class SipCallHandler : AbstractVerticle() {
         session.addInviteTransaction(transaction)
 
         when (session.state) {
-            SipSession.REDIRECTED, SipSession.CANCELED, SipSession.FAILED -> {
+            REDIRECTED, CANCELED, FAILED -> {
                 terminateCallSession(session)
                 activeSessions.get(transaction.callId)?.remove(transaction.legId)
             }
-            SipSession.ANSWERED -> {
+            ANSWERED -> {
                 writeAttributes(session)
                 writeToDatabase(PREFIX, session, upsert = true)
                 activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
@@ -139,7 +150,6 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
-                .toMutableMap()
                 .apply {
                     transaction.srcAddr.host?.let { put("src_host", it) }
                     transaction.dstAddr.host?.let { put("dst_host", it) }
@@ -155,8 +165,7 @@ open class SipCallHandler : AbstractVerticle() {
                 Metrics.timer(SETUP_TIME, attributes).record(ringingAt - createdAt, TimeUnit.MILLISECONDS)
             }
         }
-        val response = transaction.response
-        if (response?.statusCode == 200) {
+        if (transaction.state == SipTransaction.SUCCEED) {
             transaction.terminatedAt?.let { terminatedAt ->
                 if (createdAt < terminatedAt) {
                     Metrics.timer(ESTABLISH_TIME, attributes).record(terminatedAt - createdAt, TimeUnit.MILLISECONDS)
@@ -188,7 +197,6 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
-                .toMutableMap()
                 .apply {
                     transaction.srcAddr.host?.let { put("src_host", it) }
                     transaction.dstAddr.host?.let { put("dst_host", it) }
@@ -209,8 +217,13 @@ open class SipCallHandler : AbstractVerticle() {
                 val isExpired = (session.terminatedAt?.let { it + terminationTimeout }
                         ?: session.answeredAt?.let { it + durationTimeout } ?: session.createdAt + aggregationTimeout) < now
 
-                if (!isExpired && session.state == SipSession.ANSWERED) {
+                if (!isExpired && session.state == ANSWERED) {
                     val attributes = excludeSessionAttributes(session.attributes)
+                            .apply {
+                                session.srcAddr.host?.let { put("src_host", it) }
+                                session.dstAddr.host?.let { put("dst_host", it) }
+                            }
+
                     Metrics.counter(ESTABLISHED, attributes).increment()
                 }
 
@@ -231,12 +244,12 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         val state = session.state
-        if (state == SipSession.ANSWERED && session.duration == null) {
+        if (state == ANSWERED && session.duration == null) {
             session.attributes[Attributes.expired] = true
         }
 
         writeAttributes(session)
-        writeToDatabase(PREFIX, session, upsert = (session.state == SipSession.ANSWERED))
+        writeToDatabase(PREFIX, session, upsert = (session.state == ANSWERED))
         calculateCallSessionMetrics(session)
     }
 
@@ -348,7 +361,7 @@ open class SipCallHandler : AbstractVerticle() {
         vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
-    private fun excludeSessionAttributes(attributes: Map<String, Any>): Map<String, Any> {
+    private fun excludeSessionAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
@@ -357,6 +370,83 @@ open class SipCallHandler : AbstractVerticle() {
             remove(Attributes.x_call_id)
             remove(Attributes.retransmits)
             transactionExclusions.forEach { remove(it) }
+        }
+    }
+
+    inner class SipSession {
+
+        var state = UNKNOWN
+
+        var createdAt: Long = 0
+        var answeredAt: Long? = null
+        var terminatedAt: Long? = null
+
+        lateinit var srcAddr: Address
+        lateinit var dstAddr: Address
+
+        lateinit var callId: String
+        lateinit var callee: String
+        lateinit var caller: String
+
+        var duration: Long? = null
+        var setupTime: Long? = null
+        var establishTime: Long? = null
+
+        var attributes = mutableMapOf<String, Any>()
+
+        fun addInviteTransaction(transaction: SipTransaction) {
+            if (createdAt == 0L) {
+                createdAt = transaction.createdAt
+                srcAddr = transaction.srcAddr
+                dstAddr = transaction.dstAddr
+                callId = transaction.callId
+                callee = transaction.callee
+                caller = transaction.caller
+            }
+
+            if (state != ANSWERED) {
+                when (transaction.state) {
+                    SipTransaction.SUCCEED -> {
+                        state = ANSWERED
+                        answeredAt = transaction.terminatedAt ?: transaction.createdAt
+                        transaction.ringingAt?.let { ringingAt ->
+                            setupTime = ringingAt - createdAt
+                        }
+                        transaction.terminatedAt?.let { terminatedAt ->
+                            establishTime = terminatedAt - createdAt
+                        }
+                    }
+                    SipTransaction.REDIRECTED -> {
+                        state = REDIRECTED
+                        terminatedAt = transaction.terminatedAt ?: transaction.createdAt
+                    }
+                    SipTransaction.UNAUTHORIZED -> {
+                        state = UNAUTHORIZED
+                    }
+                    SipTransaction.CANCELED -> {
+                        state = CANCELED
+                        terminatedAt = transaction.terminatedAt ?: transaction.createdAt
+                    }
+                    SipTransaction.FAILED -> {
+                        state = FAILED
+                        terminatedAt = transaction.terminatedAt ?: transaction.createdAt
+                    }
+                }
+            }
+
+            transaction.attributes.forEach { (name, value) -> attributes[name] = value }
+        }
+
+        fun addByeTransaction(transaction: SipTransaction) {
+            if (terminatedAt == null) {
+                terminatedAt = transaction.terminatedAt ?: transaction.createdAt
+
+                answeredAt?.let { answeredAt ->
+                    duration = transaction.createdAt - answeredAt
+                }
+
+                transaction.attributes.forEach { (name, value) -> attributes[name] = value }
+            }
         }
     }
 }

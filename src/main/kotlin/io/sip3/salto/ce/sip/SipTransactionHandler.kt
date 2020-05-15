@@ -57,6 +57,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var expirationDelay: Long = 1000
+    private var responseTimeout: Long = 5000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 5000
 
@@ -72,6 +73,9 @@ open class SipTransactionHandler : AbstractVerticle() {
         config().getJsonObject("sip")?.getJsonObject("transaction")?.let { config ->
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
+            }
+            config.getLong("response-timeout")?.let {
+                responseTimeout = it
             }
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
@@ -112,7 +116,7 @@ open class SipTransactionHandler : AbstractVerticle() {
         val transaction = transactions.getOrPut(message.transactionId()) { SipTransaction() }
         transaction.addMessage(packet, message)
 
-        // Send SDP Session Description
+        // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.response?.hasSdp() == true) {
             vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
         }
@@ -122,7 +126,11 @@ open class SipTransactionHandler : AbstractVerticle() {
         val now = System.currentTimeMillis()
 
         transactions.filterValues { transaction ->
-            (transaction.terminatedAt?.let { it + terminationTimeout } ?: transaction.createdAt + aggregationTimeout) < now
+            // 1. Wait `termination-timeout` if transaction was terminated
+            // 2. Wait `response-timeout` if transaction was created but hasn't received any response yet
+            // 3. Wait `aggregation-timeout` if transaction was created and has received response with non final status code
+            (transaction.terminatedAt?.let { it + terminationTimeout }
+                    ?: transaction.createdAt + (transaction.response?.let { aggregationTimeout } ?: responseTimeout)) < now
         }.forEach { (tid, transaction) ->
             transactions.remove(tid)
             routeTransaction(transaction)
