@@ -404,10 +404,9 @@ open class SipCallHandler : AbstractVerticle() {
                 caller = transaction.caller
             }
 
-            val statusCode = transaction.response?.statusCode
-            if (statusCode != null && state != ANSWERED) {
-                when (statusCode) {
-                    200 -> {
+            if (state != ANSWERED) {
+                when (transaction.state) {
+                    SipTransaction.SUCCEED -> {
                         state = ANSWERED
                         answeredAt = transaction.terminatedAt ?: transaction.createdAt
                         transaction.ringingAt?.let { ringingAt ->
@@ -417,18 +416,18 @@ open class SipCallHandler : AbstractVerticle() {
                             establishTime = terminatedAt - createdAt
                         }
                     }
-                    in 300..399 -> {
+                    SipTransaction.REDIRECTED -> {
                         state = REDIRECTED
                         terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                     }
-                    401, 407 -> {
+                    SipTransaction.UNAUTHORIZED -> {
                         state = UNAUTHORIZED
                     }
-                    487 -> {
+                    SipTransaction.CANCELED -> {
                         state = CANCELED
                         terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                     }
-                    in 400..699 -> {
+                    SipTransaction.FAILED -> {
                         state = FAILED
                         terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                     }
