@@ -42,11 +42,21 @@ class ManagementSocketTest : VertxTest() {
             put("sip", arrayListOf("10.10.10.10", "10.10.20.10:5060"))
         }
 
+        private val CONFIG = JsonObject().apply {
+            put("management", JsonObject().apply {
+                put("protocol", "udp")
+                put("local-host", "127.0.0.1:15091")
+                put("remote-host", "127.0.0.1:15090")
+                put("register-delay", 2000L)
+            })
+            put("host", HOST)
+        }
+
         private val REGISTER_MESSAGE = JsonObject().apply {
             put("type", ManagementSocket.TYPE_REGISTER)
             put("payload", JsonObject().apply {
                 put("name", UUID.randomUUID().toString())
-                put("host", HOST)
+                put("config", CONFIG)
             })
         }
     }
