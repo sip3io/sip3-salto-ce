@@ -128,6 +128,7 @@ class ManagementSocket : AbstractVerticle() {
         when (type) {
             TYPE_REGISTER -> {
                 val name = payload.getString("name")
+                val config = payload.getJsonObject("config")
 
                 remoteHosts.computeIfAbsent(name) {
                     val host = socketAddress.host()
@@ -135,13 +136,13 @@ class ManagementSocket : AbstractVerticle() {
                     val uri = URI("${uri.scheme}://$host:$port")
 
                     val remoteHost = RemoteHost(name, uri)
-                    logger.info("Registered: $remoteHost")
+                    logger.info("Registered: $remoteHost, Config:\n${config?.encodePrettily()}")
                     return@computeIfAbsent remoteHost
                 }.apply {
                     lastUpdate = System.currentTimeMillis()
                 }
 
-                payload.getJsonObject("host")?.let { updateHost(it) }
+                config?.getJsonObject("host")?.let { updateHost(it) }
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
         }
