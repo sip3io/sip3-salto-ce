@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
+import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -25,8 +26,8 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.util.expires
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
 import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
-import io.vertx.kotlin.core.shareddata.incrementAndGetAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -37,9 +38,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Handles SIP registrations
  */
-// TODO: There is some work in progress.
-//       This class will be modified soon.
-//@Instance
+@Instance
 open class SipRegisterHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -103,7 +102,7 @@ open class SipRegisterHandler : AbstractVerticle() {
 
         GlobalScope.launch(vertx.dispatcher()) {
             val index = vertx.sharedData().getLocalCounterAwait(PREFIX)
-            vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.incrementAndGetAwait()}") { event ->
+            vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.getAndIncrementAwait()}") { event ->
                 try {
                     val transaction = event.body()
                     handle(transaction)
@@ -117,7 +116,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     open fun handle(transaction: SipTransaction) {
         val id = "${transaction.legId}:${transaction.callId}"
 
-        var registration = activeRegistrations[id] ?: SipRegistration()
+        val registration = activeRegistrations[id] ?: SipRegistration()
         registration.addRegisterTransaction(transaction)
 
         when (registration.state) {
@@ -161,16 +160,16 @@ open class SipRegisterHandler : AbstractVerticle() {
         activeRegistrations.filterValues { registration ->
             when (registration.state) {
                 REGISTERED -> {
-                    val expiredAt = registration.expiredAt!!
+                    val expiresAt = registration.expiresAt!!
 
                     // Check if registration exceeded `durationTimeout`
                     if (registration.createdAt + durationTimeout < now) {
-                        registration.terminatedAt = expiredAt
+                        registration.terminatedAt = expiresAt
 
                         return@filterValues true
                     }
 
-                    if (expiredAt >= now) {
+                    if (expiresAt >= now) {
                         // Check `updated_at` and write to database if needed
                         val updatedAt = registration.updatedAt
                         if (updatedAt == null || updatedAt + updatePeriod < now) {
@@ -188,7 +187,7 @@ open class SipRegisterHandler : AbstractVerticle() {
 
                         return@filterValues false
                     } else {
-                        registration.terminatedAt = expiredAt
+                        registration.terminatedAt = expiresAt
 
                         return@filterValues true
                     }
@@ -307,12 +306,12 @@ open class SipRegisterHandler : AbstractVerticle() {
 
     inner class SipRegistration {
 
-        var state = SipCallHandler.UNKNOWN
+        var state = UNKNOWN
 
         var updatedAt: Long? = null
 
         var createdAt: Long = 0
-        var expiredAt: Long? = null
+        var expiresAt: Long? = null
         var terminatedAt: Long? = null
 
         lateinit var srcAddr: Address
@@ -334,14 +333,26 @@ open class SipRegisterHandler : AbstractVerticle() {
                 caller = transaction.caller
             }
 
+            if (state != REGISTERED) {
+                state = when (transaction.state) {
+                    SipTransaction.SUCCEED -> REGISTERED
+                    SipTransaction.REDIRECTED -> REDIRECTED
+                    SipTransaction.UNAUTHORIZED -> UNAUTHORIZED
+                    SipTransaction.FAILED -> FAILED
+                    else -> UNKNOWN
+                }
+            }
+
             transaction.response?.expires()?.let { expires ->
                 if (expires > 0) {
-
+                    expiresAt = transaction.createdAt + expires * 1000
                 } else {
                     // Registration has to be removed
                     terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                 }
             }
+
+            transaction.attributes.forEach { (name, value) -> attributes[name] = value }
         }
     }
 }
