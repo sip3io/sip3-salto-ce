@@ -286,6 +286,18 @@ open class SipRegisterHandler : AbstractVerticle() {
 
                     registration.attributes.forEach { (name, value) -> put(name, value) }
                 }
+
+                if (upsert) {
+                    put("\$push", JsonObject().apply {
+                        put("sessions", JsonObject().apply {
+                            put("\$each", registration.sessions.toList())
+                        })
+                    })
+                } else {
+                    put("sessions", registration.sessions.toList())
+                }
+
+                registration.sessions.clear()
             })
         }
 
@@ -322,6 +334,7 @@ open class SipRegisterHandler : AbstractVerticle() {
         lateinit var caller: String
 
         var attributes = mutableMapOf<String, Any>()
+        val sessions = mutableListOf<JsonObject>()
 
         fun addRegisterTransaction(transaction: SipTransaction) {
             if (createdAt == 0L) {
@@ -351,6 +364,11 @@ open class SipRegisterHandler : AbstractVerticle() {
                     terminatedAt = transaction.terminatedAt ?: transaction.createdAt
                 }
             }
+
+            sessions.add(JsonObject().apply {
+                put("createdAt", transaction.createdAt)
+                put("expiredAt", expiresAt ?: transaction.terminatedAt ?: transaction.createdAt)
+            })
 
             transaction.attributes.forEach { (name, value) -> attributes[name] = value }
         }
