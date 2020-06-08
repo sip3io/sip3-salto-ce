@@ -287,14 +287,15 @@ open class SipRegisterHandler : AbstractVerticle() {
                     registration.attributes.forEach { (name, value) -> put(name, value) }
                 }
 
+                val sessions = registration.sessions.toList()
                 if (upsert) {
                     put("\$push", JsonObject().apply {
                         put("sessions", JsonObject().apply {
-                            put("\$each", registration.sessions.toList())
+                            put("\$each", sessions)
                         })
                     })
                 } else {
-                    put("sessions", registration.sessions.toList())
+                    put("sessions", sessions)
                 }
 
                 registration.sessions.clear()
@@ -346,16 +347,6 @@ open class SipRegisterHandler : AbstractVerticle() {
                 caller = transaction.caller
             }
 
-            if (state != REGISTERED) {
-                state = when (transaction.state) {
-                    SipTransaction.SUCCEED -> REGISTERED
-                    SipTransaction.REDIRECTED -> REDIRECTED
-                    SipTransaction.UNAUTHORIZED -> UNAUTHORIZED
-                    SipTransaction.FAILED -> FAILED
-                    else -> UNKNOWN
-                }
-            }
-
             transaction.response?.expires()?.let { expires ->
                 if (expires > 0) {
                     expiresAt = transaction.createdAt + expires * 1000
@@ -365,10 +356,62 @@ open class SipRegisterHandler : AbstractVerticle() {
                 }
             }
 
-            sessions.add(JsonObject().apply {
-                put("createdAt", transaction.createdAt)
-                put("expiredAt", expiresAt ?: transaction.terminatedAt ?: transaction.createdAt)
-            })
+            // Update state
+            if (state != REGISTERED) {
+                when (transaction.state) {
+                    SipTransaction.SUCCEED -> {
+                        state = REGISTERED
+                        sessions.lastOrNull()?.put("expiredAt", expiresAt ?: transaction.terminatedAt ?: transaction.createdAt)
+                    }
+                    SipTransaction.REDIRECTED -> {
+                        state = REDIRECTED
+                        if (sessions.isEmpty()) {
+                            sessions.add(JsonObject().apply {
+                                put("createdAt", transaction.createdAt)
+                                put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
+                            })
+                        } else {
+                            sessions.lastOrNull()?.put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
+                        }
+                    }
+                    SipTransaction.UNAUTHORIZED -> {
+                        state = UNAUTHORIZED
+                        sessions.add(JsonObject().apply {
+                            put("createdAt", transaction.createdAt)
+                            put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
+                        })
+                    }
+                    SipTransaction.FAILED -> {
+                        state = FAILED
+                        if (sessions.isEmpty()) {
+                            sessions.add(JsonObject().apply {
+                                put("createdAt", transaction.createdAt)
+                                put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
+                            })
+                        } else {
+                            sessions.lastOrNull()?.put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
+                        }
+                    }
+                    else -> {
+                        state = UNKNOWN
+                        sessions.add(JsonObject().apply {
+                            put("createdAt", transaction.createdAt)
+                            put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
+                        })
+                    }
+                }
+            } else {
+                if (transaction.state == SipTransaction.UNAUTHORIZED) {
+                    // Add new session
+                    sessions.add(JsonObject().apply {
+                        put("createdAt", transaction.createdAt)
+                        put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
+                    })
+                } else {
+                    // Update session expiredAt
+                    sessions.lastOrNull()?.put("expiredAt", expiresAt ?: transaction.terminatedAt ?: transaction.createdAt)
+                }
+            }
 
             transaction.attributes.forEach { (name, value) -> attributes[name] = value }
         }
