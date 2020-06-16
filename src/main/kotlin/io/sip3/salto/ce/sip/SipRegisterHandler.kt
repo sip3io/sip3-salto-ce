@@ -70,6 +70,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var recordCallUsersAttributes = false
 
     private var activeRegistrations = mutableMapOf<String, SipRegistration>()
+    private var activeSessions = mutableMapOf<String, SipSession>()
 
     override fun start() {
         config().getString("time-suffix")?.let {
@@ -98,6 +99,7 @@ open class SipRegisterHandler : AbstractVerticle() {
 
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredRegistrations()
+            terminateExpiredSessions()
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
@@ -123,6 +125,11 @@ open class SipRegisterHandler : AbstractVerticle() {
             UNKNOWN, REDIRECTED, FAILED -> {
                 terminateRegistration(registration)
                 activeRegistrations.remove(id)
+                activeSessions.remove(id)
+            }
+            REGISTERED -> {
+                activeRegistrations.remove(id)
+                activeSessions.getOrPut(id) { SipSession() }.addSipRegistration(registration)
             }
             else -> {
                 activeRegistrations[id] = registration
@@ -157,49 +164,61 @@ open class SipRegisterHandler : AbstractVerticle() {
     open fun terminateExpiredRegistrations() {
         val now = System.currentTimeMillis()
 
-        activeRegistrations.filterValues { registration ->
-            when (registration.state) {
-                REGISTERED -> {
-                    val expiresAt = registration.expiresAt!!
-
-                    // Check if registration exceeded `durationTimeout`
-                    if (registration.createdAt + durationTimeout < now) {
-                        registration.terminatedAt = expiresAt
-
-                        return@filterValues true
-                    }
-
-                    if (expiresAt >= now) {
-                        // Check `updated_at` and write to database if needed
-                        val updatedAt = registration.updatedAt
-                        if (updatedAt == null || updatedAt + updatePeriod < now) {
-                            registration.updatedAt = now
-                            writeToDatabase(PREFIX, registration, updatedAt != null)
-                        }
-
-                        // Calculate `active` registrations
-                        val attributes = excludeRegistrationAttributes(registration.attributes)
-                                .apply {
-                                    registration.srcAddr.host?.let { put("src_host", it) }
-                                    registration.dstAddr.host?.let { put("dst_host", it) }
-                                }
-                        Metrics.counter(ACTIVE, attributes).increment()
-
-                        return@filterValues false
-                    } else {
-                        registration.terminatedAt = expiresAt
-
-                        return@filterValues true
-                    }
+        activeRegistrations.filterValues { it.createdAt + aggregationTimeout < now }
+                .forEach { (id, registration) ->
+                    activeRegistrations.remove(id)
+                    terminateRegistration(registration)
                 }
-                else -> {
-                    return@filterValues registration.createdAt + aggregationTimeout < now
-                }
+    }
+
+    private fun terminateExpiredSessions() {
+        val now = System.currentTimeMillis()
+
+        activeSessions.filterValues { session ->
+            val expiresAt = session.expiresAt!!
+
+            // Check if registration exceeded `durationTimeout`
+            if (session.createdAt + durationTimeout < now) {
+                session.terminatedAt = expiresAt
+
+                return@filterValues true
             }
-        }.forEach { (id, registration) ->
-            activeRegistrations.remove(id)
-            terminateRegistration(registration)
+
+            if (expiresAt >= now) {
+                // Check `updated_at` and write to database if needed
+                val updatedAt = session.updatedAt
+                if (updatedAt == null || updatedAt + updatePeriod < now) {
+                    session.updatedAt = now
+                    writeToDatabase(PREFIX, session, updatedAt != null)
+                }
+
+                // Calculate `active` registrations
+                val attributes = excludeRegistrationAttributes(session.attributes)
+                        .apply {
+                            session.srcAddr.host?.let { put("src_host", it) }
+                            session.dstAddr.host?.let { put("dst_host", it) }
+                        }
+                Metrics.counter(ACTIVE, attributes).increment()
+
+                return@filterValues false
+            } else {
+                session.terminatedAt = expiresAt
+
+                return@filterValues true
+            }
+        }.forEach { (id, session) ->
+            activeSessions.remove(id)
+            terminateSession(session)
         }
+    }
+
+    private fun terminateSession(session: SipSession) {
+        if (session.terminatedAt == null) {
+            session.terminatedAt = System.currentTimeMillis()
+        }
+
+        writeToDatabase(PREFIX, session, true)
+        session.registrations.clear()
     }
 
     open fun terminateRegistration(registration: SipRegistration) {
@@ -287,18 +306,22 @@ open class SipRegisterHandler : AbstractVerticle() {
                     registration.attributes.forEach { (name, value) -> put(name, value) }
                 }
 
-                val sessions = registration.sessions.toList()
-                if (upsert) {
-                    put("\$push", JsonObject().apply {
-                        put("sessions", JsonObject().apply {
-                            put("\$each", sessions)
-                        })
-                    })
-                } else {
-                    put("sessions", sessions)
-                }
+                if (registration is SipSession) {
+                    var registrations: Any = registration.registrations.map { (createdAt, terminatedAt) ->
+                        JsonObject().apply {
+                            put("created_at", createdAt)
+                            put("terminated_at", terminatedAt)
+                        }
+                    }
+                    if (upsert) {
+                        document = JsonObject()
+                        put("\$push", document)
 
-                registration.sessions.clear()
+                        // Wrap registrations list
+                        registrations = JsonObject().apply { put("\$each", registrations) }
+                    }
+                    document.put("registrations", registrations)
+                }
             })
         }
 
@@ -317,11 +340,34 @@ open class SipRegisterHandler : AbstractVerticle() {
         }
     }
 
-    inner class SipRegistration {
-
-        var state = UNKNOWN
+    inner class SipSession : SipRegistration() {
 
         var updatedAt: Long? = null
+
+        val registrations = mutableListOf<Pair<Long, Long>>()
+
+        fun addSipRegistration(registration: SipRegistration) {
+            if (createdAt == 0L) {
+                createdAt = registration.createdAt
+                expiresAt = registration.expiresAt
+                terminatedAt = registration.terminatedAt
+                srcAddr = registration.srcAddr
+                dstAddr = registration.dstAddr
+                callId = registration.callId
+                callee = registration.callee
+                caller = registration.caller
+                state = registration.state
+            }
+
+            registrations.add(Pair(registration.createdAt, registration.expiresAt ?: registration.terminatedAt ?: registration.createdAt))
+
+            registration.attributes.forEach { (name, value) -> attributes[name] = value }
+        }
+    }
+
+    open inner class SipRegistration {
+
+        var state = UNKNOWN
 
         var createdAt: Long = 0
         var expiresAt: Long? = null
@@ -335,7 +381,6 @@ open class SipRegisterHandler : AbstractVerticle() {
         lateinit var caller: String
 
         var attributes = mutableMapOf<String, Any>()
-        val sessions = mutableListOf<JsonObject>()
 
         fun addRegisterTransaction(transaction: SipTransaction) {
             if (createdAt == 0L) {
@@ -358,58 +403,12 @@ open class SipRegisterHandler : AbstractVerticle() {
 
             // Update state
             if (state != REGISTERED) {
-                when (transaction.state) {
-                    SipTransaction.SUCCEED -> {
-                        state = REGISTERED
-                        sessions.lastOrNull()?.put("expiredAt", expiresAt ?: transaction.terminatedAt ?: transaction.createdAt)
-                    }
-                    SipTransaction.REDIRECTED -> {
-                        state = REDIRECTED
-                        if (sessions.isEmpty()) {
-                            sessions.add(JsonObject().apply {
-                                put("createdAt", transaction.createdAt)
-                                put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
-                            })
-                        } else {
-                            sessions.lastOrNull()?.put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
-                        }
-                    }
-                    SipTransaction.UNAUTHORIZED -> {
-                        state = UNAUTHORIZED
-                        sessions.add(JsonObject().apply {
-                            put("createdAt", transaction.createdAt)
-                            put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
-                        })
-                    }
-                    SipTransaction.FAILED -> {
-                        state = FAILED
-                        if (sessions.isEmpty()) {
-                            sessions.add(JsonObject().apply {
-                                put("createdAt", transaction.createdAt)
-                                put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
-                            })
-                        } else {
-                            sessions.lastOrNull()?.put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
-                        }
-                    }
-                    else -> {
-                        state = UNKNOWN
-                        sessions.add(JsonObject().apply {
-                            put("createdAt", transaction.createdAt)
-                            put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
-                        })
-                    }
-                }
-            } else {
-                if (transaction.state == SipTransaction.UNAUTHORIZED) {
-                    // Add new session
-                    sessions.add(JsonObject().apply {
-                        put("createdAt", transaction.createdAt)
-                        put("expiredAt", transaction.terminatedAt ?: transaction.createdAt)
-                    })
-                } else {
-                    // Update session expiredAt
-                    sessions.lastOrNull()?.put("expiredAt", expiresAt ?: transaction.terminatedAt ?: transaction.createdAt)
+                state = when (transaction.state) {
+                    SipTransaction.SUCCEED -> REGISTERED
+                    SipTransaction.REDIRECTED -> REDIRECTED
+                    SipTransaction.UNAUTHORIZED -> UNAUTHORIZED
+                    SipTransaction.FAILED -> FAILED
+                    else -> UNKNOWN
                 }
             }
 
