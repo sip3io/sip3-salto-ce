@@ -125,7 +125,6 @@ open class SipRegisterHandler : AbstractVerticle() {
             UNKNOWN, REDIRECTED, FAILED -> {
                 terminateRegistration(registration)
                 activeRegistrations.remove(id)
-                activeSessions.remove(id)
             }
             REGISTERED -> {
                 activeRegistrations.remove(id)
@@ -169,6 +168,15 @@ open class SipRegisterHandler : AbstractVerticle() {
                     activeRegistrations.remove(id)
                     terminateRegistration(registration)
                 }
+    }
+
+    open fun terminateRegistration(registration: SipRegistration) {
+        if (registration.terminatedAt == null) {
+            registration.terminatedAt = System.currentTimeMillis()
+        }
+
+        writeAttributes(registration)
+        writeToDatabase(PREFIX, registration, registration.state == REGISTERED)
     }
 
     private fun terminateExpiredSessions() {
@@ -218,16 +226,6 @@ open class SipRegisterHandler : AbstractVerticle() {
         }
 
         writeToDatabase(PREFIX, session, true)
-        session.registrations.clear()
-    }
-
-    open fun terminateRegistration(registration: SipRegistration) {
-        if (registration.terminatedAt == null) {
-            registration.terminatedAt = System.currentTimeMillis()
-        }
-
-        writeAttributes(registration)
-        writeToDatabase(PREFIX, registration, registration.state == REGISTERED)
     }
 
     open fun writeAttributes(registration: SipRegistration) {
@@ -307,12 +305,15 @@ open class SipRegisterHandler : AbstractVerticle() {
                 }
 
                 if (registration is SipSession) {
-                    var registrations: Any = registration.registrations.map { (createdAt, terminatedAt) ->
-                        JsonObject().apply {
-                            put("created_at", createdAt)
-                            put("terminated_at", terminatedAt)
-                        }
-                    }
+                    var registrations: Any = registration.registrations
+                            .map { (createdAt, terminatedAt) ->
+                                JsonObject().apply {
+                                    put("created_at", createdAt)
+                                    put("terminated_at", terminatedAt)
+                                }
+                            }
+                    registration.registrations.clear()
+
                     if (upsert) {
                         document = JsonObject()
                         put("\$push", document)
