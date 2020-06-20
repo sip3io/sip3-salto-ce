@@ -26,7 +26,9 @@ import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
 import mu.KotlinLogging
+import java.io.ByteArrayInputStream
 import java.sql.Timestamp
+import java.util.zip.InflaterInputStream
 
 /**
  * Decodes packets in SIP3 protocol
@@ -57,10 +59,7 @@ class Decoder : AbstractVerticle() {
     fun decode(sender: Address, buffer: Buffer) {
         var offset = HEADER_LENGTH
 
-        val compressed = buffer.getByte(offset++)
-        if (compressed.toInt() != 0) {
-            throw NotImplementedError("Decoder failed to decode compressed payload. Make sure that you are using SIP3 Salto `Enterprise Edition`.")
-        }
+        val compressed = (buffer.getByte(offset++) == 1.toByte())
 
         while (offset < buffer.length()) {
             var packetOffset = offset
@@ -107,6 +106,12 @@ class Decoder : AbstractVerticle() {
                     8 -> payload = buffer.getBytes(packetOffset, packetOffset + length)
                 }
                 packetOffset += length
+            }
+
+            if (compressed) {
+                InflaterInputStream(ByteArrayInputStream(payload)).use {
+                    payload = it.readBytes()
+                }
             }
 
             val packet = Packet().apply {
