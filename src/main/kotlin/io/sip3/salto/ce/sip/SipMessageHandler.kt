@@ -16,9 +16,7 @@
 
 package io.sip3.salto.ce.sip
 
-import gov.nist.javax.sip.message.MessageFactoryImpl
 import gov.nist.javax.sip.message.SIPMessage
-import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.SipMethods
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
@@ -49,12 +47,6 @@ open class SipMessageHandler : AbstractVerticle() {
         val SIP_METHODS = SipMethods.values().map(Any::toString).toSet()
     }
 
-    // ISO-8859-1 required in case of SIP-I (to parse binary ISUP)
-    init {
-        StringMsgParser.setComputeContentLengthFromMessage(true)
-        MessageFactoryImpl().setDefaultContentEncodingCharset(Charsets.ISO_8859_1.name())
-    }
-
     private var instances = 1
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var exclusions = emptySet<String>()
@@ -62,6 +54,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     private val packetsProcessed = Metrics.counter("packets_processed", mapOf("proto" to "sip"))
 
+    private var parser = SipMessageParser()
     private lateinit var udfExecutor: UdfExecutor
 
     override fun start() {
@@ -96,54 +89,49 @@ open class SipMessageHandler : AbstractVerticle() {
         packetsProcessed.increment()
 
         // Parse
-        val message: SIPMessage? = try {
-            StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
-        } catch (e: Exception) {
-            logger.debug { "StringMsgParser `parseSIPMessage()` failed.\n $packet" }
-            return
-        }
-
-        // Validate
-        if (message == null || !validate(message)) {
-            return
-        }
-
-        // Filter by `Cseq`
-        val cseqMethod = message.cseqMethod()
-        if (cseqMethod != null && SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
-            // Find `x-correlation-header`
-            (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.let { header ->
-                packet.attributes[Attributes.x_call_id] = header.value
+        parser.parse(packet.payload).forEach { message ->
+            // Validate
+            if (!validate(message)) {
+                return@forEach
             }
 
-            // Prepare UDF payload
-            val payload = mutableMapOf<String, Any>().apply {
-                val src = packet.srcAddr
-                put("src_addr", src.addr)
-                put("src_port", src.port)
-                src.host?.let { put("src_host", it) }
+            // Filter by `Cseq`
+            val cseqMethod = message.cseqMethod()
+            if (cseqMethod != null && SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
+                // Find `x-correlation-header`
+                (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.let { header ->
+                    packet.attributes[Attributes.x_call_id] = header.value
+                }
 
-                val dst = packet.dstAddr
-                put("dst_addr", dst.addr)
-                put("dst_port", dst.port)
-                dst.host?.let { put("dst_host", it) }
+                // Prepare UDF payload
+                val payload = mutableMapOf<String, Any>().apply {
+                    val src = packet.srcAddr
+                    put("src_addr", src.addr)
+                    put("src_port", src.port)
+                    src.host?.let { put("src_host", it) }
 
-                put("payload", message.headersMap())
-            }
+                    val dst = packet.dstAddr
+                    put("dst_addr", dst.addr)
+                    put("dst_port", dst.port)
+                    dst.host?.let { put("dst_host", it) }
 
-            // Call UDF
-            udfExecutor.execute(RoutesCE.sip_message_udf, payload) { asr ->
-                val (result, attributes) = asr.result()
-                if (result) {
-                    attributes.forEach { (k, v) -> packet.attributes[k] = v }
+                    put("payload", message.headersMap())
+                }
 
-                    val prefix = when (cseqMethod) {
-                        "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
-                        else -> RoutesCE.sip + "_call"
+                // Call UDF
+                udfExecutor.execute(RoutesCE.sip_message_udf, payload) { asr ->
+                    val (result, attributes) = asr.result()
+                    if (result) {
+                        attributes.forEach { (k, v) -> packet.attributes[k] = v }
+
+                        val prefix = when (cseqMethod) {
+                            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
+                            else -> RoutesCE.sip + "_call"
+                        }
+
+                        routeSipMessage(prefix, packet, message)
+                        calculateSipMessageMetrics(prefix, packet, message)
                     }
-
-                    routeSipMessage(prefix, packet, message)
-                    calculateSipMessageMetrics(prefix, packet, message)
                 }
             }
         }
