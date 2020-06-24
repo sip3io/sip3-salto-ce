@@ -50,14 +50,12 @@ class SipMessageParser {
 
         val message = StringMsgParser().parseSIPMessage(payload, false, false, null) ?: return
         offset += message.size
-        message.contentLengthHeader
-                ?.contentLength
-                ?.let { length ->
-                    if (length > 0) {
-                        message.setMessageContent(payload.copyOfRange(offset, offset + length))
-                        offset += length
-                    }
-                }
+        message.contentLengthHeader?.contentLength?.let { length ->
+            if (length > 0) {
+                message.setMessageContent(payload.copyOfRange(offset, offset + length))
+                offset += length
+            }
+        }
 
         accumulator.add(message)
 
