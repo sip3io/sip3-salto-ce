@@ -62,7 +62,7 @@ class SipMessageHandlerTest : VertxTest() {
                         Max-Forwards: 63
                         User-Agent: Android Application
                         Content-Type: application/sdp
-                        Content-Length: 179
+                        Content-Length: 171
 
                         v=0
                         o=- 677480114 3140674329 IN IP4 10.177.131.228
