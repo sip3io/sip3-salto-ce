@@ -192,7 +192,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 return@filterValues true
             }
 
-            if (expiresAt >= now) {
+            if (expiresAt + aggregationTimeout >= now) {
                 // Check `updated_at` and write to database if needed
                 val updatedAt = session.updatedAt
                 if (updatedAt == null || updatedAt + updatePeriod < now) {
@@ -201,12 +201,14 @@ open class SipRegisterHandler : AbstractVerticle() {
                 }
 
                 // Calculate `active` registrations
-                val attributes = excludeRegistrationAttributes(session.attributes)
-                        .apply {
-                            session.srcAddr.host?.let { put("src_host", it) }
-                            session.dstAddr.host?.let { put("dst_host", it) }
-                        }
-                Metrics.counter(ACTIVE, attributes).increment()
+                if (expiresAt >= now) {
+                    val attributes = excludeRegistrationAttributes(session.attributes)
+                            .apply {
+                                session.srcAddr.host?.let { put("src_host", it) }
+                                session.dstAddr.host?.let { put("dst_host", it) }
+                            }
+                    Metrics.counter(ACTIVE, attributes).increment()
+                }
 
                 return@filterValues false
             } else {
