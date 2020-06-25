@@ -63,9 +63,9 @@ open class SipRegisterHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var expirationDelay: Long = 1000
-    private var aggregationTimeout: Long = 5000
+    private var aggregationTimeout: Long = 10000
     private var updatePeriod: Long = 60000
-    private var durationTimeout: Long = 3600000
+    private var durationTimeout: Long = 900000
     private var transactionExclusions = emptyList<String>()
     private var recordCallUsersAttributes = false
 
@@ -192,7 +192,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 return@filterValues true
             }
 
-            if (expiresAt >= now) {
+            if (expiresAt + aggregationTimeout >= now) {
                 // Check `updated_at` and write to database if needed
                 val updatedAt = session.updatedAt
                 if (updatedAt == null || updatedAt + updatePeriod < now) {
@@ -201,12 +201,14 @@ open class SipRegisterHandler : AbstractVerticle() {
                 }
 
                 // Calculate `active` registrations
-                val attributes = excludeRegistrationAttributes(session.attributes)
-                        .apply {
-                            session.srcAddr.host?.let { put("src_host", it) }
-                            session.dstAddr.host?.let { put("dst_host", it) }
-                        }
-                Metrics.counter(ACTIVE, attributes).increment()
+                if (expiresAt >= now) {
+                    val attributes = excludeRegistrationAttributes(session.attributes)
+                            .apply {
+                                session.srcAddr.host?.let { put("src_host", it) }
+                                session.dstAddr.host?.let { put("dst_host", it) }
+                            }
+                    Metrics.counter(ACTIVE, attributes).increment()
+                }
 
                 return@filterValues false
             } else {
@@ -293,7 +295,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 document.apply {
                     put("state", registration.state)
 
-                    registration.terminatedAt?.let { put("terminated_at", it) }
+                    (registration.terminatedAt ?: registration.expiresAt)?.let { put("terminated_at", it) }
 
                     registration.srcAddr.host?.let { put("src_host", it) }
                     registration.dstAddr.host?.let { put("dst_host", it) }
@@ -350,7 +352,6 @@ open class SipRegisterHandler : AbstractVerticle() {
         fun addSipRegistration(registration: SipRegistration) {
             if (createdAt == 0L) {
                 createdAt = registration.createdAt
-                expiresAt = registration.expiresAt
                 terminatedAt = registration.terminatedAt
                 srcAddr = registration.srcAddr
                 dstAddr = registration.dstAddr
@@ -360,6 +361,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 state = registration.state
             }
 
+            expiresAt = registration.expiresAt
             registrations.add(Pair(registration.createdAt, registration.expiresAt ?: registration.terminatedAt ?: registration.createdAt))
 
             registration.attributes.forEach { (name, value) -> attributes[name] = value }

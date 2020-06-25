@@ -33,7 +33,7 @@ server:
 #    x-correlation-header: X-Call-ID
 #  transaction:
 #    expiration-delay: 1000
-#    response-timeout: 5000
+#    response-timeout: 3000
 #    aggregation-timeout: 60000
 #    termination-timeout: 5000
 #  call:
@@ -44,9 +44,9 @@ server:
 #    transaction-exclusions: [exclude-me]
 #  register:
 #    expiration-delay: 1000
-#    aggregation-timeout: 5000
+#    aggregation-timeout: 10000
 #    update-period: 60000
-#    duration-timeout: 3600000
+#    duration-timeout: 900000
 #    transaction-exclusions: [exclude-me]
 #rtp-r:
 #  cumulative-metrics: true
