@@ -57,7 +57,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var expirationDelay: Long = 1000
-    private var responseTimeout: Long = 5000
+    private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 5000
 
