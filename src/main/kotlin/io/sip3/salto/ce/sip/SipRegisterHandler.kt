@@ -197,6 +197,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 val updatedAt = session.updatedAt
                 if (updatedAt == null || updatedAt + updatePeriod < now) {
                     session.updatedAt = now
+                    writeAttributes(session)
                     writeToDatabase(PREFIX, session, updatedAt != null)
                 }
 
@@ -227,6 +228,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             session.terminatedAt = System.currentTimeMillis()
         }
 
+        writeAttributes(session)
         writeToDatabase(PREFIX, session, true)
     }
 
