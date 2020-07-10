@@ -98,8 +98,12 @@ open class SipRegisterHandler : AbstractVerticle() {
         }
 
         vertx.setPeriodic(expirationDelay) {
-            terminateExpiredRegistrations()
-            terminateExpiredSessions()
+            try {
+                terminateExpiredRegistrations()
+                terminateExpiredSessions()
+            } catch (e: Exception) {
+                logger.error("SipRegisterHandler `terminateExpiredRegistrations()` or `terminateExpiredSessions()` failed.", e)
+            }
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
@@ -127,8 +131,8 @@ open class SipRegisterHandler : AbstractVerticle() {
                 activeRegistrations.remove(id)
             }
             REGISTERED -> {
-                activeRegistrations.remove(id)
                 activeSessions.getOrPut(id) { SipSession() }.addSipRegistration(registration)
+                activeRegistrations.remove(id)
             }
             else -> {
                 activeRegistrations[id] = registration
@@ -176,14 +180,14 @@ open class SipRegisterHandler : AbstractVerticle() {
         }
 
         writeAttributes(registration)
-        writeToDatabase(PREFIX, registration, registration.state == REGISTERED)
+        writeToDatabase(PREFIX, registration, false)
     }
 
     private fun terminateExpiredSessions() {
         val now = System.currentTimeMillis()
 
         activeSessions.filterValues { session ->
-            val expiresAt = session.expiresAt!!
+            val expiresAt = session.expiresAt ?: session.terminatedAt ?: session.createdAt
 
             // Check if registration exceeded `durationTimeout`
             if (session.createdAt + durationTimeout < now) {
@@ -354,7 +358,6 @@ open class SipRegisterHandler : AbstractVerticle() {
         fun addSipRegistration(registration: SipRegistration) {
             if (createdAt == 0L) {
                 createdAt = registration.createdAt
-                terminatedAt = registration.terminatedAt
                 srcAddr = registration.srcAddr
                 dstAddr = registration.dstAddr
                 callId = registration.callId
@@ -364,6 +367,8 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
 
             expiresAt = registration.expiresAt
+            terminatedAt = registration.terminatedAt
+
             registrations.add(Pair(registration.createdAt, registration.expiresAt ?: registration.terminatedAt ?: registration.createdAt))
 
             registration.attributes.forEach { (name, value) -> attributes[name] = value }
@@ -403,6 +408,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 } else {
                     // Registration has to be removed
                     terminatedAt = transaction.terminatedAt ?: transaction.createdAt
+                    expiresAt = terminatedAt
                 }
             }
 
