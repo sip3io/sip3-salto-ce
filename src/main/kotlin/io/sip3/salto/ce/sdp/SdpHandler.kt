@@ -125,12 +125,13 @@ class SdpHandler : AbstractVerticle() {
         val payloadType = if (request != null && response != null) {
             request.payloadTypes
                     .intersect(response.payloadTypes.asIterable())
-                    .first()
+                    .firstOrNull()
         } else {
-            request?.payloadTypes?.firstOrNull() ?: response?.payloadTypes?.first()!!
+            (request ?: response)?.payloadTypes?.firstOrNull()
         }
+        requireNotNull(payloadType) { "Payload type is undefined. CallID: ${session.callId}" }
 
-        val payload: RtpMapAttribute? = response?.getFormat(payloadType) ?: request?.getFormat(payloadType)
+        val payload: RtpMapAttribute? = (response ?: request)?.getFormat(payloadType)
 
         val codec = codecs[payload?.codec]
                 ?: codecs.values.firstOrNull { it.payloadType.toInt() == payloadType }
