@@ -83,12 +83,14 @@ fun SIPMessage.headersMap(): Map<String, String> {
 }
 
 fun SIPMessage.hasSdp(): Boolean {
-    if (this.contentTypeHeader?.mediaSubType == "sdp") {
-        return true
-    } else {
-        this.multipartMimeContent?.contents?.forEach { mimeContent ->
-            if (mimeContent.matches("sdp")) {
-                return true
+    contentTypeHeader?.let { contentType ->
+        if (contentType.mediaSubType == "sdp") {
+            return true
+        } else {
+            multipartMimeContent?.contents?.forEach { mimeContent ->
+                if (mimeContent.matches("sdp")) {
+                    return true
+                }
             }
         }
     }
