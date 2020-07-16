@@ -22,7 +22,6 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
@@ -83,7 +82,7 @@ open class AttributesHandler : AbstractVerticle() {
                 }
                 attributeMap[name] = attribute
 
-                writeToDatabase(PREFIX, attribute)
+                writeToDatabase(PREFIX, name, type)
             }
 
             if ((value is String) && value.isNotEmpty()) {
@@ -94,7 +93,7 @@ open class AttributesHandler : AbstractVerticle() {
                 }
 
                 if (options.add(value)) {
-                    writeToDatabase(PREFIX, attribute)
+                    writeToDatabase(PREFIX, name, type, value)
                 }
             }
         }
@@ -108,27 +107,22 @@ open class AttributesHandler : AbstractVerticle() {
         }
     }
 
-    open fun writeToDatabase(prefix: String, attribute: Attribute) {
+    open fun writeToDatabase(prefix: String, name: String, type: String, option: String? = null) {
         val collection = prefix + "_" + currentTimeSuffix
 
         val operation = JsonObject().apply {
             put("type", "UPDATE")
             put("upsert", true)
             put("filter", JsonObject().apply {
-                put("name", attribute.name)
+                put("name", name)
             })
             put("document", JsonObject().apply {
                 put("\$setOnInsert", JsonObject().apply {
-                    put("type", attribute.type)
+                    put("type", type)
                 })
-                val options = attribute.options
-                if (options != null && options.isNotEmpty()) {
+                if (option != null) {
                     put("\$addToSet", JsonObject().apply {
-                        put("options", JsonObject().apply {
-                            put("\$each", JsonArray().apply {
-                                options.forEach { add(it) }
-                            })
-                        })
+                        put("options", option)
                     })
                 }
             })
