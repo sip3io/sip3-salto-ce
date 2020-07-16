@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.mongo
 
+import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
@@ -29,11 +30,12 @@ import mu.KotlinLogging
  * Sends bulks of operations to MongoDB
  */
 @Instance
+@ConditionalOnProperty("/mongo")
 class MongoBulkWriter : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private var client: MongoClient? = null
+    private lateinit var client: MongoClient
     private var bulkSize = 0
     private val bulkWriteOptions = BulkWriteOptions(false)
 
@@ -41,7 +43,7 @@ class MongoBulkWriter : AbstractVerticle() {
     private var size = 0
 
     override fun start() {
-        config().getJsonObject("mongo")?.let { config ->
+        config().getJsonObject("mongo").let { config ->
             client = MongoClient.createShared(vertx, JsonObject().apply {
                 put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
                 put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
@@ -49,14 +51,12 @@ class MongoBulkWriter : AbstractVerticle() {
             bulkSize = config.getInteger("bulk-size")
         }
 
-        if (client != null) {
-            vertx.eventBus().localConsumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { bulkOperation ->
-                try {
-                    val (collection, operation) = bulkOperation.body()
-                    handle(collection, operation)
-                } catch (e: Exception) {
-                    logger.error("MongoBulkWriter 'handle()' failed.", e)
-                }
+        vertx.eventBus().localConsumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { bulkOperation ->
+            try {
+                val (collection, operation) = bulkOperation.body()
+                handle(collection, operation)
+            } catch (e: Exception) {
+                logger.error("MongoBulkWriter 'handle()' failed.", e)
             }
         }
     }
@@ -87,7 +87,7 @@ class MongoBulkWriter : AbstractVerticle() {
 
     private fun flushToDatabase() {
         operations.forEach { (collection, bulkOperations) ->
-            client!!.bulkWriteWithOptions(collection, bulkOperations, bulkWriteOptions) { asr ->
+            client.bulkWriteWithOptions(collection, bulkOperations, bulkWriteOptions) { asr ->
                 if (asr.failed()) {
                     logger.error("MongoClient 'bulkWriteWithOptions()' failed.", asr.cause())
                 }

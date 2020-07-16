@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.util.format
+import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.setPeriodic
 import io.vertx.core.AbstractVerticle
@@ -24,11 +25,7 @@ import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.coroutines.dispatcher
-import io.vertx.kotlin.ext.mongo.createCollectionAwait
-import io.vertx.kotlin.ext.mongo.createIndexAwait
-import io.vertx.kotlin.ext.mongo.dropCollectionAwait
-import io.vertx.kotlin.ext.mongo.getCollectionsAwait
-import io.vertx.kotlin.ext.mongo.listIndexesAwait
+import io.vertx.kotlin.ext.mongo.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
@@ -38,13 +35,14 @@ import java.time.format.DateTimeFormatter
  * Manages MongoDB collections
  */
 @Instance(singleton = true)
+@ConditionalOnProperty("/mongo")
 class MongoCollectionManager : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
-    private var client: MongoClient? = null
+    private lateinit var client: MongoClient
     private var updatePeriod: Long = 3600000
     private var collections: JsonArray = JsonArray()
 
@@ -53,7 +51,7 @@ class MongoCollectionManager : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
 
-        config().getJsonObject("mongo")?.let { config ->
+        config().getJsonObject("mongo").let { config ->
             client = MongoClient.createShared(vertx, JsonObject().apply {
                 put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
                 put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
@@ -62,70 +60,69 @@ class MongoCollectionManager : AbstractVerticle() {
             config.getJsonArray("collections")?.let { collections = it }
         }
 
-        if (client != null) {
-            vertx.setPeriodic(0L, updatePeriod) { manageCollections() }
-        }
+        vertx.setPeriodic(0L, updatePeriod) { manageCollections() }
     }
 
     private fun manageCollections() {
         GlobalScope.launch(vertx.dispatcher()) {
-            try {
-                // Retrieve collections
-                val names = client!!.getCollectionsAwait() as MutableList<String>
-
-                // Drop and create collections
-                collections.forEach { collection ->
+            // Drop and create collections
+            collections.forEach { collection ->
+                try {
                     // Drop collections
-                    dropCollectionsByPrefix(collection as JsonObject, names)
+                    dropOldCollectionsByPrefix(collection as JsonObject)
 
                     // Create collection `${prefix}_${System.currentTimeMillis()}`
                     var name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis())}"
-                    if (!names.contains(name)) {
-                        client!!.createCollectionAwait(name)
-                        names.add(name)
-                    }
-
-                    // Create collection indexes
-                    collection.getJsonObject("indexes")?.let { indexes ->
-                        val indexCount = client!!.listIndexesAwait(name).count()
-                        if (indexCount <= 1) {
-                            createIndexes(name, indexes)
-                        }
-                    }
+                    createCollectionIfNeeded(name, collection.getJsonObject("indexes"))
 
                     // Create collection `${prefix}_${System.currentTimeMillis() + updatePeriod}`
                     name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis() + updatePeriod)}"
-                    if (!names.contains(name)) {
-                        client!!.createCollectionAwait(name)
-                        collection.getJsonObject("indexes")?.let { createIndexes(name, it) }
-                        names.add(name)
-                    }
+                    createCollectionIfNeeded(name, collection.getJsonObject("indexes"))
+                } catch (e: Exception) {
+                    logger.error(e) { "MongoCollectionManager 'manageCollectionsAwait()' failed." }
                 }
-            } catch (e: Exception) {
-                logger.error("MongoCollectionManager 'manageCollectionsAwait()' failed.", e)
             }
         }
     }
 
-    private suspend fun dropCollectionsByPrefix(collection: JsonObject, collections: List<String>) {
-        collections.asSequence()
+    private suspend fun dropOldCollectionsByPrefix(collection: JsonObject) {
+        client.getCollectionsAwait()
                 .filter { name -> name.startsWith(collection.getString("prefix")) }
                 .sortedDescending()
                 .drop(collection.getInteger("max-collections") ?: 1)
-                .forEach { name -> client!!.dropCollectionAwait(name) }
+                .forEach { name -> client.dropCollectionAwait(name) }
+    }
+
+    private suspend fun createCollectionIfNeeded(name: String, indexes: JsonObject? = null) {
+        // Create collection
+        if (!client.getCollectionsAwait().contains(name)) {
+            try {
+                client.createCollectionAwait(name)
+            } catch (e: Exception) {
+                logger.debug(e) { "MongoClient 'createCollectionAwait()' failed." }
+            }
+        }
+
+        // Create collection indexes
+        if (indexes != null) {
+            val indexCount = client.listIndexesAwait(name).count()
+            if (indexCount <= 1) {
+                createIndexes(name, indexes)
+            }
+        }
     }
 
     private suspend fun createIndexes(name: String, indexes: JsonObject) {
         // Create ascending indexes if needed
         indexes.getJsonArray("ascending")?.forEach { index ->
-            client!!.createIndexAwait(name, JsonObject().apply {
+            client.createIndexAwait(name, JsonObject().apply {
                 put(index as String, 1)
             })
         }
 
         // Create hashed indexes if needed
         indexes.getJsonArray("hashed")?.forEach { index ->
-            client!!.createIndexAwait(name, JsonObject().apply {
+            client.createIndexAwait(name, JsonObject().apply {
                 put(index as String, "hashed")
             })
         }
