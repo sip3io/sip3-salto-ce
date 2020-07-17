@@ -24,6 +24,7 @@ import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.BulkOperation
 import io.vertx.ext.mongo.BulkWriteOptions
 import io.vertx.ext.mongo.MongoClient
+import io.vertx.ext.mongo.WriteOption
 import mu.KotlinLogging
 
 /**
@@ -49,6 +50,9 @@ class MongoBulkWriter : AbstractVerticle() {
                 put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
             })
             bulkSize = config.getInteger("bulk-size")
+            config.getInteger("write-option")?.let { writeOption ->
+                bulkWriteOptions.writeOption = WriteOption.values()[writeOption]
+            }
         }
 
         vertx.eventBus().localConsumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { bulkOperation ->
