@@ -68,7 +68,6 @@ open class SipCallHandler : AbstractVerticle() {
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var expirationDelay: Long = 1000
     private var aggregationTimeout: Long = 60000
-    private var unknownStateTimeout: Long = 5000
     private var terminationTimeout: Long = 5000
     private var durationTimeout: Long = 3600000
     private var transactionExclusions = emptyList<String>()
@@ -86,9 +85,6 @@ open class SipCallHandler : AbstractVerticle() {
             }
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
-            }
-            config.getLong("unknown-state-timeout")?.let {
-                unknownStateTimeout = it
             }
             config.getLong("termination-timeout")?.let {
                 terminationTimeout = it
@@ -219,7 +215,7 @@ open class SipCallHandler : AbstractVerticle() {
         activeSessions.filterValues { sessions ->
             sessions.filterValues { session ->
                 val expiresAt = if (session.state == UNKNOWN) {
-                    session.createdAt + unknownStateTimeout
+                    session.createdAt + terminationTimeout
                 } else {
                     session.terminatedAt?.let { it + terminationTimeout }
                             ?: session.answeredAt?.let { it + durationTimeout }
