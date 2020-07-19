@@ -131,6 +131,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 activeRegistrations.remove(id)
             }
             REGISTERED -> {
+                calculateRegistrationMetrics(registration)
                 activeSessions.getOrPut(id) { SipSession() }.addSipRegistration(registration)
                 activeRegistrations.remove(id)
             }
@@ -138,28 +139,26 @@ open class SipRegisterHandler : AbstractVerticle() {
                 activeRegistrations[id] = registration
             }
         }
-
-        calculateRegisterTransactionMetrics(transaction)
     }
 
-    open fun calculateRegisterTransactionMetrics(transaction: SipTransaction) {
-        val createdAt = transaction.createdAt
+    open fun calculateRegistrationMetrics(registration: SipRegistration) {
+        val createdAt = registration.createdAt
 
-        val attributes = excludeRegistrationAttributes(transaction.attributes)
+        val attributes = excludeRegistrationAttributes(registration.attributes)
                 .apply {
-                    transaction.srcAddr.host?.let { put("src_host", it) }
-                    transaction.dstAddr.host?.let { put("dst_host", it) }
+                    registration.srcAddr.host?.let { put("src_host", it) }
+                    registration.dstAddr.host?.let { put("dst_host", it) }
                 }
 
-        transaction.terminatedAt?.let { terminatedAt ->
+        registration.terminatedAt?.let { terminatedAt ->
             if (createdAt < terminatedAt) {
                 Metrics.timer(REQUEST_DELAY, attributes).record(terminatedAt - createdAt, TimeUnit.MILLISECONDS)
             }
-        }
 
-        transaction.response?.expires()?.let { expires ->
-            if (expires == 0) {
-                Metrics.counter(REMOVED, attributes).increment()
+            registration.expiresAt?.let { expiresAt ->
+                if (expiresAt == terminatedAt ) {
+                    Metrics.counter(REMOVED, attributes).increment()
+                }
             }
         }
     }
@@ -352,7 +351,6 @@ open class SipRegisterHandler : AbstractVerticle() {
     inner class SipSession : SipRegistration() {
 
         var updatedAt: Long? = null
-
         val registrations = mutableListOf<Pair<Long, Long>>()
 
         fun addSipRegistration(registration: SipRegistration) {
@@ -367,7 +365,6 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
 
             expiresAt = registration.expiresAt
-            terminatedAt = registration.terminatedAt
 
             registrations.add(Pair(registration.createdAt, registration.expiresAt ?: registration.terminatedAt ?: registration.createdAt))
 
@@ -407,8 +404,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                     expiresAt = transaction.createdAt + expires * 1000
                 } else {
                     // Registration has to be removed
-                    terminatedAt = transaction.terminatedAt ?: transaction.createdAt
-                    expiresAt = terminatedAt
+                    expiresAt = transaction.terminatedAt ?: transaction.createdAt
                 }
             }
 
@@ -421,6 +417,10 @@ open class SipRegisterHandler : AbstractVerticle() {
                     SipTransaction.FAILED -> FAILED
                     else -> UNKNOWN
                 }
+            }
+
+            if (state != UNAUTHORIZED) {
+                terminatedAt = transaction.terminatedAt ?: transaction.createdAt
             }
 
             transaction.attributes.forEach { (name, value) -> attributes[name] = value }
