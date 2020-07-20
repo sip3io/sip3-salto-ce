@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
+import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
@@ -36,6 +37,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 /**
@@ -50,6 +52,8 @@ open class SipTransactionHandler : AbstractVerticle() {
 
         val PREFIX = RoutesCE.sip + "_transaction"
 
+        const val RESPONSE_DELAY = "response-delay"
+
         // To simplify call aggregation we decided to skip ACK and CANCEL transaction.
         // Moreover, skipped ACK and CANCEL transactions will not affect final result.
         val EXCLUDED_METHODS = listOf("ACK", "CANCEL")
@@ -60,6 +64,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 5000
+    private var transactionExclusions = emptyList<String>()
 
     private var recordCallUsersAttributes = false
     private var instances = 1
@@ -82,6 +87,9 @@ open class SipTransactionHandler : AbstractVerticle() {
             }
             config.getLong("termination-timeout")?.let {
                 terminationTimeout = it
+            }
+            config.getJsonArray("transaction-exclusions")?.let {
+                transactionExclusions = it.map(Any::toString)
             }
         }
         config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
@@ -159,7 +167,27 @@ open class SipTransactionHandler : AbstractVerticle() {
             else -> {
                 writeAttributes(transaction)
                 writeToDatabase(prefix, transaction)
+                calculateTransactionMetrics(prefix, transaction)
             }
+        }
+    }
+
+    private fun calculateTransactionMetrics(prefix: String, transaction: SipTransaction) {
+        transaction.terminatedAt?.let { terminatedAt ->
+            val attributes = excludeTransactionAttributes(transaction.attributes)
+            Metrics.timer(prefix + "_$RESPONSE_DELAY", attributes).record(terminatedAt - transaction.createdAt, TimeUnit.MILLISECONDS)
+        }
+    }
+
+    private fun excludeTransactionAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
+        return attributes.toMutableMap().apply {
+            remove(Attributes.caller)
+            remove(Attributes.callee)
+            remove(Attributes.error_code)
+            remove(Attributes.error_type)
+            remove(Attributes.x_call_id)
+            remove(Attributes.retransmits)
+            transactionExclusions.forEach { remove(it) }
         }
     }
 
