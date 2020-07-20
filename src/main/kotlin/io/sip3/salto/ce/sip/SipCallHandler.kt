@@ -59,6 +59,7 @@ open class SipCallHandler : AbstractVerticle() {
         const val ATTEMPTS = PREFIX + "_attempts"
         const val DURATION = PREFIX + "_duration"
         const val TRYING_DELAY = PREFIX + "_trying-delay"
+        const val RESPONSE_DELAY = PREFIX + "_response-delay"
         const val SETUP_TIME = PREFIX + "_setup-time"
         const val ESTABLISH_TIME = PREFIX + "_establish-time"
         const val DISCONNECT_TIME = PREFIX + "_disconnect-time"
@@ -276,6 +277,12 @@ open class SipCallHandler : AbstractVerticle() {
         val duration = session.duration
         if (duration != null) {
             Metrics.summary(DURATION, attributes).record(duration.toDouble())
+        }
+
+        if (session.state != UNKNOWN) {
+            (session.answeredAt ?: session.terminatedAt)?.let { responseAt ->
+                Metrics.timer(RESPONSE_DELAY, attributes).record(responseAt - session.createdAt, TimeUnit.MILLISECONDS)
+            }
         }
     }
 

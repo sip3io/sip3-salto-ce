@@ -36,6 +36,7 @@ server:
 #    response-timeout: 3000
 #    aggregation-timeout: 60000
 #    termination-timeout: 5000
+#    transaction-exclusions: [exclude-me]
 #  call:
 #    expiration-delay: 1000
 #    aggregation-timeout: 60000
