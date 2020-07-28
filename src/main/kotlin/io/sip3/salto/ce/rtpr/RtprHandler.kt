@@ -128,7 +128,13 @@ open class RtprHandler : AbstractVerticle() {
             put("r-factor", report.rFactor)
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("rtp", attributes))
+        val prefix = when (report.source) {
+            RtpReportPayload.SOURCE_RTP -> "rtp"
+            RtpReportPayload.SOURCE_RTCP -> "rtcp"
+            else -> throw IllegalArgumentException("Unsupported RTP report source: '${report.source}'")
+        }
+
+        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(prefix, attributes))
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
