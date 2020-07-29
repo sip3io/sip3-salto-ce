@@ -40,9 +40,6 @@ open class RtprHandler : AbstractVerticle() {
 
     companion object {
 
-        const val PREFIX_RTP = "rtpr_rtp"
-        const val PREFIX_RTCP = "rtpr_rtcp"
-
         const val JITTER = "_jitter"
         const val R_FACTOR = "_r-factor"
         const val MOS = "_mos"
@@ -79,7 +76,7 @@ open class RtprHandler : AbstractVerticle() {
         val payload = Unpooled.wrappedBuffer(packet.payload)
         val report = RtpReportPayload().apply { decode(payload) }
 
-        val prefix = prefix(report.source)
+        val prefix = "rtpr_" + sourceName(report.source)
 
         if (report.cumulative) {
             writeAttributes(report)
@@ -93,10 +90,10 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    open fun prefix(source: Byte): String {
+    open fun sourceName(source: Byte): String {
         return when (source) {
-            RtpReportPayload.SOURCE_RTP -> PREFIX_RTP
-            RtpReportPayload.SOURCE_RTCP -> PREFIX_RTCP
+            RtpReportPayload.SOURCE_RTP -> "rtp"
+            RtpReportPayload.SOURCE_RTCP -> "rtcp"
             else -> throw IllegalArgumentException("Unsupported RTP report source: '${source}'")
         }
     }
@@ -128,12 +125,7 @@ open class RtprHandler : AbstractVerticle() {
             put("r-factor", report.rFactor)
         }
 
-        val prefix = when (report.source) {
-            RtpReportPayload.SOURCE_RTP -> "rtp"
-            RtpReportPayload.SOURCE_RTCP -> "rtcp"
-            else -> throw IllegalArgumentException("Unsupported RTP report source: '${report.source}'")
-        }
-
+        val prefix = sourceName(report.source)
         vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(prefix, attributes))
     }
 
