@@ -192,7 +192,7 @@ class RtprHandlerTest : VertxTest() {
                         val (prefix, attributes) = event.body()
 
                         context.verify {
-                            assertEquals("rtp", prefix)
+                            assertEquals("rtcp", prefix)
                             assertEquals(2, attributes.size)
                             assertEquals(12F, attributes["r-factor"])
                             assertEquals(13F, attributes["mos"])
