@@ -22,6 +22,7 @@ import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
@@ -121,8 +122,8 @@ open class RtprHandler : AbstractVerticle() {
 
     open fun writeAttributes(report: RtpReportPayload) {
         val attributes = mutableMapOf<String, Any>().apply {
-            put("mos", report.mos)
-            put("r-factor", report.rFactor)
+            put(Attributes.mos, report.mos)
+            put(Attributes.r_factor, report.rFactor)
         }
 
         val prefix = sourceName(report.source)

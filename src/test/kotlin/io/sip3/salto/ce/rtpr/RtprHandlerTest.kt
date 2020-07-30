@@ -23,6 +23,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localRequest
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -194,8 +195,8 @@ class RtprHandlerTest : VertxTest() {
                         context.verify {
                             assertEquals("rtcp", prefix)
                             assertEquals(2, attributes.size)
-                            assertEquals(12F, attributes["r-factor"])
-                            assertEquals(13F, attributes["mos"])
+                            assertEquals(12F, attributes[Attributes.r_factor])
+                            assertEquals(13F, attributes[Attributes.mos])
                         }
                         context.completeNow()
                     }
