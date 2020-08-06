@@ -21,12 +21,12 @@ import de.flapdoodle.embed.mongo.MongodStarter
 import de.flapdoodle.embed.mongo.config.MongodConfigBuilder
 import de.flapdoodle.embed.mongo.config.Net
 import de.flapdoodle.embed.mongo.distribution.Version
-import org.junit.jupiter.api.extension.AfterTestExecutionCallback
-import org.junit.jupiter.api.extension.BeforeTestExecutionCallback
+import org.junit.jupiter.api.extension.AfterAllCallback
+import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import java.net.ServerSocket
 
-class MongoExtension : BeforeTestExecutionCallback, AfterTestExecutionCallback {
+class MongoExtension : BeforeAllCallback, AfterAllCallback {
 
     companion object {
 
@@ -36,7 +36,7 @@ class MongoExtension : BeforeTestExecutionCallback, AfterTestExecutionCallback {
 
     private lateinit var mongo: MongodExecutable
 
-    override fun beforeTestExecution(context: ExtensionContext?) {
+    override fun beforeAll(context: ExtensionContext?) {
         val config = MongodConfigBuilder().version(Version.V4_0_2)
                 .net(Net(HOST, PORT, false))
                 .build()
@@ -45,7 +45,7 @@ class MongoExtension : BeforeTestExecutionCallback, AfterTestExecutionCallback {
         mongo.start()
     }
 
-    override fun afterTestExecution(context: ExtensionContext?) {
+    override fun afterAll(context: ExtensionContext?) {
         mongo.stop()
     }
 }
