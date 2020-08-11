@@ -1,0 +1,11 @@
+{
+  "metricsOptions": {
+    "enabled": false,
+    "jvmMetricsEnabled": false,
+    "influxDbOptions": {
+      "uri" : "http://127.0.0.1:8086",
+      "db" : "sip3",
+      "step" : 5000
+    }
+  }
+}
