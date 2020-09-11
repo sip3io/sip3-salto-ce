@@ -101,7 +101,7 @@ class SipMessageParser {
                     // So we can just attach them as generic `Extension` headers
                     ExtensionHeaderImpl().apply {
                         name = headerName
-                        value = headerValue
+                        value = Lexer.getHeaderValue(header)
                     }
                 }
             }
