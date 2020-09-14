@@ -96,6 +96,7 @@ class SipMessageParser {
                 "route" -> RouteParser(header + "\n").parse()
                 "record-route" -> RecordRouteParser(header + "\n").parse()
                 "max-forwards" -> MaxForwardsParser(header + "\n").parse()
+                "expires" -> ExpiresParser(header + "\n").parse()
                 else -> {
                     // These headers won't be used in the SIP3 aggregation logic
                     // So we can just attach them as generic `Extension` headers
