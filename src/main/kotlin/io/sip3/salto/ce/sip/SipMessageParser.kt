@@ -16,8 +16,9 @@
 
 package io.sip3.salto.ce.sip
 
+import gov.nist.javax.sip.header.ExtensionHeaderImpl
 import gov.nist.javax.sip.message.SIPMessage
-import gov.nist.javax.sip.parser.StringMsgParser
+import gov.nist.javax.sip.parser.*
 import mu.KotlinLogging
 
 class SipMessageParser {
@@ -48,7 +49,7 @@ class SipMessageParser {
             offset += 2
         }
 
-        val message = StringMsgParser().parseSIPMessage(payload, false, false, null) ?: return
+        val message = StringMessageParser().parseSIPMessage(payload, false, false, null) ?: return
         offset += message.size
         message.contentLengthHeader?.contentLength?.let { length ->
             if (length > 0) {
@@ -72,5 +73,41 @@ class SipMessageParser {
             return false
         }
         return payload[offset] == CR && payload[offset + 1] == LF
+    }
+
+    class StringMessageParser : StringMsgParser() {
+
+        override fun processHeader(header: String?, message: SIPMessage, parseExceptionListener: ParseExceptionListener?, rawMessage: ByteArray) {
+            if (header.isNullOrEmpty()) {
+                return
+            }
+
+            val headerName = Lexer.getHeaderName(header)
+            val h = when (headerName.toLowerCase()) {
+                // These headers may or will be used in the SIP3 aggregation logic
+                "to", "t" -> ToParser(header + "\n").parse()
+                "from", "f" -> FromParser(header + "\n").parse()
+                "cseq" -> CSeqParser(header + "\n").parse()
+                "via", "v" -> ViaParser(header + "\n").parse()
+                "contact", "m" -> ContactParser(header + "\n").parse()
+                "content-type", "c" -> ContentTypeParser(header + "\n").parse()
+                "content-length", "l" -> ContentLengthParser(header + "\n").parse()
+                "call-id", "i" -> CallIDParser(header + "\n").parse()
+                "route" -> RouteParser(header + "\n").parse()
+                "record-route" -> RecordRouteParser(header + "\n").parse()
+                "max-forwards" -> MaxForwardsParser(header + "\n").parse()
+                "expires" -> ExpiresParser(header + "\n").parse()
+                else -> {
+                    // These headers won't be used in the SIP3 aggregation logic
+                    // So we can just attach them as generic `Extension` headers
+                    ExtensionHeaderImpl().apply {
+                        name = headerName
+                        value = Lexer.getHeaderValue(header)
+                    }
+                }
+            }
+
+            message.attachHeader(h, false)
+        }
     }
 }
