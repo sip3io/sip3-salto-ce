@@ -26,7 +26,6 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.hasSdp
-import io.sip3.salto.ce.util.toUri
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -122,7 +121,7 @@ open class SipTransactionHandler : AbstractVerticle() {
         }
 
         val transaction = transactions.getOrPut(message.transactionId()) { SipTransaction() }
-        transaction.addMessage(packet, message)
+        transaction.addMessage(packet, message, extend = message.cseqMethod() == "INVITE")
 
         // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.response?.hasSdp() == true) {
@@ -160,7 +159,7 @@ open class SipTransactionHandler : AbstractVerticle() {
             RoutesCE.sip + "_register" -> {
                 // RFC-3261 10.2: The To header field contains the address of record
                 // whose registration is to be created, queried, or modified.
-                val index = (transaction.request?.toUri() ?: transaction.response?.toUri()).hashCode()
+                val index = transaction.callee.hashCode()
                 val route = prefix + "_${abs(index % instances)}"
                 vertx.eventBus().localRequest<Any>(route, transaction)
             }
