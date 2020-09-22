@@ -16,9 +16,12 @@
 
 package io.sip3.salto.ce.sip
 
+import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.callId
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import java.sql.Timestamp
 
 class SipMessageParserTest {
 
@@ -335,29 +338,106 @@ class SipMessageParserTest {
                 0x38.toByte(), 0x41.toByte(), 0x41.toByte(), 0x39.toByte(), 0x35.toByte(), 0x46.toByte(), 0x37.toByte(),
                 0x42.toByte(), 0x32.toByte(), 0x2d.toByte(), 0x2d.toByte()
         )
+
+        // SIP message with extension headers
+        val PACKET_3 = Packet().apply {
+            timestamp = Timestamp(System.currentTimeMillis())
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            payload = """
+                        INVITE sip:000155917690@ss63.invite.demo.sip3.io:5060 SIP/2.0
+                        Via: SIP/2.0/UDP 10.177.131.211:6333;branch=z9hG4bKmqffet30b03pp5mv5jj0.1
+                        From: <sip:000260971282@demo.sip3.io>;tag=82-2zyzysoabqjb3
+                        To: <sip:000155917690@demo.sip3.io:5060>
+                        Call-ID: 2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e
+                        CSeq: 1 INVITE
+                        Contact: <sip:signode-82-gxp92pqazkbzz@10.177.131.211:6333;transport=udp>
+                        Allow: INVITE,ACK,CANCEL,BYE,INFO,REFER,SUBSCRIBE,NOTIFY
+                        Allow-Events: keep-alive
+                        Supported: timer
+                        Session-Expires: 7200
+                        Expires: 300
+                        X-Diversion: First
+                        X-Diversion: Second 
+                        Min-SE: 900
+                        Max-Forwards: 63
+                        User-Agent: Android Application
+                        Content-Type: application/sdp
+                        Content-Length: 171
+
+                        v=0
+                        o=- 677480114 3140674329 IN IP4 10.177.131.228
+                        s=centrex-mediagateway
+                        t=0 0
+                        m=audio 35176 RTP/AVP 8
+                        c=IN IP4 10.177.131.228
+                        a=rtpmap:8 PCMA/8000
+                        a=sendrecv
+                        a=ptime:20
+
+                    """.trimIndent().toByteArray()
+        }
     }
 
     @Test
     fun `Parse single SIP message`() {
-        val messages = SipMessageParser().parse(PACKET_1)
+        val messages = SipMessageParser().parse(Packet().apply {
+            timestamp = Timestamp(System.currentTimeMillis())
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            payload = PACKET_1
+        })
         assertEquals(1, messages.size)
 
-        val message = messages[0]
+        val (_, message) = messages[0]
         assertEquals("0211070C568140000EEA01FB@SFESIP1-id2-ext", message.callId())
         assertEquals(0, message.contentLengthHeader.contentLength)
     }
 
     @Test
     fun `Parse multiple SIP messages`() {
-        val messages = SipMessageParser().parse(PACKET_2)
+        val messages = SipMessageParser().parse(Packet().apply {
+            timestamp = Timestamp(System.currentTimeMillis())
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            payload = PACKET_2
+        })
         assertEquals(2, messages.size)
 
-        val message0 = messages[0]
+        val (_, message0) = messages[0]
         assertEquals("0211070C568140000EEA01FB@SFESIP1-id2-ext", message0.callId())
         assertEquals(0, message0.contentLengthHeader.contentLength)
 
-        val message1 = messages[1]
+        val (_, message1) = messages[1]
         assertEquals("03F41ACCA6C2175E68F67D97@0d70ffffffff", message1.callId())
         assertEquals(660, message1.contentLengthHeader.contentLength)
+    }
+
+    @Test
+    fun `Parse single SIP messages with extension headers`() {
+        val messages = SipMessageParser(extensionHeaders = setOf("Supported", "X-Diversion")).parse(PACKET_3)
+        assertEquals(1, messages.size)
+
+        val (_, message) = messages[0]
+        assertNull(message.getHeader("Allow-Events"))
+        assertNotNull(message.getHeader("Supported"))
     }
 }

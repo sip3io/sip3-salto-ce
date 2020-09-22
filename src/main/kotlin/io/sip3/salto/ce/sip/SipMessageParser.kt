@@ -19,9 +19,13 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.header.ExtensionHeaderImpl
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.*
+import io.sip3.salto.ce.domain.Packet
 import mu.KotlinLogging
 
-class SipMessageParser {
+/**
+ * Parses SIP messages
+ */
+class SipMessageParser(val extensionHeaders: Set<String> = emptySet()) {
 
     private val logger = KotlinLogging.logger {}
 
@@ -31,20 +35,22 @@ class SipMessageParser {
         const val LF: Byte = 0x0a
     }
 
-    fun parse(payload: ByteArray): List<SIPMessage> {
-        val result = mutableListOf<SIPMessage>()
+    fun parse(packet: Packet): List<Pair<Packet, SIPMessage>> {
+        val result = mutableListOf<Pair<Packet, SIPMessage>>()
 
         try {
-            parse(payload, result)
+            parse(packet, result)
         } catch (e: Exception) {
-            logger.debug(e) { "SipMessageParser `parse()` failed.\n $payload" }
+            logger.debug(e) { "SipMessageParser `parse()` failed.\n $packet" }
         }
 
         return result
     }
 
-    private fun parse(payload: ByteArray, accumulator: MutableList<SIPMessage>) {
+    private fun parse(packet: Packet, accumulator: MutableList<Pair<Packet, SIPMessage>>) {
+        val payload = packet.payload
         var offset = 0
+
         while (isCrLf(offset, payload)) {
             offset += 2
         }
@@ -58,13 +64,24 @@ class SipMessageParser {
             }
         }
 
-        accumulator.add(message)
+        if (payload.size > offset) {
+            packet.payload = payload.copyOfRange(0, offset)
+        }
+        accumulator.add(Pair(packet, message))
 
         while (isCrLf(offset, payload)) {
             offset += 2
         }
+
         if (payload.size > offset) {
-            parse(payload.copyOfRange(offset, payload.size), accumulator)
+            val pkt = Packet().apply {
+                this.timestamp = packet.timestamp
+                this.srcAddr = packet.srcAddr
+                this.dstAddr = packet.dstAddr
+                this.protocolCode = packet.protocolCode
+                this.payload = payload.copyOfRange(offset, payload.size)
+            }
+            parse(pkt, accumulator)
         }
     }
 
@@ -75,7 +92,7 @@ class SipMessageParser {
         return payload[offset] == CR && payload[offset + 1] == LF
     }
 
-    class StringMessageParser : StringMsgParser() {
+    inner class StringMessageParser : StringMsgParser() {
 
         override fun processHeader(header: String?, message: SIPMessage, parseExceptionListener: ParseExceptionListener?, rawMessage: ByteArray) {
             if (header.isNullOrEmpty()) {
@@ -83,7 +100,8 @@ class SipMessageParser {
             }
 
             val headerName = Lexer.getHeaderName(header)
-            val h = when (headerName.toLowerCase()) {
+
+            val hdr = when (headerName.toLowerCase()) {
                 // These headers may or will be used in the SIP3 aggregation logic
                 "to", "t" -> ToParser(header + "\n").parse()
                 "from", "f" -> FromParser(header + "\n").parse()
@@ -100,14 +118,18 @@ class SipMessageParser {
                 else -> {
                     // These headers won't be used in the SIP3 aggregation logic
                     // So we can just attach them as generic `Extension` headers
-                    ExtensionHeaderImpl().apply {
-                        name = headerName
-                        value = Lexer.getHeaderValue(header)
+                    if (extensionHeaders.contains(headerName)) {
+                        ExtensionHeaderImpl().apply {
+                            name = headerName
+                            value = Lexer.getHeaderValue(header)
+                        }
+                    } else {
+                        null
                     }
                 }
             }
 
-            message.attachHeader(h, false)
+            hdr?.let { message.attachHeader(it, false) }
         }
     }
 }

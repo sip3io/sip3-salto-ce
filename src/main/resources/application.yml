@@ -30,17 +30,18 @@ server:
 #sip:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
+#    extension-headers: [User-Agent, Reason, Diversion]
 #    x-correlation-header: X-Call-ID
 #  transaction:
 #    expiration-delay: 1000
 #    response-timeout: 3000
 #    aggregation-timeout: 60000
-#    termination-timeout: 5000
+#    termination-timeout: 2000
 #    transaction-exclusions: [exclude-me]
 #  call:
 #    expiration-delay: 1000
 #    aggregation-timeout: 60000
-#    termination-timeout: 5000
+#    termination-timeout: 2000
 #    duration-timeout: 3600000
 #    transaction-exclusions: [exclude-me]
 #  register:

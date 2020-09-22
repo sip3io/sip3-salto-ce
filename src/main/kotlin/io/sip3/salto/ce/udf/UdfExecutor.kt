@@ -64,16 +64,17 @@ class UdfExecutor(val vertx: Vertx) {
         }
     }
 
-    fun execute(endpoint: String, payload: MutableMap<String, Any>, completionHandler: (AsyncResult<Pair<Boolean, Map<String, Any>>>) -> Unit) {
+    fun execute(endpoint: String, mappingFunction: () -> MutableMap<String, Any>, completionHandler: (AsyncResult<Pair<Boolean, Map<String, Any>>>) -> Unit) {
         if (!endpoints.contains(endpoint)) {
             completionHandler.invoke(NO_RESULT_FUTURE)
             return
         }
 
         var attributes: Map<String, Any> = mutableMapOf()
+
+        val payload = mappingFunction.invoke()
         payload["attributes"] = attributes
 
-        logger.debug { "Call '$endpoint' UDF. Payload: $payload" }
         vertx.eventBus().localRequest<Boolean>(endpoint, payload, DELIVERY_OPTIONS) { asr ->
             if (asr.failed()) {
                 logger.error(asr.cause()) { "UdfExecutor 'execute()' failed. Endpoint: $endpoint, payload: ${JsonObject(payload).encodePrettily()}" }
@@ -86,7 +87,7 @@ class UdfExecutor(val vertx: Vertx) {
                             when (v) {
                                 is String, is Boolean -> true
                                 else -> {
-                                    logger.warn("UDF attribute $k will be skipped due to unsupported value type.")
+                                    logger.warn {"UDF attribute $k will be skipped due to unsupported value type."}
                                     return@filter false
                                 }
                             }

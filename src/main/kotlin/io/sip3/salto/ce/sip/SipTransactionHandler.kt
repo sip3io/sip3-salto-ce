@@ -26,7 +26,6 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.hasSdp
-import io.sip3.salto.ce.util.toUri
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -63,7 +62,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var expirationDelay: Long = 1000
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
-    private var terminationTimeout: Long = 5000
+    private var terminationTimeout: Long = 2000
     private var transactionExclusions = emptyList<String>()
 
     private var recordCallUsersAttributes = false
@@ -122,7 +121,7 @@ open class SipTransactionHandler : AbstractVerticle() {
         }
 
         val transaction = transactions.getOrPut(message.transactionId()) { SipTransaction() }
-        transaction.addMessage(packet, message)
+        transaction.addMessage(packet, message, extend = message.cseqMethod() == "INVITE")
 
         // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.response?.hasSdp() == true) {
@@ -152,15 +151,8 @@ open class SipTransactionHandler : AbstractVerticle() {
         }
 
         when (prefix) {
-            RoutesCE.sip + "_call" -> {
+            RoutesCE.sip + "_call", RoutesCE.sip + "_register" -> {
                 val index = transaction.callId.hashCode()
-                val route = prefix + "_${abs(index % instances)}"
-                vertx.eventBus().localRequest<Any>(route, transaction)
-            }
-            RoutesCE.sip + "_register" -> {
-                // RFC-3261 10.2: The To header field contains the address of record
-                // whose registration is to be created, queried, or modified.
-                val index = (transaction.request?.toUri() ?: transaction.response?.toUri()).hashCode()
                 val route = prefix + "_${abs(index % instances)}"
                 vertx.eventBus().localRequest<Any>(route, transaction)
             }

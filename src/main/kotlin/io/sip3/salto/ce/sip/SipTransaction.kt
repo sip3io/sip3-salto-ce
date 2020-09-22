@@ -38,14 +38,13 @@ class SipTransaction {
         const val UNAUTHORIZED = "unauthorized"
     }
 
-    val id by lazy {
-        request?.transactionId() ?: response?.transactionId()!!
-    }
+    lateinit var id: String
 
     lateinit var cseqMethod: String
     var cseqNumber: Long = 0
 
     var createdAt: Long = 0
+    var originatedAt: Long? = null
     var tryingAt: Long? = null
     var ringingAt: Long? = null
     var terminatedAt: Long? = null
@@ -68,11 +67,13 @@ class SipTransaction {
         srcAddr.compositeKey(dstAddr)
     }
 
-    fun addMessage(packet: Packet, message: SIPMessage) {
+    fun addMessage(packet: Packet, message: SIPMessage, extend: Boolean = true) {
         // Aggregate transaction data
         when (message) {
             is SIPRequest -> {
                 if (createdAt == 0L) {
+                    id = message.transactionId()
+
                     cseqMethod = message.cseqMethod()!!
                     cseqNumber = message.cseqNumber()!!
 
@@ -86,14 +87,17 @@ class SipTransaction {
                 }
 
                 // Received message is a retransmit
-                if (request != null) {
+                if (originatedAt != null) {
                     attributes[Attributes.retransmits] = true
                 } else {
-                    request = message
+                    originatedAt = packet.createdAt
+                    if (extend) request = message
                 }
             }
             is SIPResponse -> {
                 if (createdAt == 0L) {
+                    id = message.transactionId()
+
                     cseqMethod = message.cseqMethod()!!
                     cseqNumber = message.cseqNumber()!!
 
@@ -110,17 +114,17 @@ class SipTransaction {
                 when (statusCode) {
                     100 -> {
                         if (tryingAt == null) {
-                            response = message
+                            if (extend) response = message
                             tryingAt = packet.createdAt
-                            state = TRYING
+                            if (state == UNKNOWN) state = TRYING
                         }
                     }
                     in 180..183 -> {
                         if (ringingAt == null) {
                             ringingAt = packet.createdAt
                             if (terminatedAt == null) {
-                                response = message
-                                state = RINGING
+                                if (extend) response = message
+                                if (state == UNKNOWN || state == TRYING) state = RINGING
                             }
                         }
                     }
@@ -129,7 +133,7 @@ class SipTransaction {
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
                         } else {
-                            response = message
+                            if (extend) response = message
                             terminatedAt = packet.createdAt
                             state = SUCCEED
                         }
@@ -139,7 +143,7 @@ class SipTransaction {
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
                         } else {
-                            response = message
+                            if (extend) response = message
                             terminatedAt = packet.createdAt
                             state = REDIRECTED
                         }
@@ -149,7 +153,7 @@ class SipTransaction {
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
                         } else {
-                            response = message
+                            if (extend) response = message
                             terminatedAt = packet.createdAt
                             state = UNAUTHORIZED
                         }
@@ -159,7 +163,7 @@ class SipTransaction {
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
                         } else {
-                            response = message
+                            if (extend) response = message
                             terminatedAt = packet.createdAt
                             state = CANCELED
                         }
@@ -169,7 +173,7 @@ class SipTransaction {
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
                         } else {
-                            response = message
+                            if (extend) response = message
                             terminatedAt = packet.createdAt
 
                             attributes[Attributes.error_code] = statusCode.toString()
@@ -182,7 +186,7 @@ class SipTransaction {
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
                         } else {
-                            response = message
+                            if (extend) response = message
                             terminatedAt = packet.createdAt
 
                             attributes[Attributes.error_code] = statusCode.toString()
@@ -195,7 +199,7 @@ class SipTransaction {
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
                         } else {
-                            response = message
+                            if (extend) response = message
                             terminatedAt = packet.createdAt
 
                             attributes[Attributes.error_code] = statusCode.toString()
