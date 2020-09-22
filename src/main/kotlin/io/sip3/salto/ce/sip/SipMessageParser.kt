@@ -64,6 +64,9 @@ class SipMessageParser(val extensionHeaders: Set<String> = emptySet()) {
             }
         }
 
+        if (payload.size > offset) {
+            packet.payload = payload.copyOfRange(0, offset)
+        }
         accumulator.add(Pair(packet, message))
 
         while (isCrLf(offset, payload)) {

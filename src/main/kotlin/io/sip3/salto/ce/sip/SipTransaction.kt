@@ -116,7 +116,7 @@ class SipTransaction {
                         if (tryingAt == null) {
                             if (extend) response = message
                             tryingAt = packet.createdAt
-                            state = TRYING
+                            if (state == UNKNOWN) state = TRYING
                         }
                     }
                     in 180..183 -> {
@@ -124,7 +124,7 @@ class SipTransaction {
                             ringingAt = packet.createdAt
                             if (terminatedAt == null) {
                                 if (extend) response = message
-                                state = RINGING
+                                if (state == UNKNOWN || state == TRYING) state = RINGING
                             }
                         }
                     }
