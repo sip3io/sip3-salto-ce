@@ -151,15 +151,8 @@ open class SipTransactionHandler : AbstractVerticle() {
         }
 
         when (prefix) {
-            RoutesCE.sip + "_call" -> {
+            RoutesCE.sip + "_call", RoutesCE.sip + "_register" -> {
                 val index = transaction.callId.hashCode()
-                val route = prefix + "_${abs(index % instances)}"
-                vertx.eventBus().localRequest<Any>(route, transaction)
-            }
-            RoutesCE.sip + "_register" -> {
-                // RFC-3261 10.2: The To header field contains the address of record
-                // whose registration is to be created, queried, or modified.
-                val index = transaction.callee.hashCode()
                 val route = prefix + "_${abs(index % instances)}"
                 vertx.eventBus().localRequest<Any>(route, transaction)
             }
