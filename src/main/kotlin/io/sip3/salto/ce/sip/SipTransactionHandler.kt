@@ -62,7 +62,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var expirationDelay: Long = 1000
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
-    private var terminationTimeout: Long = 5000
+    private var terminationTimeout: Long = 2000
     private var transactionExclusions = emptyList<String>()
 
     private var recordCallUsersAttributes = false
