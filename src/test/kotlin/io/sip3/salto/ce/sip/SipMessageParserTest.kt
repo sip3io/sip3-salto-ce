@@ -363,6 +363,8 @@ class SipMessageParserTest {
                         Supported: timer
                         Session-Expires: 7200
                         Expires: 300
+                        X-Diversion: First
+                        X-Diversion: Second 
                         Min-SE: 900
                         Max-Forwards: 63
                         User-Agent: Android Application
@@ -431,7 +433,7 @@ class SipMessageParserTest {
 
     @Test
     fun `Parse single SIP messages with extension headers`() {
-        val messages = SipMessageParser(extensionHeaders = setOf("Supported")).parse(PACKET_3)
+        val messages = SipMessageParser(extensionHeaders = setOf("Supported", "X-Diversion")).parse(PACKET_3)
         assertEquals(1, messages.size)
 
         val (_, message) = messages[0]

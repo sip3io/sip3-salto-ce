@@ -44,6 +44,8 @@ class SIPMessageUtilTest {
         Supported: timer
         Session-Expires: 7200
         Expires: 300
+        X-Diversion: First
+        X-Diversion: Second
         Min-SE: 900
         Max-Forwards: 63
         User-Agent: ITLCS 3.8.1
@@ -297,9 +299,11 @@ class SIPMessageUtilTest {
     @Test
     fun `Check headersMap() method extension`() {
         var headersMap = REQUEST.headersMap()
-        assertEquals(17, headersMap.size)
+        assertEquals(18, headersMap.size)
         assertEquals("INVITE sip:000155917690@ss63.invite.demo.sip3.io:5060 SIP/2.0", headersMap["request-line"])
         assertEquals("1 INVITE", headersMap["cseq"])
+        assertEquals("First,Second", headersMap["x-diversion"])
+
         headersMap = RESPONSE_183.headersMap()
         assertEquals(12, headersMap.size)
         assertEquals("SIP/2.0 183 Session Progress", headersMap["status-line"])
