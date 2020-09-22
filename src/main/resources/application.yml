@@ -30,6 +30,7 @@ server:
 #sip:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
+#    extension-headers: [User-Agent, Reason, Diversion]
 #    x-correlation-header: X-Call-ID
 #  transaction:
 #    expiration-delay: 1000

@@ -50,11 +50,12 @@ open class SipMessageHandler : AbstractVerticle() {
     private var instances = 1
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var exclusions = emptySet<String>()
+    private var extensionHeaders = emptySet<String>()
     private var xCorrelationHeader = "X-Call-ID"
 
     private val packetsProcessed = Metrics.counter("packets_processed", mapOf("proto" to "sip"))
 
-    private var parser = SipMessageParser()
+    private lateinit var parser: SipMessageParser
     private lateinit var udfExecutor: UdfExecutor
 
     override fun start() {
@@ -68,11 +69,15 @@ open class SipMessageHandler : AbstractVerticle() {
             config.getJsonArray("exclusions")?.let {
                 exclusions = it.map(Any::toString).toSet()
             }
+            config.getJsonArray("extension-headers")?.let {
+                extensionHeaders = it.map(Any::toString).toSet()
+            }
             config.getString("x-correlation-header")?.let {
                 xCorrelationHeader = it
             }
         }
 
+        parser = SipMessageParser(extensionHeaders)
         udfExecutor = UdfExecutor(vertx)
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.sip) { event ->

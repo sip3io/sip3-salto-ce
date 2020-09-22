@@ -25,7 +25,7 @@ import mu.KotlinLogging
 /**
  * Parses SIP messages
  */
-class SipMessageParser {
+class SipMessageParser(val extensionHeaders: Set<String> = emptySet()) {
 
     private val logger = KotlinLogging.logger {}
 
@@ -89,7 +89,7 @@ class SipMessageParser {
         return payload[offset] == CR && payload[offset + 1] == LF
     }
 
-    class StringMessageParser : StringMsgParser() {
+    inner class StringMessageParser : StringMsgParser() {
 
         override fun processHeader(header: String?, message: SIPMessage, parseExceptionListener: ParseExceptionListener?, rawMessage: ByteArray) {
             if (header.isNullOrEmpty()) {
@@ -97,7 +97,8 @@ class SipMessageParser {
             }
 
             val headerName = Lexer.getHeaderName(header)
-            val h = when (headerName.toLowerCase()) {
+
+            val hdr = when (headerName.toLowerCase()) {
                 // These headers may or will be used in the SIP3 aggregation logic
                 "to", "t" -> ToParser(header + "\n").parse()
                 "from", "f" -> FromParser(header + "\n").parse()
@@ -114,14 +115,18 @@ class SipMessageParser {
                 else -> {
                     // These headers won't be used in the SIP3 aggregation logic
                     // So we can just attach them as generic `Extension` headers
-                    ExtensionHeaderImpl().apply {
-                        name = headerName
-                        value = Lexer.getHeaderValue(header)
+                    if (extensionHeaders.contains(headerName)) {
+                        ExtensionHeaderImpl().apply {
+                            name = headerName
+                            value = Lexer.getHeaderValue(header)
+                        }
+                    } else {
+                        null
                     }
                 }
             }
 
-            message.attachHeader(h, false)
+            hdr?.let { message.attachHeader(it, false) }
         }
     }
 }
