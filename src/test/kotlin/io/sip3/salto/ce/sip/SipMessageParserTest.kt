@@ -16,9 +16,12 @@
 
 package io.sip3.salto.ce.sip
 
+import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.callId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.sql.Timestamp
 
 class SipMessageParserTest {
 
@@ -339,24 +342,46 @@ class SipMessageParserTest {
 
     @Test
     fun `Parse single SIP message`() {
-        val messages = SipMessageParser().parse(PACKET_1)
+        val messages = SipMessageParser().parse(Packet().apply {
+            timestamp = Timestamp(System.currentTimeMillis())
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            payload = PACKET_1
+        })
         assertEquals(1, messages.size)
 
-        val message = messages[0]
+        val (_, message) = messages[0]
         assertEquals("0211070C568140000EEA01FB@SFESIP1-id2-ext", message.callId())
         assertEquals(0, message.contentLengthHeader.contentLength)
     }
 
     @Test
     fun `Parse multiple SIP messages`() {
-        val messages = SipMessageParser().parse(PACKET_2)
+        val messages = SipMessageParser().parse(Packet().apply {
+            timestamp = Timestamp(System.currentTimeMillis())
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            payload = PACKET_2
+        })
         assertEquals(2, messages.size)
 
-        val message0 = messages[0]
+        val (_, message0) = messages[0]
         assertEquals("0211070C568140000EEA01FB@SFESIP1-id2-ext", message0.callId())
         assertEquals(0, message0.contentLengthHeader.contentLength)
 
-        val message1 = messages[1]
+        val (_, message1) = messages[1]
         assertEquals("03F41ACCA6C2175E68F67D97@0d70ffffffff", message1.callId())
         assertEquals(660, message1.contentLengthHeader.contentLength)
     }

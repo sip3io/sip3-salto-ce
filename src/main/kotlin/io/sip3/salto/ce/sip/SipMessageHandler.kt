@@ -88,54 +88,12 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun handle(packet: Packet) {
         packetsProcessed.increment()
 
-        // Parse
-        parser.parse(packet.payload).forEach { message ->
-            // Validate
-            if (!validate(message)) {
-                return@forEach
-            }
-
-            // Filter by `Cseq`
-            val cseqMethod = message.cseqMethod()
-            if (cseqMethod != null && SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
-                // Find `x-correlation-header`
-                (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.let { header ->
-                    packet.attributes[Attributes.x_call_id] = header.value
+        parser.parse(packet).forEach { (pkt, message) ->
+            if (validate(message)) {
+                val cseqMethod = message.cseqMethod()
+                if (cseqMethod != null && SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
+                    handleSipMessage(pkt, message)
                 }
-
-                // Call UDF
-                udfExecutor.execute(RoutesCE.sip_message_udf,
-                        // Prepare UDF payload
-                        mappingFunction = {
-                            mutableMapOf<String, Any>().apply {
-                                val src = packet.srcAddr
-                                put("src_addr", src.addr)
-                                put("src_port", src.port)
-                                src.host?.let { put("src_host", it) }
-
-                                val dst = packet.dstAddr
-                                put("dst_addr", dst.addr)
-                                put("dst_port", dst.port)
-                                dst.host?.let { put("dst_host", it) }
-
-                                put("payload", message.headersMap())
-                            }
-                        },
-                        // Handle UDF result
-                        completionHandler = { asr ->
-                            val (result, attributes) = asr.result()
-                            if (result) {
-                                attributes.forEach { (k, v) -> packet.attributes[k] = v }
-
-                                val prefix = when (cseqMethod) {
-                                    "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
-                                    else -> RoutesCE.sip + "_call"
-                                }
-
-                                routeSipMessage(prefix, packet, message)
-                                calculateSipMessageMetrics(prefix, packet, message)
-                            }
-                        })
             }
         }
     }
@@ -143,6 +101,47 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun validate(message: SIPMessage): Boolean {
         return message.callId() != null
                 && message.toUserOrNumber() != null && message.fromUserOrNumber() != null
+    }
+
+    open fun handleSipMessage(packet: Packet, message: SIPMessage) {
+        // Find `x-correlation-header`
+        (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.let { header ->
+            packet.attributes[Attributes.x_call_id] = header.value
+        }
+
+        udfExecutor.execute(RoutesCE.sip_message_udf,
+                // Prepare UDF payload
+                mappingFunction = {
+                    mutableMapOf<String, Any>().apply {
+                        val src = packet.srcAddr
+                        put("src_addr", src.addr)
+                        put("src_port", src.port)
+                        src.host?.let { put("src_host", it) }
+
+                        val dst = packet.dstAddr
+                        put("dst_addr", dst.addr)
+                        put("dst_port", dst.port)
+                        dst.host?.let { put("dst_host", it) }
+
+                        put("payload", message.headersMap())
+                    }
+                },
+                // Handle UDF result
+                completionHandler = { asr ->
+                    val (result, attributes) = asr.result()
+                    if (result) {
+                        attributes.forEach { (k, v) -> packet.attributes[k] = v }
+
+                        val cseqMethod = message.cseqMethod()
+                        val prefix = when (cseqMethod) {
+                            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
+                            else -> RoutesCE.sip + "_call"
+                        }
+
+                        routeSipMessage(prefix, packet, message)
+                        calculateSipMessageMetrics(prefix, packet, message)
+                    }
+                })
     }
 
     open fun routeSipMessage(prefix: String, packet: Packet, message: SIPMessage) {
