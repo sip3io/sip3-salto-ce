@@ -139,7 +139,7 @@ class SipTransaction {
                             terminatedAt = packet.createdAt
                             state = SUCCEED
 
-                            if (cseqMethod == "REGISTER") { expires = message.expires() }
+                            if (cseqMethod == "REGISTER") expires = message.expires()
                         }
                     }
                     in 300..399 -> {
