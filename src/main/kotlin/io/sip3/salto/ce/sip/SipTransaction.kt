@@ -86,6 +86,10 @@ class SipTransaction {
                     callId = message.callId()!!
                     callee = message.toUserOrNumber()!!
                     caller = message.fromUserOrNumber()!!
+
+                    if (cseqMethod == "REGISTER" && expires == null) {
+                        expires = message.expires()
+                    }
                 }
 
                 // Received message is a retransmit
@@ -139,7 +143,9 @@ class SipTransaction {
                             terminatedAt = packet.createdAt
                             state = SUCCEED
 
-                            if (cseqMethod == "REGISTER") expires = message.expires()
+                            if (cseqMethod == "REGISTER") {
+                                message.expires()?.let { expires = it }
+                            }
                         }
                     }
                     in 300..399 -> {
