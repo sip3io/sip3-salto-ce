@@ -95,6 +95,8 @@ class SipTransaction {
                     originatedAt = packet.createdAt
                     if (extend) request = message
                 }
+
+                if (cseqMethod == "REGISTER" && expires == null) expires = message.expires()
             }
             is SIPResponse -> {
                 if (createdAt == 0L) {
@@ -139,7 +141,9 @@ class SipTransaction {
                             terminatedAt = packet.createdAt
                             state = SUCCEED
 
-                            if (cseqMethod == "REGISTER") expires = message.expires()
+                            if (cseqMethod == "REGISTER") {
+                                message.expires()?.let { expires = it }
+                            }
                         }
                     }
                     in 300..399 -> {
