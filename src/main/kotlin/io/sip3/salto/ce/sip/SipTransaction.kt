@@ -49,6 +49,8 @@ class SipTransaction {
     var ringingAt: Long? = null
     var terminatedAt: Long? = null
 
+    var expires: Int? = null
+
     var state = UNKNOWN
 
     lateinit var srcAddr: Address
@@ -136,6 +138,8 @@ class SipTransaction {
                             if (extend) response = message
                             terminatedAt = packet.createdAt
                             state = SUCCEED
+
+                            if (cseqMethod == "REGISTER") expires = message.expires()
                         }
                     }
                     in 300..399 -> {

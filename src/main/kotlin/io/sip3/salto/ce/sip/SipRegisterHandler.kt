@@ -23,7 +23,6 @@ import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
-import io.sip3.salto.ce.util.expires
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
@@ -399,7 +398,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 caller = transaction.caller
             }
 
-            transaction.response?.expires()?.let { expires ->
+            transaction.expires?.let { expires ->
                 if (expires > 0) {
                     expiresAt = transaction.createdAt + expires * 1000
                 } else {
