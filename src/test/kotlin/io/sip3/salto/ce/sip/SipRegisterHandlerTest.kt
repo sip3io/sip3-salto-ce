@@ -182,7 +182,7 @@ class SipRegisterHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
+                        val (collection, operation) = event.body()
 
                         val document = operation.getJsonObject("document")
 
@@ -203,7 +203,7 @@ class SipRegisterHandlerTest : VertxTest() {
                                 assertEquals("1010", getString("callee"))
                                 assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
                                 assertEquals(PACKET_3.timestamp.time + 120000, getLong("terminated_at"))
-
+                                assertEquals(PACKET_3.timestamp.time + 120000 - PACKET_1.timestamp.time, getLong("duration"))
                             }
                         }
                         context.completeNow()
@@ -238,7 +238,7 @@ class SipRegisterHandlerTest : VertxTest() {
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
+                        val (collection, operation) = event.body()
 
                         val document = operation.getJsonObject("document")
 

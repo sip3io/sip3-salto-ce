@@ -230,6 +230,8 @@ open class SipRegisterHandler : AbstractVerticle() {
             session.terminatedAt = System.currentTimeMillis()
         }
 
+        session.duration = session.terminatedAt!! - session.createdAt
+
         writeAttributes(session)
         writeToDatabase(PREFIX, session, true)
     }
@@ -311,6 +313,8 @@ open class SipRegisterHandler : AbstractVerticle() {
                 }
 
                 if (registration is SipSession) {
+                    registration.duration?.let { document.put("duration", it) }
+
                     var registrations: Any = registration.registrations
                             .map { (createdAt, terminatedAt) ->
                                 JsonObject().apply {
@@ -350,6 +354,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     inner class SipSession : SipRegistration() {
 
         var updatedAt: Long? = null
+        var duration: Long? = null
         val registrations = mutableListOf<Pair<Long, Long>>()
 
         fun addSipRegistration(registration: SipRegistration) {
