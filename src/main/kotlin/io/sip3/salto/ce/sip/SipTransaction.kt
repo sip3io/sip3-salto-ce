@@ -86,6 +86,8 @@ class SipTransaction {
                     callId = message.callId()!!
                     callee = message.toUserOrNumber()!!
                     caller = message.fromUserOrNumber()!!
+                } else if (createdAt > packet.createdAt) {
+                    createdAt = packet.createdAt
                 }
 
                 // Received message is a retransmit

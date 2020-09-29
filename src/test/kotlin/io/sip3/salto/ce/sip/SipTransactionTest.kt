@@ -20,7 +20,10 @@ import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -32,8 +35,10 @@ class SipTransactionTest {
             StringMsgParser.setComputeContentLengthFromMessage(true)
         }
 
+        val NOW = System.currentTimeMillis()
+
         val PACKET_1 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            timestamp = Timestamp(NOW)
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -77,7 +82,7 @@ class SipTransactionTest {
         }
 
         val PACKET_2 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            timestamp = Timestamp(NOW + 20)
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -116,7 +121,7 @@ class SipTransactionTest {
         }
 
         val PACKET_3 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            timestamp = Timestamp(NOW + 10)
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -195,5 +200,22 @@ class SipTransactionTest {
         assertEquals("123", transaction.caller)
         assertEquals("321", transaction.callee)
         assertEquals("58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117", transaction.callId)
+    }
+
+    @Test
+    fun `SIP Transaction with unordered messages`() {
+        val tryingMessage = StringMsgParser().parseSIPMessage(PACKET_3.payload, true, false, null)
+        val inviteMessage = StringMsgParser().parseSIPMessage(PACKET_1.payload, true, false, null)
+        val transaction = SipTransaction()
+        transaction.addMessage(PACKET_3, tryingMessage)
+        transaction.addMessage(PACKET_1, inviteMessage)
+
+        assertEquals("INVITE", transaction.cseqMethod)
+        assertEquals(PACKET_3.dstAddr.addr, transaction.srcAddr.addr)
+        assertEquals(PACKET_3.dstAddr.port, transaction.srcAddr.port)
+        assertEquals(PACKET_3.srcAddr.addr, transaction.dstAddr.addr)
+        assertEquals(PACKET_3.srcAddr.port, transaction.dstAddr.port)
+        assertNotNull(transaction.response)
+        assertEquals(PACKET_1.createdAt, transaction.createdAt)
     }
 }
