@@ -400,7 +400,7 @@ open class SipRegisterHandler : AbstractVerticle() {
 
             transaction.expires?.let { expires ->
                 if (expires > 0) {
-                    expiresAt = transaction.createdAt + expires * 1000
+                    expiresAt = transaction.createdAt + expires * 1000L
                 } else {
                     // Registration has to be removed
                     expiresAt = transaction.terminatedAt ?: transaction.createdAt
