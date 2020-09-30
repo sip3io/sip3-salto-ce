@@ -273,8 +273,7 @@ open class SipCallHandler : AbstractVerticle() {
 
         Metrics.counter(ATTEMPTS, attributes).increment()
 
-        val duration = session.duration
-        if (duration != null) {
+        session.duration?.let { duration ->
             Metrics.summary(DURATION, attributes).record(duration.toDouble())
         }
     }
