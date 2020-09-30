@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
+import javax.sip.header.ExtensionHeader
 
 class SipMessageHandlerTest : VertxTest() {
 
@@ -123,6 +124,34 @@ class SipMessageHandlerTest : VertxTest() {
 
                         context.verify {
                             assertEquals(PACKET_1, packet)
+                        }
+                        context.completeNow()
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Handle packet with SIP message and read extension header value`() {
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
+                        put("sip", JsonObject().apply {
+                            put("message", JsonObject().apply {
+                                put("extension-headers", listOf("User-Agent"))
+                            })
+                        })
+                    })
+                },
+                execute = {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
+                },
+                assert = {
+                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                        val (_, message) = event.body()
+
+                        context.verify {
+                            assertEquals("Android Application", (message.getHeader("User-Agent") as ExtensionHeader).value)
                         }
                         context.completeNow()
                     }

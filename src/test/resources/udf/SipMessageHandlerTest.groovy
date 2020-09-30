@@ -22,6 +22,7 @@ vertx.eventBus().localConsumer("sip_message_udf", { event ->
     def attributes = packet['attributes']
     attributes['string'] = 'string'
     attributes['boolean'] = true
+    attributes['user-agent'] = packet['payload']['user-agent']
 
     event.reply(true)
 })

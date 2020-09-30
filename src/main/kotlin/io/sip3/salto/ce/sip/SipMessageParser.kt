@@ -121,7 +121,7 @@ class SipMessageParser(val extensionHeaders: Set<String> = emptySet()) {
                     if (extensionHeaders.contains(headerName)) {
                         ExtensionHeaderImpl().apply {
                             name = headerName
-                            value = Lexer.getHeaderValue(header)
+                            value = Lexer.getHeaderValue(header)?.trim()
                         }
                     } else {
                         null
