@@ -84,7 +84,7 @@ class Decoder : AbstractVerticle() {
 
             // Packet Length
             packetOffset += 1
-            val packetLength = buffer.getShort(packetOffset)
+            val packetLength = buffer.getUnsignedShort(packetOffset)
 
             packetOffset += 2
             while (packetOffset < offset + packetLength) {
@@ -92,7 +92,7 @@ class Decoder : AbstractVerticle() {
                 val type = buffer.getByte(packetOffset)
                 // Length
                 packetOffset += 1
-                val length = buffer.getShort(packetOffset) - 3
+                val length = buffer.getUnsignedShort(packetOffset) - 3
                 // Value
                 packetOffset += 2
                 when (type.toInt()) {
