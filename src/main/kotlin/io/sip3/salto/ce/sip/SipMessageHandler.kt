@@ -78,6 +78,7 @@ open class SipMessageHandler : AbstractVerticle() {
         }
 
         extensionHeaders.add(xCorrelationHeader)
+
         parser = SipMessageParser(extensionHeaders)
         udfExecutor = UdfExecutor(vertx)
 
