@@ -23,6 +23,7 @@ import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.udf.UdfExecutor
 import io.sip3.salto.ce.util.DurationUtil
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -78,6 +79,8 @@ open class SipCallHandler : AbstractVerticle() {
 
     private var activeSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
 
+    private lateinit var udfExecutor: UdfExecutor
+
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
@@ -105,6 +108,8 @@ open class SipCallHandler : AbstractVerticle() {
         config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
             recordCallUsersAttributes = it
         }
+
+        udfExecutor = UdfExecutor(vertx)
 
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredCallSessions()
@@ -260,9 +265,48 @@ open class SipCallHandler : AbstractVerticle() {
             session.attributes[Attributes.expired] = true
         }
 
-        writeAttributes(session)
-        writeToDatabase(PREFIX, session, upsert = (session.state == ANSWERED))
-        calculateCallSessionMetrics(session)
+        udfExecutor.execute(RoutesCE.sip_call_udf,
+                // Prepare UDF payload
+                mappingFunction = {
+                    mutableMapOf<String, Any>().apply {
+                        val src = session.srcAddr
+                        put("src_addr", src.addr)
+                        put("src_port", src.port)
+                        src.host?.let { put("src_host", it) }
+
+                        val dst = session.dstAddr
+                        put("dst_addr", dst.addr)
+                        put("dst_port", dst.port)
+                        dst.host?.let { put("dst_host", it) }
+
+                        put("payload", mutableMapOf<String, Any>().apply {
+                            put("created_at", session.createdAt)
+                            put("terminated_at", session.terminatedAt!!)
+
+                            put("state", session.state)
+                            put("caller", session.caller)
+                            put("callee", session.callee)
+                            put("call_id", session.callId)
+
+                            session.duration?.let { put("duration", it) }
+                            session.setupTime?.let { put("setup_time", it) }
+                            session.establishTime?.let { put("establish_time", it) }
+
+                            session.attributes.forEach { k, v -> put(k, v) }
+                        })
+                    }
+                },
+                // Handle UDF result
+                completionHandler = { asr ->
+                    val (_, attributes) = asr.result()
+
+                    attributes.forEach { (k, v) -> session.attributes[k] = v }
+
+                    writeAttributes(session)
+                    writeToDatabase(PREFIX, session, upsert = (session.state == ANSWERED))
+                    calculateCallSessionMetrics(session)
+                }
+        )
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
