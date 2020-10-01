@@ -33,6 +33,7 @@ object Attributes {
     const val error_type = "error_type"
     const val retransmits = "retransmits"
     const val duration = "duration"
+    const val distribution = "distribution"
     const val setup_time = "setup_time"
     const val establish_time = "establish_time"
     const val mos = "mos"

@@ -23,6 +23,7 @@ import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.util.DurationUtil
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
@@ -32,6 +33,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 /**
@@ -70,6 +72,7 @@ open class SipCallHandler : AbstractVerticle() {
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 2000
     private var durationTimeout: Long = 3600000
+    private var durationDistributions = TreeMap<Long, String>()
     private var transactionExclusions = emptyList<String>()
     private var recordCallUsersAttributes = false
 
@@ -91,6 +94,9 @@ open class SipCallHandler : AbstractVerticle() {
             }
             config.getLong("duration-timeout")?.let {
                 durationTimeout = it
+            }
+            config.getJsonArray("duration-distributions")?.forEach {
+                durationDistributions[DurationUtil.parseDuration(it as String).toMillis()] = it
             }
             config.getJsonArray("transaction-exclusions")?.let {
                 transactionExclusions = it.map(Any::toString)
@@ -274,6 +280,9 @@ open class SipCallHandler : AbstractVerticle() {
         Metrics.counter(ATTEMPTS, attributes).increment()
 
         session.duration?.let { duration ->
+            durationDistributions.ceilingKey(duration)
+                    ?.let { attributes[Attributes.distribution] = it }
+
             Metrics.summary(DURATION, attributes).record(duration.toDouble())
         }
     }
