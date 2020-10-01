@@ -73,11 +73,11 @@ open class SipMessageHandler : AbstractVerticle() {
                 xCorrelationHeader = it
             }
 
-            extensionHeaders.add(xCorrelationHeader)
             config.getJsonArray("extension-headers")?.let {
                 extensionHeaders = it.map(Any::toString).toMutableSet()
             }
         }
+        extensionHeaders.add(xCorrelationHeader)
 
         parser = SipMessageParser(extensionHeaders)
         udfExecutor = UdfExecutor(vertx)
