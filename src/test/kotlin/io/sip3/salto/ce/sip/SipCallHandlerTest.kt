@@ -521,7 +521,7 @@ class SipCallHandlerTest : VertxTest() {
                         val document = operation.getJsonObject("document")
 
                         context.verify {
-                            assertTrue(collection.startsWith ("sip_call_index_"))
+                            assertTrue(collection.startsWith("sip_call_index_"))
 
                             assertEquals(NOW, filter.getLong("created_at"))
                             assertEquals(ANSWERED_PACKET_1.srcAddr.addr, filter.getString("src_addr"))
@@ -547,6 +547,62 @@ class SipCallHandlerTest : VertxTest() {
                                 context.completeNow()
                             }
                         }
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Call 'sip_call_udf'`() {
+        val transaction = SipTransaction().apply {
+            addPacket(FAILED_PACKET_1)
+            addPacket(FAILED_PACKET_2)
+            addPacket(FAILED_PACKET_3)
+        }
+
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
+                        put("sip", JsonObject().apply {
+                            put("call", JsonObject().apply {
+                                put("expiration-delay", 100)
+                                put("termination-timeout", 100)
+                            })
+                        })
+                    })
+                },
+                execute = {
+                    vertx.setPeriodic(200, 200) {
+                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
+                    }
+                },
+                assert = {
+                    vertx.eventBus().localConsumer<Map<String, Any>>(RoutesCE.sip_call_udf) { event ->
+                        val session = event.body()
+
+                        context.verify {
+                            assertEquals("127.0.0.1", session["src_addr"])
+                            assertEquals(5060, session["src_port"])
+                            assertNull(session["src_host"])
+
+                            assertEquals("127.0.0.2", session["dst_addr"])
+                            assertEquals(5061, session["dst_port"])
+                            assertEquals("Test", session["dst_host"])
+
+                            val payload = session["payload"] as Map<String, Any>
+
+                            assertEquals(NOW, payload["created_at"])
+                            assertEquals(NOW + 107 + 342, payload["terminated_at"])
+
+                            assertEquals("failed", payload["state"])
+                            assertEquals("caller", payload["caller"])
+                            assertEquals("321", payload["callee"])
+                            assertEquals("58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117", payload["call_id"])
+                            assertEquals(true, payload["include-me"])
+                        }
+                        context.completeNow()
+
+                        event.reply(true)
                     }
                 }
         )

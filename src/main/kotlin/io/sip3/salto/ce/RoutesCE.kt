@@ -28,6 +28,7 @@ interface RoutesCE : Routes {
     // UDF
     val packet_udf get() = "packet_udf"
     val sip_message_udf get() = "sip_message_udf"
+    val sip_call_udf get() = "sip_call_udf"
 
     // Decoder
     val sip3 get() = "sip3"
