@@ -19,7 +19,6 @@ package io.sip3.salto.ce.sdp
 import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.sdpSessionId
@@ -112,7 +111,7 @@ class SdpHandler : AbstractVerticle() {
                     }
 
             logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
-            vertx.eventBus().localRequest<Any>(RoutesCE.sdp_info, sdpSessions)
+            vertx.eventBus().publish(RoutesCE.sdp_info, sdpSessions)
         } catch (e: Exception) {
             logger.debug(e) { "Couldn't retrieve session IDs. Request: ${session.request}, Response: ${session.response}" }
         }

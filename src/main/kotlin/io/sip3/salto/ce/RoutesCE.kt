@@ -48,6 +48,9 @@ interface RoutesCE : Routes {
     // SIP
     val sip get() = "sip"
 
+    // RTCP
+    val rtcp get() = "rtcp"
+
     // Mongo
     val mongo_bulk_writer get() = "mongo_bulk_writer"
 }
