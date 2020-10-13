@@ -85,10 +85,12 @@ class ManagementSocket : AbstractVerticle() {
     }
 
     private fun publishSdpSession(sdpSession: SdpSession) {
-        val buffer = JsonObject().apply {
-            put("type", TYPE_SDP_SESSION)
-            put("payload", JsonObject.mapFrom(sdpSession))
-        }.toBuffer()
+        val buffer by lazy {
+            JsonObject().apply {
+                put("type", TYPE_SDP_SESSION)
+                put("payload", JsonObject.mapFrom(sdpSession))
+            }.toBuffer()
+        }
 
         remoteHosts.forEach { (_, remoteHost) ->
             if (remoteHost.rtpEnabled) {
