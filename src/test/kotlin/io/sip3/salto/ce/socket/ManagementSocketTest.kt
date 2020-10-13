@@ -50,6 +50,9 @@ class ManagementSocketTest : VertxTest() {
                 put("register-delay", 2000L)
             })
             put("host", HOST)
+            put("rtp", JsonObject().apply {
+                put("enabled", true)
+            })
         }
 
         private val REGISTER_MESSAGE = JsonObject().apply {

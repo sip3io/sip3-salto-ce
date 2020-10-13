@@ -93,12 +93,14 @@ open class RtcpHandler : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<SdpSession>(RoutesCE.sdp_info) { event ->
-            try {
-                val sdpSession = event.body()
-                onSdpSession(sdpSession)
-            } catch (e: Exception) {
-                logger.error("RtcpHandler 'onSdpSession()' failed.", e)
+        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+            val sdpInfo = event.body()
+            sdpInfo.forEach { sdpSession ->
+                try {
+                    onSdpSession(sdpSession)
+                } catch (e: Exception) {
+                    logger.error("RtcpHandler 'onSdpSession()' failed.", e)
+                }
             }
         }
     }
@@ -116,6 +118,7 @@ open class RtcpHandler : AbstractVerticle() {
             srcAddr = session.srcAddr
             protocolCode = PacketTypes.RTPR
             session.cumulative.createdAt = now.time
+            payload = session.cumulative.encode().array()
         }
         send(rtpReport)
     }

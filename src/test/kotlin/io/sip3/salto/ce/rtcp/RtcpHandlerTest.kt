@@ -161,7 +161,7 @@ class RtcpHandlerTest : VertxTest() {
                 },
                 execute = {
 
-                    vertx.eventBus().localPublish(RoutesCE.sdp_info, SDP_SESSION)
+                    vertx.eventBus().localPublish(RoutesCE.sdp_info, listOf(SDP_SESSION))
                     vertx.setTimer(200L) {
                         listOf(PACKET_1, PACKET_2, PACKET_3).map { payload ->
                             Packet().apply {

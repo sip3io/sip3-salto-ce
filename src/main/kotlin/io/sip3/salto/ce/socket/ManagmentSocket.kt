@@ -91,10 +91,12 @@ class ManagementSocket : AbstractVerticle() {
         }.toBuffer()
 
         remoteHosts.forEach { (_, remoteHost) ->
-            try {
-                socket.send(buffer, remoteHost.uri.port, remoteHost.uri.host) {}
-            } catch (e: Exception) {
-                logger.error("Socket 'send()' failed. URI: ${remoteHost.uri}", e)
+            if (remoteHost.rtpEnabled) {
+                try {
+                    socket.send(buffer, remoteHost.uri.port, remoteHost.uri.host) {}
+                } catch (e: Exception) {
+                    logger.error(e) { "Socket 'send()' failed. URI: ${remoteHost.uri}" }
+                }
             }
         }
     }
@@ -108,15 +110,16 @@ class ManagementSocket : AbstractVerticle() {
                 val message = buffer.toJsonObject()
                 handle(message, socketAddress)
             } catch (e: Exception) {
-                logger.error("ManagementSocket 'handle()' failed.", e)
+                logger.error(e) { "ManagementSocket 'handle()' failed." }
             }
         }
 
         socket.listen(uri.port, uri.host) { connection ->
             if (connection.failed()) {
-                logger.error("UDP connection failed. URI: $uri", connection.cause())
+                logger.error(connection.cause()) { "UDP connection failed. URI: $uri" }
                 throw connection.cause()
             }
+
             logger.info("Listening on $uri")
         }
     }
@@ -137,12 +140,14 @@ class ManagementSocket : AbstractVerticle() {
 
                     val remoteHost = RemoteHost(name, uri)
                     logger.info("Registered: $remoteHost, Config:\n${config?.encodePrettily()}")
+
+                    config?.getJsonObject("host")?.let { updateHost(it) }
+                    config?.getJsonObject("rtp")?.getBoolean("enabled")?.let { remoteHost.rtpEnabled = it }
+
                     return@computeIfAbsent remoteHost
                 }.apply {
                     lastUpdate = System.currentTimeMillis()
                 }
-
-                config?.getJsonObject("host")?.let { updateHost(it) }
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
         }
@@ -155,13 +160,15 @@ class ManagementSocket : AbstractVerticle() {
             }
             client!!.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true)) { asr ->
                 if (asr.failed()) {
-                    logger.error("MongoClient 'replaceDocuments()' failed.", asr.cause())
+                    logger.error(asr.cause()) { "MongoClient 'replaceDocuments()' failed." }
                 }
             }
         }
     }
 
     data class RemoteHost(val name: String, val uri: URI) {
+
         var lastUpdate: Long = Long.MIN_VALUE
+        var rtpEnabled = false
     }
 }
