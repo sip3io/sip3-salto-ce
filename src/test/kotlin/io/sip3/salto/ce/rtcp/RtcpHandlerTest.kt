@@ -170,7 +170,7 @@ class RtcpHandlerTest : VertxTest() {
                                 this.payload = payload
                                 timestamp = Timestamp(System.currentTimeMillis())
                             }
-                        }.let { vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, it) }
+                        }.forEach { vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, it) }
                     }
                 },
                 assert = {

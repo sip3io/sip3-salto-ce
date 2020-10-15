@@ -52,6 +52,7 @@ class ManagementSocket : AbstractVerticle() {
 
     private val remoteHosts = mutableMapOf<String, RemoteHost>()
     private lateinit var socket: DatagramSocket
+    private var sendSdpSessions = false
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
@@ -70,8 +71,10 @@ class ManagementSocket : AbstractVerticle() {
         startUdpServer()
 
         vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
-            val sdpSessions = event.body()
-            sdpSessions.forEach { publishSdpSession(it) }
+            if (sendSdpSessions) {
+                val sdpSessions = event.body()
+                sdpSessions.forEach { publishSdpSession(it) }
+            }
         }
 
         vertx.setPeriodic(expirationDelay) {
@@ -85,12 +88,10 @@ class ManagementSocket : AbstractVerticle() {
     }
 
     private fun publishSdpSession(sdpSession: SdpSession) {
-        val buffer by lazy {
-            JsonObject().apply {
-                put("type", TYPE_SDP_SESSION)
-                put("payload", JsonObject.mapFrom(sdpSession))
-            }.toBuffer()
-        }
+        val buffer = JsonObject().apply {
+            put("type", TYPE_SDP_SESSION)
+            put("payload", JsonObject.mapFrom(sdpSession))
+        }.toBuffer()
 
         remoteHosts.forEach { (_, remoteHost) ->
             if (remoteHost.rtpEnabled) {
@@ -150,6 +151,8 @@ class ManagementSocket : AbstractVerticle() {
                 }.apply {
                     lastUpdate = System.currentTimeMillis()
                 }
+                
+                sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
         }

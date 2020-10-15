@@ -82,14 +82,12 @@ open class RtcpHandler : AbstractVerticle() {
                     }
         }
 
-        vertx.eventBus().localConsumer<List<Packet>>(RoutesCE.rtcp) { event ->
-            val packets = event.body()
-            packets.forEach { packet ->
-                try {
-                    handle(packet)
-                } catch (e: Exception) {
-                    logger.error("RtprHandler 'handle()' failed.", e)
-                }
+        vertx.eventBus().localConsumer<Packet>(RoutesCE.rtcp) { event ->
+            try {
+                val packet = event.body()
+                handle(packet)
+            } catch (e: Exception) {
+                logger.error("RtprHandler 'handle()' failed.", e)
             }
         }
 
