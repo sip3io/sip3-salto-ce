@@ -49,18 +49,15 @@ open class RtcpHandler : AbstractVerticle() {
         const val MOS_MAX = 4.5F
     }
 
-    private var bulkSize = 1
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
 
     private val sessions = mutableMapOf<Long, RtcpSession>()
     private val sdpSessions = mutableMapOf<Long, SdpSession>()
-    private val reports = mutableListOf<Packet>()
 
 
     override fun start() {
-        context.config().getJsonObject("rtcp")?.let { config ->
-            config.getInteger("bulk-size")?.let { bulkSize = it }
+        context.config().getJsonObject("media")?.getJsonObject("rtcp")?.let { config ->
             config.getLong("expiration-delay")?.let { expirationDelay = it }
             config.getLong("aggregation-timeout")?.let { aggregationTimeout = it }
         }
@@ -87,24 +84,16 @@ open class RtcpHandler : AbstractVerticle() {
                 val packet = event.body()
                 handle(packet)
             } catch (e: Exception) {
-                logger.error("RtprHandler 'handle()' failed.", e)
+                logger.error(e) { "RtcpHandler 'handle()' failed." }
             }
         }
 
         vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
             val sdpInfo = event.body()
             sdpInfo.forEach { sdpSession ->
-                try {
-                    onSdpSession(sdpSession)
-                } catch (e: Exception) {
-                    logger.error("RtcpHandler 'onSdpSession()' failed.", e)
-                }
+                sdpSessions[sdpSession.id] = sdpSession
             }
         }
-    }
-
-    open fun onSdpSession(sdpSession: SdpSession) {
-        sdpSessions[sdpSession.id] = sdpSession
     }
 
     private fun onSessionExpire(session: RtcpSession) {
@@ -365,10 +354,6 @@ open class RtcpHandler : AbstractVerticle() {
     }
 
     private fun send(rtpReport: Packet) {
-        reports.add(rtpReport)
-        if (reports.size >= bulkSize) {
-            vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, reports.toList())
-            reports.clear()
-        }
+        vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, rtpReport)
     }
 }

@@ -38,18 +38,16 @@ interface RoutesCE : Routes {
     // Router
     val router get() = "router"
 
-    // RTPR
-    val rtpr get() = "rtpr"
+    // SIP
+    val sip get() = "sip"
 
     // SDP
     val sdp_info get() = "sdp_info"
     val sdp_session get() = "sdp_session"
 
-    // SIP
-    val sip get() = "sip"
-
-    // RTCP
+    // Media
     val rtcp get() = "rtcp"
+    val rtpr get() = "rtpr"
 
     // Mongo
     val mongo_bulk_writer get() = "mongo_bulk_writer"

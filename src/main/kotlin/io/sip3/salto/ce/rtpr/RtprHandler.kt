@@ -59,7 +59,7 @@ open class RtprHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
 
-        config().getJsonObject("rtp-r")?.getBoolean("cumulative-metrics")?.let {
+        config().getJsonObject("media")?.getJsonObject("rtp-r")?.getBoolean("cumulative-metrics")?.let {
             cumulativeMetrics = it
         }
 
@@ -68,7 +68,7 @@ open class RtprHandler : AbstractVerticle() {
                 val packet = event.body()
                 handle(packet)
             } catch (e: Exception) {
-                logger.error("RtprHandler 'handle()' failed.", e)
+                logger.error(e) { "RtprHandler 'handle()' failed." }
             }
         }
     }

@@ -84,6 +84,8 @@ class ManagementSocket : AbstractVerticle() {
                         logger.info("Expired: $remoteHost")
                         remoteHosts.remove(name)
                     }
+
+            sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
         }
     }
 
@@ -145,14 +147,15 @@ class ManagementSocket : AbstractVerticle() {
                     logger.info("Registered: $remoteHost, Config:\n${config?.encodePrettily()}")
 
                     config?.getJsonObject("host")?.let { updateHost(it) }
-                    config?.getJsonObject("rtp")?.getBoolean("enabled")?.let { remoteHost.rtpEnabled = it }
+                    config?.getJsonObject("rtp")?.getBoolean("enabled")?.let { rtpEnabled ->
+                        remoteHost.rtpEnabled = rtpEnabled
+                        sendSdpSessions = sendSdpSessions || rtpEnabled
+                    }
 
                     return@computeIfAbsent remoteHost
                 }.apply {
                     lastUpdate = System.currentTimeMillis()
                 }
-                
-                sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
         }

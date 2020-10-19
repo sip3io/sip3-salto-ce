@@ -51,8 +51,12 @@ server:
 #    update-period: 60000
 #    duration-timeout: 900000
 #    transaction-exclusions: [exclude-me]
-#rtp-r:
-#  cumulative-metrics: true
+#media:
+#  rtcp:
+#    expiration-delay: 4000
+#    aggregation-timeout: 30000
+#  rtp-r:
+#    cumulative-metrics: true
 
 #! Metrics
 #metrics:
