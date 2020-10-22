@@ -47,7 +47,9 @@ interface RoutesCE : Routes {
 
     // Media
     val rtcp get() = "rtcp"
+    val rtcp_raw get() = "rtcp_raw"
     val rtpr get() = "rtpr"
+    val rtpr_raw get() = "rtpr_raw"
 
     // Mongo
     val mongo_bulk_writer get() = "mongo_bulk_writer"

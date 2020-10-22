@@ -123,8 +123,8 @@ open class Router : AbstractVerticle() {
     open fun route(packet: Packet) {
         val route = when (packet.protocolCode) {
             PacketTypes.SIP -> RoutesCE.sip
-            PacketTypes.RTCP -> RoutesCE.rtcp
-            PacketTypes.RTPR -> RoutesCE.rtpr
+            PacketTypes.RTCP -> RoutesCE.rtcp_raw
+            PacketTypes.RTPR -> RoutesCE.rtpr_raw
             else -> null
         }
 
