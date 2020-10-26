@@ -51,6 +51,8 @@ open class RtcpHandler : AbstractVerticle() {
     private var aggregationTimeout: Long = 30000
 
     private val sessions = mutableMapOf<Long, RtcpSession>()
+
+    // TODO: Let's get rid of redundant `sdpSessions` object and it's processing
     private val sdpSessions = mutableMapOf<Long, SdpSession>()
 
 
@@ -60,6 +62,7 @@ open class RtcpHandler : AbstractVerticle() {
             config.getLong("aggregation-timeout")?.let { aggregationTimeout = it }
         }
 
+        // TODO: Given that we will get rid of `sdpSessions`, let's remove all the comments - code below is clean enough
         // Periodic task for session expiration
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
@@ -218,6 +221,7 @@ open class RtcpHandler : AbstractVerticle() {
                     expectedPacketCount = receivedPacketCount + lostPacketCount
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                 } else {
+                    // TODO: Let's put an order here. For new session we are counting lost and then expected and here is vice-versa. It's a bit confusing...
                     expectedPacketCount = (report.extendedSeqNumber - session.previousReport.extendedSeqNumber).toInt()
                     lostPacketCount = (report.cumulativePacketLost - session.previousReport.cumulativePacketLost).toInt()
                     receivedPacketCount = expectedPacketCount - lostPacketCount
@@ -251,6 +255,7 @@ open class RtcpHandler : AbstractVerticle() {
 
     class SenderReport {
 
+        // TODO: Is it possible to have a sender report of any other type?
         val packetType = 200
         var reportBlockCount: Byte = 0
         var length: Int = 0
@@ -266,6 +271,7 @@ open class RtcpHandler : AbstractVerticle() {
 
         var reportBlocks = mutableListOf<RtcpReportBlock>()
 
+        // TODO: Let's make this class a member of RtcpHandler itself. It's hard to read when it's nested
         class RtcpReportBlock {
 
             var ssrc: Long = 0
@@ -275,6 +281,7 @@ open class RtcpHandler : AbstractVerticle() {
             var interarrivalJitter: Long = 0
 
             var lsrTimestamp: Long = 0
+            // TODO: Will we need it in future? Can we add it later?
             var dlsrTimestamp: Long = 0
         }
     }

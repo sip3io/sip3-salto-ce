@@ -46,6 +46,8 @@ interface RoutesCE : Routes {
     val sdp_session get() = "sdp_session"
 
     // Media
+    // TODO: Do we really need `_raw` here? Maybe we can do it in analogy with `sip_tranasction`?
+    //       Otherwise, I think it will be better to swap `rtcp` and `rtcp_raw`...
     val rtcp get() = "rtcp"
     val rtcp_raw get() = "rtcp_raw"
     val rtpr get() = "rtpr"

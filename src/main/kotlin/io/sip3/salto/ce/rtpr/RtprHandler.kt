@@ -75,6 +75,7 @@ open class RtprHandler : AbstractVerticle() {
             cumulativeMetrics = it
         }
 
+        // TODO: Why is this `media.expiration-delay`?
         config().getJsonObject("media")?.let { config ->
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
@@ -84,6 +85,7 @@ open class RtprHandler : AbstractVerticle() {
             }
         }
 
+        // TODO: Let's follow the same order as we have in vars and consumers: sdp, rtp, rtcp
         // Periodic task for session expiration
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
@@ -101,14 +103,13 @@ open class RtprHandler : AbstractVerticle() {
                     }
 
             // SDP sessions cleanup
-            sdp.filterValues { it.timestamp + aggregationTimeout < now }
-                    .forEach { (key, _) ->
-                        sdp.remove(key)
-                    }
+            // TODO: Maybe we can put it in 1 line? Thinking about Map util method :)
+            sdp.filterValues { it.timestamp + aggregationTimeout < now }.forEach { (key, _) -> sdp.remove(key) }
         }
 
         vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
             val sdpInfo = event.body()
+            // TODO: sdpInfo.forEach { sdp[it.id] = it }?
             sdpInfo.forEach { sdpSession ->
                 sdp[sdpSession.id] = sdpSession
             }
@@ -119,6 +120,7 @@ open class RtprHandler : AbstractVerticle() {
                 val packet = event.body()
                 handleRaw(packet)
             } catch (e: Exception) {
+                // TODO: `handleRaw`?
                 logger.error(e) { "RtprHandler 'handle()' failed." }
             }
         }
@@ -133,6 +135,14 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
+    // TODO: Isn't it cleaner?
+    //    open fun handleRaw(packet: Packet) {
+    //        val report = RtpReportPayload().apply {
+    //            val payload = Unpooled.wrappedBuffer(packet.payload)
+    //            decode(payload)
+    //        }
+    //        handle(packet, report)
+    //    }
     open fun handleRaw(packet: Packet) {
         val payload = Unpooled.wrappedBuffer(packet.payload)
         val report = RtpReportPayload().apply { decode(payload) }
@@ -140,10 +150,14 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
+        // TODO: Prefer prefix to be calculated when it's needed. Now it feels like we need it to `applySdpSession`
         val prefix = "rtpr_" + sourceName(report.source)
+        // TODO: Feels like we need another name to this method... Something more meaningfull, like: calculate/updateQosIfPossible
         applySdpSession(packet, report)
 
+        // TODO: I don't like `handleCumulative` and plain code in else method...
         if (report.cumulative) {
+            // TODO: From where are we going to get `cumulative` report in general?...
             handleCumulative(packet, report)
         } else {
             val sessionId = rtpSessionId(packet.srcAddr, packet.dstAddr, report.ssrc)
@@ -171,6 +185,7 @@ open class RtprHandler : AbstractVerticle() {
         //TODO: send to MediaHandler
     }
 
+    // TODO: I don't really think that we need this method... Doesn't look clean
     open fun sourceName(source: Byte): String {
         return when (source) {
             RtpReportPayload.SOURCE_RTP -> "rtp"
@@ -180,6 +195,7 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun calculateMetrics(prefix: String, packet: Packet, report: RtpReportPayload) {
+        // TODO: Why don't we put this condition explicitly and call `calculateMetrics` per each handle method?
         if (report.cumulative != cumulativeMetrics) {
             return
         }
@@ -285,9 +301,12 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
+    // TODO: Can we potentially make it an utility method?
     private fun sessionId(address: Address): Long {
+        // TODO: (IpUtil.convertToInt(addr).toLong() shl 32) or (port and 0xfe).toLong()?
         return with(address) {
             val addAsLong = IpUtil.convertToInt(addr).toLong()
+            // TODO: I think we can simplify it using and 0xfe
             val port = if (port % 2 == 0) {
                 port
             } else {
@@ -306,6 +325,7 @@ open class RtprHandler : AbstractVerticle() {
         var lastReportTimestamp: Long = Long.MAX_VALUE
 
         fun add(payload: RtpReportPayload) {
+            // TODO: Seems to be too complicated... You already have report as an object of RtprSession...
             if (report == null) {
                 report = payload
             } else {
