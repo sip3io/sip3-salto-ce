@@ -16,8 +16,8 @@ server:
 #! Management socket
 #management:
 #  uri: udp://0.0.0.0:15091
-#  expiration-timeout: 120000
 #  expiration-delay: 60000
+#  expiration-timeout: 120000
 
 #! Application
 #time-suffix: yyyyMMdd
