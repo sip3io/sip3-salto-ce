@@ -133,6 +133,7 @@ class RtcpHandlerTest : VertxTest() {
                 0x00.toByte(), 0x04.toByte(), 0x85.toByte(), 0x1f.toByte()
         )
 
+        // TODO: Remove this :)
         // SDP
         val SDP_SESSION = SdpSession().apply {
             id = SESSION_ID
