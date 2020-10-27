@@ -44,12 +44,11 @@ open class SipMessageHandler : AbstractVerticle() {
 
     companion object {
 
-        val SIP_METHODS = SipMethods.values().map(Any::toString).toSet()
+        val SUPPORTED_SIP_METHODS = SipMethods.values().map(Any::toString).toMutableSet()
     }
 
     private var instances = 1
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
-    private var exclusions = emptySet<String>()
     private var xCorrelationHeader = "X-Call-ID"
     private var extensionHeaders = mutableSetOf<String>()
 
@@ -67,7 +66,7 @@ open class SipMessageHandler : AbstractVerticle() {
         }
         config().getJsonObject("sip")?.getJsonObject("message")?.let { config ->
             config.getJsonArray("exclusions")?.let {
-                exclusions = it.map(Any::toString).toSet()
+                SUPPORTED_SIP_METHODS.removeAll(it.map(Any::toString))
             }
             config.getString("x-correlation-header")?.let {
                 xCorrelationHeader = it
@@ -96,10 +95,12 @@ open class SipMessageHandler : AbstractVerticle() {
         packetsProcessed.increment()
 
         parser.parse(packet).forEach { (pkt, message) ->
-            if (validate(message)) {
-                val cseqMethod = message.cseqMethod()
-                if (cseqMethod != null && SIP_METHODS.contains(cseqMethod) && !exclusions.contains(cseqMethod)) {
+            val cseqMethod = message.cseqMethod()
+            if (cseqMethod != null && SUPPORTED_SIP_METHODS.contains(cseqMethod)) {
+                if (validate(message)) {
                     handleSipMessage(pkt, message)
+                } else {
+                    calculateSipMessageMetrics(RoutesCE.sip + "_invalid", pkt, message)
                 }
             }
         }
