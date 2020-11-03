@@ -141,6 +141,7 @@ open class RtprHandler : AbstractVerticle() {
             val session = RtprSession(packet)
             session.add(report)
             vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+
             return
         }
 
