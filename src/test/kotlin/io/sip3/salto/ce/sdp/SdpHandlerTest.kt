@@ -383,10 +383,10 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, JsonObject())
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
                 },
                 assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
                         context.verify {
                             val sessions = event.body()
                             assertEquals(2, sessions.size)
@@ -425,10 +425,10 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, JsonObject())
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
                 },
                 assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
                         context.verify {
                             val sessions = event.body()
                             assertEquals(1, sessions.size)
@@ -462,10 +462,10 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, JsonObject())
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
                 },
                 assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
                         context.verify {
                             val sessions = event.body()
                             assertEquals(1, sessions.size)
@@ -499,13 +499,13 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, JsonObject())
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
                     vertx.setTimer(2000L) {
                         context.completeNow()
                     }
                 },
                 assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) {
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") {
                         context.failNow(IllegalStateException("No sdp_info expected"))
                     }
                 }
@@ -524,10 +524,10 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, CONFIG)
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
                 },
                 assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
                         context.verify {
                             val sessions = event.body()
                             assertEquals(2, sessions.size)
@@ -567,10 +567,10 @@ class SdpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(SdpHandler::class, CONFIG)
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
                 },
                 assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
                         val sessions = event.body()
                         val session = sessions.first()
 

@@ -50,6 +50,9 @@ class ManagementSocketTest : VertxTest() {
                 put("register-delay", 2000L)
             })
             put("host", HOST)
+            put("rtp", JsonObject().apply {
+                put("enabled", true)
+            })
         }
 
         private val REGISTER_MESSAGE = JsonObject().apply {
@@ -133,7 +136,7 @@ class ManagementSocketTest : VertxTest() {
                 },
                 execute = {
                     socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sdp_info, listOf(sdpSession))
+                        vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_info", listOf(sdpSession))
                     }
                 },
                 assert = {

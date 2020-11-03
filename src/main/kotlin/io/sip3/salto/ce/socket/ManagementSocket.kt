@@ -47,11 +47,12 @@ class ManagementSocket : AbstractVerticle() {
     private var client: MongoClient? = null
 
     private lateinit var uri: URI
-    private var expirationTimeout: Long = 120000
     private var expirationDelay: Long = 60000
+    private var expirationTimeout: Long = 120000
 
     private val remoteHosts = mutableMapOf<String, RemoteHost>()
     private lateinit var socket: DatagramSocket
+    private var sendSdpSessions = false
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
@@ -63,44 +64,35 @@ class ManagementSocket : AbstractVerticle() {
 
         config().getJsonObject("management").let { config ->
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
-            config.getLong("expiration-timeout")?.let { expirationTimeout = it }
             config.getLong("expiration-delay")?.let { expirationDelay = it }
+            config.getLong("expiration-timeout")?.let { expirationTimeout = it }
         }
 
         startUdpServer()
 
-        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
-            val sdpSessions = event.body()
-            sdpSessions.forEach { publishSdpSession(it) }
-        }
-
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
+
             remoteHosts.filterValues { it.lastUpdate + expirationTimeout < now }
                     .forEach { (name, remoteHost) ->
-                        logger.info("Expired: $remoteHost")
+                        logger.info { "Expired: $remoteHost" }
                         remoteHosts.remove(name)
                     }
+
+            sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
         }
-    }
 
-    private fun publishSdpSession(sdpSession: SdpSession) {
-        val buffer = JsonObject().apply {
-            put("type", TYPE_SDP_SESSION)
-            put("payload", JsonObject.mapFrom(sdpSession))
-        }.toBuffer()
-
-        remoteHosts.forEach { (_, remoteHost) ->
-            try {
-                socket.send(buffer, remoteHost.uri.port, remoteHost.uri.host) {}
-            } catch (e: Exception) {
-                logger.error("Socket 'send()' failed. URI: ${remoteHost.uri}", e)
+        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+            if (sendSdpSessions) {
+                val sdpSessions = event.body()
+                sdpSessions.forEach { publishSdpSession(it) }
             }
         }
     }
 
     private fun startUdpServer() {
         socket = vertx.createDatagramSocket()
+
         socket.handler { packet ->
             val buffer = packet.data()
             val socketAddress = packet.sender()
@@ -108,16 +100,16 @@ class ManagementSocket : AbstractVerticle() {
                 val message = buffer.toJsonObject()
                 handle(message, socketAddress)
             } catch (e: Exception) {
-                logger.error("ManagementSocket 'handle()' failed.", e)
+                logger.error(e) { "ManagementSocket 'handle()' failed." }
             }
         }
 
         socket.listen(uri.port, uri.host) { connection ->
             if (connection.failed()) {
-                logger.error("UDP connection failed. URI: $uri", connection.cause())
+                logger.error(connection.cause()) { "UDP connection failed. URI: $uri" }
                 throw connection.cause()
             }
-            logger.info("Listening on $uri")
+            logger.info { "Listening on $uri" }
         }
     }
 
@@ -136,13 +128,18 @@ class ManagementSocket : AbstractVerticle() {
                     val uri = URI("${uri.scheme}://$host:$port")
 
                     val remoteHost = RemoteHost(name, uri)
-                    logger.info("Registered: $remoteHost, Config:\n${config?.encodePrettily()}")
+                    logger.info { "Registered: $remoteHost, Config:\n${config?.encodePrettily()}" }
+
+                    config?.getJsonObject("host")?.let { updateHost(it) }
+                    config?.getJsonObject("rtp")?.getBoolean("enabled")?.let { rtpEnabled ->
+                        remoteHost.rtpEnabled = rtpEnabled
+                        sendSdpSessions = sendSdpSessions || rtpEnabled
+                    }
+
                     return@computeIfAbsent remoteHost
                 }.apply {
                     lastUpdate = System.currentTimeMillis()
                 }
-
-                config?.getJsonObject("host")?.let { updateHost(it) }
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
         }
@@ -155,13 +152,32 @@ class ManagementSocket : AbstractVerticle() {
             }
             client!!.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true)) { asr ->
                 if (asr.failed()) {
-                    logger.error("MongoClient 'replaceDocuments()' failed.", asr.cause())
+                    logger.error(asr.cause()) { "MongoClient 'replaceDocuments()' failed." }
+                }
+            }
+        }
+    }
+
+    private fun publishSdpSession(sdpSession: SdpSession) {
+        val buffer = JsonObject().apply {
+            put("type", TYPE_SDP_SESSION)
+            put("payload", JsonObject.mapFrom(sdpSession))
+        }.toBuffer()
+
+        remoteHosts.forEach { (_, remoteHost) ->
+            if (remoteHost.rtpEnabled) {
+                try {
+                    socket.send(buffer, remoteHost.uri.port, remoteHost.uri.host) {}
+                } catch (e: Exception) {
+                    logger.error(e) { "Socket 'send()' failed. URI: ${remoteHost.uri}" }
                 }
             }
         }
     }
 
     data class RemoteHost(val name: String, val uri: URI) {
+
         var lastUpdate: Long = Long.MIN_VALUE
+        var rtpEnabled = false
     }
 }
