@@ -84,7 +84,9 @@ open class RtprHandler : AbstractVerticle() {
 
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
-            sdp.filterValues { it.timestamp + aggregationTimeout < now }.forEach { (key, _) -> sdp.remove(key) }
+
+            sdp.filterValues { it.timestamp + aggregationTimeout < now }
+                    .forEach { (key, _) -> sdp.remove(key) }
 
             rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
                     .forEach { (sessionId, session) ->
@@ -116,7 +118,10 @@ open class RtprHandler : AbstractVerticle() {
         vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr) { event ->
             try {
                 val (packet, report) = event.body()
-                handle(packet, report)
+
+                if (!report.cumulative) {
+                    handle(packet, report)
+                }
             } catch (e: Exception) {
                 logger.error(e) { "RtprHandler 'handle()' failed." }
             }
@@ -135,14 +140,6 @@ open class RtprHandler : AbstractVerticle() {
     open fun handle(packet: Packet, report: RtpReportPayload) {
         if (report.callId == null) {
             updateWithSdp(packet, report)
-        }
-
-        if (report.cumulative) {
-            val session = RtprSession(packet)
-            session.add(report)
-            vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
-
-            return
         }
 
         val sessionId = rtpSessionId(packet.srcAddr, packet.dstAddr, report.ssrc)
