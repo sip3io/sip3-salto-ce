@@ -16,10 +16,6 @@
 
 package io.sip3.salto.ce.media
 
-import io.micrometer.core.instrument.Metrics
-import io.micrometer.core.instrument.MockClock
-import io.micrometer.core.instrument.simple.SimpleConfig
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localRequest
@@ -163,37 +159,6 @@ class MediaHandlerTest : VertxTest() {
                             assertEquals(13F, attributes[Attributes.mos])
                         }
                         context.completeNow()
-                    }
-                }
-        )
-    }
-
-    @Test
-    fun `Generate QoS metrics per each RTP report`() {
-        val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
-        Metrics.addRegistry(registry)
-
-        runTest(
-                deploy = {
-                    vertx.deployTestVerticle(MediaHandler::class)
-                },
-                execute = {
-                    val session = RtprSession(PACKET_1).apply {
-                        add(RTPR)
-                    }
-                    vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
-                },
-                assert = {
-                    vertx.setPeriodic(200L) {
-                        registry.find("rtpr_rtp_r-factor").summary()?.let { summary ->
-                            context.verify {
-                                assertEquals(RTPR.rFactor, summary.mean().toFloat())
-                                val tags = summary.id.tags
-                                assertTrue(tags.isNotEmpty())
-                                assertTrue(tags.any { it.value == RTPR.codecName })
-                            }
-                            context.completeNow()
-                        }
                     }
                 }
         )

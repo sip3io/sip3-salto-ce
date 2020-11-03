@@ -142,8 +142,8 @@ class RtprHandlerTest : VertxTest() {
             timestamp = System.currentTimeMillis()
 
             codec = Codec().apply {
-                name = "PCMA"
-                payloadType = 1
+                name = "PCMU"
+                payloadType = 0
                 clockRate = 8000
                 bpl = 4.3F
                 ie = 0F
@@ -239,7 +239,6 @@ class RtprHandlerTest : VertxTest() {
                                     assertEquals(4.4092855F, mos)
                                     assertEquals(93.2F, rFactor)
                                 }
-
                             }
                         }
                         context.completeNow()
@@ -249,7 +248,7 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Handle cumulative RTP Report`() {
+    fun `Handle RTP Report and generate RtprSession`() {
         runTest(
                 deploy = {
                     vertx.deployTestVerticle(RtprHandler::class)
@@ -278,7 +277,7 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Generate QoS metrics per each RTP report`() {
+    fun `Calculate metrics for periodic RTP reports`() {
         val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
         Metrics.addRegistry(registry)
 
@@ -305,16 +304,62 @@ class RtprHandlerTest : VertxTest() {
                     }
 
                     vertx.setPeriodic(200L) {
-                        registry.find("rtpr_rtp_r-factor").summary()?.let { summary ->
-                            context.verify {
-                                assertEquals(RTPR_1.rFactor, summary.mean().toFloat())
-                                val tags = summary.id.tags
-                                assertTrue(tags.isNotEmpty())
-                                assertTrue(tags.any { it.value == RTPR_1.codecName })
-                            }
-                            context.completeNow()
+                        registry.find("rtpr_rtp_r-factor").summaries()
+                                .firstOrNull { it.mean().toFloat() == RTPR_1.rFactor }
+                                ?.let { summary ->
+                                    context.verify {
+                                        val tags = summary.id.tags
+                                        assertTrue(tags.isNotEmpty())
+                                        assertTrue(tags.any { it.value == RTPR_1.codecName })
+                                    }
+                                    context.completeNow()
+                                }
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Calculate metrics for cumulative RTP Report`() {
+        val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
+        Metrics.addRegistry(registry)
+
+        runTest(
+                deploy = {
+                    vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
+                        put("media", JsonObject().apply {
+                            put("rtp-r", JsonObject().apply {
+                                put("expiration-delay", 100L)
+                                put("aggregation-timeout", 200L)
+                            })
+                        })
+                    })
+                },
+                execute = {
+                    vertx.eventBus().localPublish(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_raw", PACKET_2)
+                },
+                assert = {
+                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                        val (collection, _) = event.body()
+
+                        context.verify {
+                            assertTrue(collection.startsWith("rtpr_rtp_raw"))
                         }
                     }
+
+                    vertx.setPeriodic(200L) {
+                        registry.find("rtpr_rtp_r-factor").summaries()
+                                .firstOrNull { it.mean().toFloat() == 93.2F }
+                                ?.let { summary ->
+                                    context.verify {
+                                        val tags = summary.id.tags
+                                        assertTrue(tags.isNotEmpty())
+                                        assertTrue(tags.any { it.value == SDP_SESSION.codec.name })
+                                    }
+                                    context.completeNow()
+                                }
+                        }
                 }
         )
     }

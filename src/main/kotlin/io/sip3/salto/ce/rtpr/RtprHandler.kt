@@ -90,13 +90,13 @@ open class RtprHandler : AbstractVerticle() {
 
             rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
                     .forEach { (sessionId, session) ->
-                        vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+                        terminateRtprSession(session)
                         rtp.remove(sessionId)
                     }
 
             rtcp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
                     .forEach { (sessionId, session) ->
-                        vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+                        terminateRtprSession(session)
                         rtcp.remove(sessionId)
                     }
         }
@@ -125,6 +125,19 @@ open class RtprHandler : AbstractVerticle() {
             } catch (e: Exception) {
                 logger.error(e) { "RtprHandler 'handle()' failed." }
             }
+        }
+    }
+
+    private fun terminateRtprSession(session: RtprSession) {
+        vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+
+        if (cumulativeMetrics) {
+            val prefix = when (session.report.source) {
+                RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
+                RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp"
+                else -> throw IllegalArgumentException("Unsupported RTP Report source: '${session.report.source}'")
+            }
+            calculateMetrics(prefix, session.srcAddr, session.dstAddr, session.report)
         }
     }
 
@@ -158,7 +171,7 @@ open class RtprHandler : AbstractVerticle() {
         writeToDatabase("${prefix}_raw", packet, report)
 
         if (!cumulativeMetrics) {
-            calculateMetrics(prefix, packet, report)
+            calculateMetrics(prefix, packet.srcAddr, packet.dstAddr, report)
         }
     }
 
@@ -181,10 +194,10 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    open fun calculateMetrics(prefix: String, packet: Packet, report: RtpReportPayload) {
+    open fun calculateMetrics(prefix: String, src: Address, dst: Address, report: RtpReportPayload) {
         val attributes = mutableMapOf<String, Any>().apply {
-            packet.srcAddr.host?.let { put("src_host", it) }
-            packet.dstAddr.host?.let { put("dst_host", it) }
+            src.host?.let { put("src_host", it) }
+            dst.host?.let { put("dst_host", it) }
             put("codec", report.codecName ?: report.payloadType)
         }
 
