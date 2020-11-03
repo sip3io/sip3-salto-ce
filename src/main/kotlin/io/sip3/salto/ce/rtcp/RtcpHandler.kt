@@ -19,7 +19,6 @@ package io.sip3.salto.ce.rtcp
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.ByteBufUtil
 import io.netty.buffer.Unpooled
-import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.util.remainingCapacity
 import io.sip3.commons.vertx.annotations.Instance
@@ -37,7 +36,7 @@ import kotlin.experimental.and
 /**
  * Handles RTCP packets
  */
-@Instance
+@Instance(singleton = true)
 open class RtcpHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -52,39 +51,26 @@ open class RtcpHandler : AbstractVerticle() {
 
     private val sessions = mutableMapOf<Long, RtcpSession>()
 
-    // TODO: Let's get rid of redundant `sdpSessions` object and it's processing
-    private val sdpSessions = mutableMapOf<Long, SdpSession>()
-
-
     override fun start() {
         context.config().getJsonObject("media")?.getJsonObject("rtcp")?.let { config ->
             config.getLong("expiration-delay")?.let { expirationDelay = it }
             config.getLong("aggregation-timeout")?.let { aggregationTimeout = it }
         }
 
-        // TODO: Given that we will get rid of `sdpSessions`, let's remove all the comments - code below is clean enough
-        // Periodic task for session expiration
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
-            // Sessions cleanup
             sessions.filterValues { it.lastPacketTimestamp + aggregationTimeout < now }
                     .forEach { (sessionId, _) ->
                         sessions.remove(sessionId)
                     }
-
-            // SDP sessions cleanup
-            sdpSessions.filterValues { it.timestamp + aggregationTimeout < now }
-                    .forEach { (key, _) ->
-                        sdpSessions.remove(key)
-                    }
         }
 
-        vertx.eventBus().localConsumer<Packet>(RoutesCE.rtcp_raw) { event ->
+        vertx.eventBus().localConsumer<Packet>(RoutesCE.rtcp + "_raw") { event ->
             try {
                 val packet = event.body()
                 handleRaw(packet)
             } catch (e: Exception) {
-                logger.error(e) { "RtcpHandler 'handle()' failed." }
+                logger.error(e) { "RtcpHandler 'handleRaw()' failed." }
             }
         }
     }
@@ -158,7 +144,7 @@ open class RtcpHandler : AbstractVerticle() {
 
             // Reports
             repeat(reportBlockCount.toInt()) {
-                reportBlocks.add(SenderReport.RtcpReportBlock().apply {
+                reportBlocks.add(RtcpReportBlock().apply {
                     // SSRC of sender
                     ssrc = buffer.readUnsignedInt()
                     // Fraction lost and Cumulative packet lost
@@ -216,15 +202,19 @@ open class RtcpHandler : AbstractVerticle() {
                 maxJitter = session.lastJitter
 
                 if (isNewSession) {
-                    receivedPacketCount = senderReport.senderPacketCount.toInt()
                     lostPacketCount = report.cumulativePacketLost.toInt()
-                    expectedPacketCount = receivedPacketCount + lostPacketCount
+
+                    val packetCount = senderReport.senderPacketCount.toInt()
+                    expectedPacketCount = packetCount + lostPacketCount
+                    receivedPacketCount = packetCount
+
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                 } else {
-                    // TODO: Let's put an order here. For new session we are counting lost and then expected and here is vice-versa. It's a bit confusing...
-                    expectedPacketCount = (report.extendedSeqNumber - session.previousReport.extendedSeqNumber).toInt()
                     lostPacketCount = (report.cumulativePacketLost - session.previousReport.cumulativePacketLost).toInt()
+
+                    expectedPacketCount = (report.extendedSeqNumber - session.previousReport.extendedSeqNumber).toInt()
                     receivedPacketCount = expectedPacketCount - lostPacketCount
+
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                     duration = (senderReport.ntpTimestamp - session.lastNtpTimestamp).toInt()
                 }
@@ -248,15 +238,13 @@ open class RtcpHandler : AbstractVerticle() {
         // Jitter
         var lastJitter = 0F
 
-        lateinit var previousReport: SenderReport.RtcpReportBlock
+        lateinit var previousReport: RtcpReportBlock
         var lastNtpTimestamp: Long = 0
         var lastPacketTimestamp: Long = 0
     }
 
     class SenderReport {
 
-        // TODO: Is it possible to have a sender report of any other type?
-        val packetType = 200
         var reportBlockCount: Byte = 0
         var length: Int = 0
         var senderSsrc: Long = 0
@@ -270,19 +258,16 @@ open class RtcpHandler : AbstractVerticle() {
         var senderPacketCount: Long = 0
 
         var reportBlocks = mutableListOf<RtcpReportBlock>()
+    }
 
-        // TODO: Let's make this class a member of RtcpHandler itself. It's hard to read when it's nested
-        class RtcpReportBlock {
+    class RtcpReportBlock {
 
-            var ssrc: Long = 0
-            var fractionLost: Short = 0
-            var cumulativePacketLost: Long = 0
-            var extendedSeqNumber: Long = 0
-            var interarrivalJitter: Long = 0
+        var ssrc: Long = 0
+        var fractionLost: Short = 0
+        var cumulativePacketLost: Long = 0
+        var extendedSeqNumber: Long = 0
+        var interarrivalJitter: Long = 0
 
-            var lsrTimestamp: Long = 0
-            // TODO: Will we need it in future? Can we add it later?
-            var dlsrTimestamp: Long = 0
-        }
+        var lsrTimestamp: Long = 0
     }
 }

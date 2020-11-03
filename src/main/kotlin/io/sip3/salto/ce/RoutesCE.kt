@@ -42,16 +42,12 @@ interface RoutesCE : Routes {
     val sip get() = "sip"
 
     // SDP
-    val sdp_info get() = "sdp_info"
-    val sdp_session get() = "sdp_session"
+    val sdp get() = "sdp"
 
     // Media
-    // TODO: Do we really need `_raw` here? Maybe we can do it in analogy with `sip_tranasction`?
-    //       Otherwise, I think it will be better to swap `rtcp` and `rtcp_raw`...
     val rtcp get() = "rtcp"
-    val rtcp_raw get() = "rtcp_raw"
     val rtpr get() = "rtpr"
-    val rtpr_raw get() = "rtpr_raw"
+    val media get() = "media"
 
     // Mongo
     val mongo_bulk_writer get() = "mongo_bulk_writer"

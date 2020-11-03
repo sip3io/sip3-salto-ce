@@ -16,42 +16,21 @@
 
 package io.sip3.salto.ce.rtcp
 
-import io.netty.buffer.Unpooled
 import io.sip3.commons.PacketTypes
-import io.sip3.commons.domain.Codec
-import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
-import io.sip3.commons.util.IpUtil
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
 class RtcpHandlerTest : VertxTest() {
 
     companion object {
-
-        val SRC_ADDR = Address().apply {
-            addr = "10.250.240.5"
-            port = 12057
-        }
-
-        val DST_ADDR = Address().apply {
-            addr = "10.150.140.5"
-            port = 13057
-        }
-
-        private val SESSION_ID = run {
-            val srcAddrAsLong = IpUtil.convertToInt(SRC_ADDR.addr).toLong()
-            ((srcAddrAsLong shl 32) or (SRC_ADDR.port - 1).toLong())
-        }
 
         // RTCP Sender Report only
         val PACKET_1 = byteArrayOf(
@@ -132,65 +111,45 @@ class RtcpHandlerTest : VertxTest() {
                 0x70.toByte(), 0x1a.toByte(), 0x03.toByte(), 0xd7.toByte(),
                 0x00.toByte(), 0x04.toByte(), 0x85.toByte(), 0x1f.toByte()
         )
-
-        // TODO: Remove this :)
-        // SDP
-        val SDP_SESSION = SdpSession().apply {
-            id = SESSION_ID
-            callId = "callId_uuid@domain.io"
-            timestamp = System.currentTimeMillis()
-
-            codec = Codec().apply {
-                name = "PCMU"
-                payloadType = 0
-                clockRate = 8000
-                bpl = 4.3F
-                ie = 0F
-            }
-        }
     }
 
     @Test
     fun `Parse RTCP`() {
         runTest(
                 deploy = {
-                    vertx.orCreateContext.config().put("rtcp", JsonObject().apply {
-                        put("expiration-delay", 2000)
-                        put("aggregation-timeout", 1500)
+                    vertx.orCreateContext.config().put("media", JsonObject().apply {
+                        put("rtcp", JsonObject().apply {
+                            put("expiration-delay", 2000)
+                            put("aggregation-timeout", 1500)
+                        })
                     })
                     vertx.deployTestVerticle(RtcpHandler::class, vertx.orCreateContext.config())
                 },
                 execute = {
-
-                    vertx.eventBus().localPublish(RoutesCE.sdp_info, listOf(SDP_SESSION))
-                    vertx.setTimer(200L) {
-                        listOf(PACKET_1, PACKET_2, PACKET_3).map { payload ->
-                            Packet().apply {
-                                srcAddr = SRC_ADDR
-                                dstAddr = DST_ADDR
-                                this.payload = payload
-                                timestamp = Timestamp(System.currentTimeMillis())
+                    listOf(PACKET_1, PACKET_2, PACKET_3).map { payload ->
+                        Packet().apply {
+                            srcAddr = Address().apply {
+                                addr = "10.250.240.5"
+                                port = 12057
                             }
-                        }.forEach { vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, it) }
-                    }
+                            dstAddr = Address().apply {
+                                addr = "10.150.140.5"
+                                port = 13057
+                            }
+                            protocolCode = PacketTypes.RTCP
+                            this.payload = payload
+                            timestamp = Timestamp(System.currentTimeMillis())
+                        }
+                    }.forEach { vertx.eventBus().localRequest<Any>(RoutesCE.rtcp + "_raw", it) }
                 },
                 assert = {
                     var packetCount = 0
-                    vertx.eventBus().consumer<List<Packet>>(RoutesCE.rtpr) { event ->
+                    vertx.eventBus().consumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr) { event ->
                         context.verify {
-                            val packets = event.body()
-                            assertEquals(1, packets.size)
+                            val (packet, report) = event.body()
                             packetCount++
-                            val packet = packets.first()
-                            val payload = Unpooled.wrappedBuffer(packet.payload)
-                            val report = RtpReportPayload().apply { decode(payload) }
 
-                            assertEquals(PacketTypes.RTPR, packet.protocolCode)
-                            // Assert SDP session data in RTP-R
-                            assertEquals(SDP_SESSION.callId, report.callId)
-                            assertEquals(SDP_SESSION.codec.name, report.codecName)
-                            assertEquals(SDP_SESSION.codec.payloadType, report.payloadType)
-
+                            assertEquals(PacketTypes.RTCP, packet.protocolCode)
                             when (packetCount) {
                                 1 -> {
                                     assertEquals(196, report.expectedPacketCount)
@@ -216,19 +175,10 @@ class RtcpHandlerTest : VertxTest() {
                                     assertEquals(74F, report.maxJitter)
                                     assertEquals(74F, report.avgJitter)
                                 }
-                                4 -> {
-                                    assertEquals(196 + 201 + 201, report.expectedPacketCount)
-                                    assertEquals(1, report.lostPacketCount)
-                                    assertEquals(74F, report.lastJitter)
-                                    assertEquals(28F, report.minJitter)
-                                    assertEquals(74F, report.maxJitter)
-                                    assertEquals((28F + 55F + 74F)/3, report.avgJitter)
-                                    assertTrue(report.cumulative)
-                                }
                             }
                         }
 
-                        if (packetCount == 4) {
+                        if (packetCount == 3) {
                             context.completeNow()
                         }
                     }
