@@ -42,12 +42,12 @@ interface RoutesCE : Routes {
     val sip get() = "sip"
 
     // SDP
-    val sdp_info get() = "sdp_info"
-    val sdp_session get() = "sdp_session"
+    val sdp get() = "sdp"
 
     // Media
     val rtcp get() = "rtcp"
     val rtpr get() = "rtpr"
+    val media get() = "media"
 
     // Mongo
     val mongo_bulk_writer get() = "mongo_bulk_writer"

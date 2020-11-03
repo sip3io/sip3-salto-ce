@@ -125,7 +125,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
         // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.response?.hasSdp() == true) {
-            vertx.eventBus().localRequest<Any>(RoutesCE.sdp_session, transaction)
+            vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
         }
     }
 

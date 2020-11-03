@@ -82,7 +82,7 @@ class ManagementSocket : AbstractVerticle() {
             sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
         }
 
-        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp_info) { event ->
+        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
             if (sendSdpSessions) {
                 val sdpSessions = event.body()
                 sdpSessions.forEach { publishSdpSession(it) }
