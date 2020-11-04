@@ -83,22 +83,7 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         vertx.setPeriodic(expirationDelay) {
-            val now = System.currentTimeMillis()
-
-            sdp.filterValues { it.timestamp + aggregationTimeout < now }
-                    .forEach { (key, _) -> sdp.remove(key) }
-
-            rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
-                    .forEach { (sessionId, session) ->
-                        terminateRtprSession(session)
-                        rtp.remove(sessionId)
-                    }
-
-            rtcp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
-                    .forEach { (sessionId, session) ->
-                        terminateRtprSession(session)
-                        rtcp.remove(sessionId)
-                    }
+            terminateExpiredSessions()
         }
 
         vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
@@ -106,7 +91,7 @@ open class RtprHandler : AbstractVerticle() {
             sdpSessions.forEach { sdp[it.id] = it }
         }
 
-        vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr + "_raw") { event ->
+        vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr) { event ->
             try {
                 val packet = event.body()
                 handleRaw(packet)
@@ -115,29 +100,13 @@ open class RtprHandler : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr) { event ->
+        vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_rtcp") { event ->
             try {
                 val (packet, report) = event.body()
-
-                if (!report.cumulative) {
-                    handle(packet, report)
-                }
+                handle(packet, report)
             } catch (e: Exception) {
                 logger.error(e) { "RtprHandler 'handle()' failed." }
             }
-        }
-    }
-
-    private fun terminateRtprSession(session: RtprSession) {
-        vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
-
-        if (cumulativeMetrics) {
-            val prefix = when (session.report.source) {
-                RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
-                RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp"
-                else -> throw IllegalArgumentException("Unsupported RTP Report source: '${session.report.source}'")
-            }
-            calculateMetrics(prefix, session.srcAddr, session.dstAddr, session.report)
         }
     }
 
@@ -147,7 +116,10 @@ open class RtprHandler : AbstractVerticle() {
             decode(payload)
         }
 
-        handle(packet, report)
+        // Ignore cumulative reports from old SIP3 Captain versions
+        if (!report.cumulative) {
+            handle(packet, report)
+        }
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
@@ -194,6 +166,42 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
+    private fun sessionId(address: Address): Long {
+        return (IpUtil.convertToInt(address.addr).toLong() shl 32) or (address.port and 0xfffe).toLong()
+    }
+
+    private fun terminateExpiredSessions() {
+        val now = System.currentTimeMillis()
+
+        sdp.filterValues { it.timestamp + aggregationTimeout < now }
+                .forEach { (key, _) -> sdp.remove(key) }
+
+        rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
+                .forEach { (sessionId, session) ->
+                    terminateRtprSession(session)
+                    rtp.remove(sessionId)
+                }
+
+        rtcp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
+                .forEach { (sessionId, session) ->
+                    terminateRtprSession(session)
+                    rtcp.remove(sessionId)
+                }
+    }
+
+    private fun terminateRtprSession(session: RtprSession) {
+        vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+
+        if (cumulativeMetrics) {
+            val prefix = when (session.report.source) {
+                RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
+                RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp"
+                else -> throw IllegalArgumentException("Unsupported RTP Report source: '${session.report.source}'")
+            }
+            calculateMetrics(prefix, session.srcAddr, session.dstAddr, session.report)
+        }
+    }
+
     open fun calculateMetrics(prefix: String, src: Address, dst: Address, report: RtpReportPayload) {
         val attributes = mutableMapOf<String, Any>().apply {
             src.host?.let { put("src_host", it) }
@@ -201,7 +209,7 @@ open class RtprHandler : AbstractVerticle() {
             put("codec", report.codecName ?: report.payloadType)
         }
 
-        with(report) {
+        report.apply {
             Metrics.summary(prefix + EXPECTED_PACKETS, attributes).record(expectedPacketCount.toDouble())
             Metrics.summary(prefix + LOST_PACKETS, attributes).record(lostPacketCount.toDouble())
             Metrics.summary(prefix + REJECTED_PACKETS, attributes).record(rejectedPacketCount.toDouble())
@@ -260,9 +268,5 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
-    }
-
-    private fun sessionId(address: Address): Long {
-        return (IpUtil.convertToInt(address.addr).toLong() shl 32) or (address.port and 0xfffe).toLong()
     }
 }
