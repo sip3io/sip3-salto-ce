@@ -158,7 +158,7 @@ class RtprHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(RtprHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_raw", PACKET_1)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, PACKET_1)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -221,7 +221,7 @@ class RtprHandlerTest : VertxTest() {
                 },
                 execute = {
                     vertx.eventBus().localPublish(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
-                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, Pair(PACKET_2, RTPR_2))
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_rtcp", Pair(PACKET_2, RTPR_2))
                 },
                 assert = {
                     vertx.eventBus().consumer<RtprSession>(RoutesCE.media) { event ->
@@ -254,7 +254,7 @@ class RtprHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(RtprHandler::class)
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, Pair(PACKET_1, RTPR_1))
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
                 },
                 assert = {
                     vertx.eventBus().consumer<RtprSession>(RoutesCE.media) { event ->
@@ -292,7 +292,7 @@ class RtprHandlerTest : VertxTest() {
                     })
                 },
                 execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_raw", PACKET_1)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, PACKET_1)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -337,7 +337,7 @@ class RtprHandlerTest : VertxTest() {
                 },
                 execute = {
                     vertx.eventBus().localPublish(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
-                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_raw", PACKET_2)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, PACKET_2)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->

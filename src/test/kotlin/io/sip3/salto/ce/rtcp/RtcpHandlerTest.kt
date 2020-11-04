@@ -140,11 +140,11 @@ class RtcpHandlerTest : VertxTest() {
                             this.payload = payload
                             timestamp = Timestamp(System.currentTimeMillis())
                         }
-                    }.forEach { vertx.eventBus().localRequest<Any>(RoutesCE.rtcp + "_raw", it) }
+                    }.forEach { vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, it) }
                 },
                 assert = {
                     var packetCount = 0
-                    vertx.eventBus().consumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr) { event ->
+                    vertx.eventBus().consumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_rtcp") { event ->
                         context.verify {
                             val (packet, report) = event.body()
                             packetCount++

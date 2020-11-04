@@ -65,7 +65,7 @@ open class RtcpHandler : AbstractVerticle() {
                     }
         }
 
-        vertx.eventBus().localConsumer<Packet>(RoutesCE.rtcp + "_raw") { event ->
+        vertx.eventBus().localConsumer<Packet>(RoutesCE.rtcp) { event ->
             try {
                 val packet = event.body()
                 handleRaw(packet)
@@ -224,7 +224,7 @@ open class RtcpHandler : AbstractVerticle() {
             session.lastNtpTimestamp = senderReport.ntpTimestamp
             session.lastPacketTimestamp = packet.timestamp.time
 
-            vertx.eventBus().localRequest<Any>(RoutesCE.rtpr, Pair(packet, payload))
+            vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
         }
     }
 
