@@ -119,6 +119,7 @@ class ManagementSocket : AbstractVerticle() {
 
         when (type) {
             TYPE_REGISTER -> {
+                val timestamp = payload.getLong("timestamp")
                 val name = payload.getString("name")
                 val config = payload.getJsonObject("config")
 
@@ -128,7 +129,7 @@ class ManagementSocket : AbstractVerticle() {
                     val uri = URI("${uri.scheme}://$host:$port")
 
                     val remoteHost = RemoteHost(name, uri)
-                    logger.info { "Registered: $remoteHost, Config:\n${config?.encodePrettily()}" }
+                    logger.info { "Registered: $remoteHost, Timestamp: $timestamp, Config:\n${config?.encodePrettily()}" }
 
                     config?.getJsonObject("host")?.let { updateHost(it) }
                     config?.getJsonObject("rtp")?.getBoolean("enabled")?.let { rtpEnabled ->
