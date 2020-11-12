@@ -58,6 +58,7 @@ class ManagementSocketTest : VertxTest() {
         private val REGISTER_MESSAGE = JsonObject().apply {
             put("type", ManagementSocket.TYPE_REGISTER)
             put("payload", JsonObject().apply {
+                put("timestamp", System.currentTimeMillis())
                 put("name", UUID.randomUUID().toString())
                 put("config", CONFIG)
             })
