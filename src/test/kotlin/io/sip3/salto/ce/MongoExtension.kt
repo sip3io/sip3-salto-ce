@@ -18,7 +18,7 @@ package io.sip3.salto.ce
 
 import de.flapdoodle.embed.mongo.MongodExecutable
 import de.flapdoodle.embed.mongo.MongodStarter
-import de.flapdoodle.embed.mongo.config.MongodConfigBuilder
+import de.flapdoodle.embed.mongo.config.MongodConfig
 import de.flapdoodle.embed.mongo.config.Net
 import de.flapdoodle.embed.mongo.distribution.Version
 import org.junit.jupiter.api.extension.AfterAllCallback
@@ -37,7 +37,7 @@ class MongoExtension : BeforeAllCallback, AfterAllCallback {
     private lateinit var mongo: MongodExecutable
 
     override fun beforeAll(context: ExtensionContext?) {
-        val config = MongodConfigBuilder().version(Version.V4_0_2)
+        val config = MongodConfig.builder().version(Version.V4_0_2)
                 .net(Net(HOST, PORT, false))
                 .build()
 
