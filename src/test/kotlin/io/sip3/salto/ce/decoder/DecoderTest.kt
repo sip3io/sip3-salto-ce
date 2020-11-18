@@ -77,6 +77,7 @@ class DecoderTest : VertxTest() {
                     vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
                         val (_, packet) = event.body()
                         context.verify {
+                            assertEquals("sip3", packet.source)
                             assertEquals(1549880240852, packet.timestamp.time)
                             assertEquals(852000000, packet.timestamp.nanos)
                             val src = packet.srcAddr
@@ -110,6 +111,7 @@ class DecoderTest : VertxTest() {
                     vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
                         val (_, packet) = event.body()
                         context.verify {
+                            assertEquals("sip3", packet.source)
                             assertEquals(1549880240852, packet.timestamp.time)
                             assertEquals(852000000, packet.timestamp.nanos)
                             val src = packet.srcAddr
