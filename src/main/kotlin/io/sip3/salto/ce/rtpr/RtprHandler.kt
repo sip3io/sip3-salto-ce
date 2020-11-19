@@ -20,7 +20,8 @@ import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.IpUtil
+import io.sip3.commons.util.MediaUtil.rtpSessionId
+import io.sip3.commons.util.MediaUtil.sdpSessionId
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
@@ -29,7 +30,6 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
-import io.sip3.salto.ce.util.MediaUtil.rtpSessionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
@@ -88,7 +88,10 @@ open class RtprHandler : AbstractVerticle() {
 
         vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
             val sdpSessions = event.body()
-            sdpSessions.forEach { sdp[it.id] = it }
+            sdpSessions.forEach {
+                sdp[it.rtpId] = it
+                sdp.putIfAbsent(it.rtcpId, it)
+            }
         }
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr) { event ->
@@ -127,7 +130,7 @@ open class RtprHandler : AbstractVerticle() {
             updateWithSdp(packet, report)
         }
 
-        val sessionId = rtpSessionId(packet.srcAddr, packet.dstAddr, report.ssrc)
+        val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, report.ssrc)
         val session = if (report.source == RtpReportPayload.SOURCE_RTP) {
             rtp.getOrPut(sessionId) { RtprSession(packet) }
         } else {
@@ -148,26 +151,26 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     private fun updateWithSdp(packet: Packet, report: RtpReportPayload) {
-        (sdp[sessionId(packet.srcAddr)] ?: sdp[sessionId(packet.dstAddr)])?.let { sdpSession ->
+        (sdp[sdpSessionId(packet.srcAddr)] ?: sdp[sdpSessionId(packet.dstAddr)])?.let { sdpSession ->
             report.callId = sdpSession.callId
 
-            val codec = sdpSession.codec
-            report.payloadType = codec.payloadType
-            report.codecName = codec.name
+            sdpSession.codec(report.payloadType.toInt())?.let { codec ->
+                report.codecName = codec.name
 
-            // Raw rFactor value
-            val ppl = report.fractionLost * 100
-            val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
+                // Raw rFactor value
+                val ppl = report.fractionLost * 100
+                val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
 
-            report.rFactor = (R0 - ieEff)
+                report.rFactor = (R0 - ieEff)
 
-            // MoS
-            report.mos = computeMos(report.rFactor)
+                // MoS
+                report.mos = computeMos(report.rFactor)
+            }
         }
     }
 
-    private fun sessionId(address: Address): Long {
-        return (IpUtil.convertToInt(address.addr).toLong() shl 32) or (address.port and 0xfffe).toLong()
+    private fun sdpSessionId(address: Address): Long {
+        return sdpSessionId(address.addr, address.port)
     }
 
     private fun terminateExpiredSessions() {

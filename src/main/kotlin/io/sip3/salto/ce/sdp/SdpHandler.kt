@@ -18,16 +18,17 @@ package io.sip3.salto.ce.sdp
 
 import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.util.toIntRange
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.sip.SipTransaction
-import io.sip3.salto.ce.util.sdpSessionId
+import io.sip3.salto.ce.util.address
+import io.sip3.salto.ce.util.ptime
 import io.sip3.salto.ce.util.sessionDescription
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
-import org.restcomm.media.sdp.attributes.RtpMapAttribute
 import org.restcomm.media.sdp.fields.MediaDescriptionField
 
 /**
@@ -63,8 +64,28 @@ class SdpHandler : AbstractVerticle() {
 
     private fun readCodecs(config: JsonObject) {
         val tmpCodecs = mutableMapOf<String, Codec>()
-        config.getJsonArray("codecs")?.forEach { codecObject ->
-            val codec = (codecObject as JsonObject).mapTo(Codec::class.java)
+        config.getJsonArray("codecs")?.map { codecObject ->
+            codecObject as JsonObject
+
+            val codec = Codec().apply {
+                name = codecObject.getString("name")
+                payloadTypes = codecObject.getJsonArray("payload_types")
+                        .flatMap { payloadType ->
+                            when (payloadType) {
+                                is Int -> setOf(payloadType)
+                                is String -> payloadType.toIntRange()
+                                else -> emptySet()
+                            }
+                        }
+                        .toSet()
+                        .toList()
+
+                clockRate = codecObject.getInteger("clock_rate")
+
+                ie = codecObject.getFloat("ie")
+                bpl = codecObject.getFloat("bpl")
+            }
+
             tmpCodecs[codec.name] = codec
         }
         codecs = tmpCodecs
@@ -91,57 +112,52 @@ class SdpHandler : AbstractVerticle() {
             return
         }
 
-        defineCodec(session)
+        defineCodecs(session)
         send(session)
+    }
+
+    private fun defineCodecs(session: SdpSessionDescription) {
+        val request = session.request
+        val response = session.response
+
+        val payloadTypes = if (request != null && response != null) {
+            response.payloadTypes
+                    .intersect(request.payloadTypes.asIterable())
+        } else {
+            (request ?: response)?.payloadTypes?.toList()
+        }
+        requireNotNull(payloadTypes) { "Payload types is undefined. CallID: ${session.callId}" }
+
+        payloadTypes.mapNotNull { payloadType ->
+            (response ?: request)?.getFormat(payloadType)?.let { payload ->
+                codecs[payload.codec]
+                        ?: codecs.values.firstOrNull { it.payloadTypes.contains(payloadType) }
+                        ?: Codec()
+            }
+        }.forEach { session.codecs.add(it) }
     }
 
     private fun send(session: SdpSessionDescription) {
         val now = System.currentTimeMillis()
 
-        // TODO: Remove this `try-catch` once we will add IPv6 support
-        try {
-            val sdpSessions = session.sdpSessionIds
-                    .map { sdpSessionId ->
-                        SdpSession().apply {
-                            id = sdpSessionId
-                            timestamp = now
-                            callId = session.callId
-                            codec = session.codec
-                            ptime = session.ptime
-                        }
+        val sdpSessions = listOfNotNull(session.request, session.response)
+                .map { mediaDescription ->
+                    SdpSession().apply {
+                        timestamp = now
+
+                        address = mediaDescription.address()
+                        rtpPort = mediaDescription.port
+                        rtcpPort = mediaDescription.rtcpPort
+
+                        codecs = session.codecs
+                        ptime = session.ptime
+
+                        callId = session.callId
                     }
+                }
 
-            logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
-            vertx.eventBus().localPublish(RoutesCE.sdp + "_info", sdpSessions)
-        } catch (e: Exception) {
-            logger.debug(e) { "Couldn't retrieve session IDs. Request: ${session.request}, Response: ${session.response}" }
-        }
-    }
-
-    private fun defineCodec(session: SdpSessionDescription) {
-        val request = session.request
-        val response = session.response
-
-        val payloadType = if (request != null && response != null) {
-            request.payloadTypes
-                    .intersect(response.payloadTypes.asIterable())
-                    .firstOrNull()
-        } else {
-            (request ?: response)?.payloadTypes?.firstOrNull()
-        }
-        requireNotNull(payloadType) { "Payload type is undefined. CallID: ${session.callId}" }
-
-        val payload: RtpMapAttribute? = (response ?: request)?.getFormat(payloadType)
-
-        val codec = codecs[payload?.codec]
-                ?: codecs.values.firstOrNull { it.payloadType.toInt() == payloadType }
-                ?: Codec()
-
-        // Replace with values from SDP
-        codec.payloadType = payloadType.toByte()
-        payload?.let { codec.clockRate = it.clockRate }
-
-        session.codec = codec
+        logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
+        vertx.eventBus().localPublish(RoutesCE.sdp + "_info", sdpSessions)
     }
 
     private class SdpSessionDescription {
@@ -152,26 +168,22 @@ class SdpHandler : AbstractVerticle() {
         }
 
         lateinit var callId: String
-        lateinit var codec: Codec
+        val codecs = mutableListOf<Codec>()
 
         var request: MediaDescriptionField? = null
         var response: MediaDescriptionField? = null
 
         val ptime: Int by lazy {
-            return@lazy response?.ptime?.time
-                    ?: request?.ptime?.time
+            return@lazy response?.ptime()
+                    ?: request?.ptime()
                     ?: DEFAULT_PTIME
         }
 
-        val requestAddress:String? by lazy {
+        val requestAddress: String? by lazy {
             request?.let { "${it.connection.address}:${it.port}" }
         }
-        val responseAddress:String? by lazy {
+        val responseAddress: String? by lazy {
             response?.let { "${it.connection.address}:${it.port}" }
-        }
-
-        val sdpSessionIds: List<Long> by lazy {
-            listOfNotNull(request?.sdpSessionId(), response?.sdpSessionId())
         }
     }
 }

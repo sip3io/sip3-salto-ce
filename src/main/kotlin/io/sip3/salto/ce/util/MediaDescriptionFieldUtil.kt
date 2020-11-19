@@ -24,3 +24,11 @@ fun MediaDescriptionField.sdpSessionId(): Long {
     val port = this.port.toLong()
     return (addr shl 32) or port
 }
+
+fun MediaDescriptionField.ptime(): Int? {
+    return this.ptime?.time
+}
+
+fun MediaDescriptionField.address(): String {
+    return this.connection.address
+}
