@@ -148,7 +148,7 @@ class RtcpHandlerTest : VertxTest() {
                             },
                             "sdes_ssrc": 2141660700
                         }
-""".trimIndent().toByteArray()
+                       """.trimIndent().toByteArray()
     }
 
     @Test
