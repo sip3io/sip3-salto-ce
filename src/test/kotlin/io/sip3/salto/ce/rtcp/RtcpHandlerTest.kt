@@ -112,43 +112,43 @@ class RtcpHandlerTest : VertxTest() {
                 0x00.toByte(), 0x04.toByte(), 0x85.toByte(), 0x1f.toByte()
         )
 
-        val PACKET_4 = ("{\n" +
-                "  \"sender_information\": {\n" +
-                "    \"ntp_timestamp_sec\": 3811646280,\n" +
-                "    \"ntp_timestamp_usec\": 210071145,\n" +
-                "    \"rtp_timestamp\": 1610824168,\n" +
-                "    \"packets\": 595,\n" +
-                "    \"octets\": 95200\n" +
-                "  },\n" +
-                "  \"ssrc\": 2141660700,\n" +
-                "  \"type\": 202,\n" +
-                "  \"report_count\": 1,\n" +
-                "  \"report_blocks\": [\n" +
-                "    {\n" +
-                "      \"source_ssrc\": 299816601,\n" +
-                "      \"fraction_lost\": 0,\n" +
-                "      \"packets_lost\": 1,\n" +
-                "      \"highest_seq_no\": 34312,\n" +
-                "      \"ia_jitter\": 42,\n" +
-                "      \"lsr\": 457573597,\n" +
-                "      \"dlsr\": 128451\n" +
-                "    }\n" +
-                "  ],\n" +
-                "  \"report_blocks_xr\": {\n" +
-                "    \"type\": 0,\n" +
-                "    \"id\": 0,\n" +
-                "    \"fraction_lost\": 0,\n" +
-                "    \"fraction_discard\": 0,\n" +
-                "    \"burst_density\": 0,\n" +
-                "    \"gap_density\": 0,\n" +
-                "    \"burst_duration\": 0,\n" +
-                "    \"gap_duration\": 0,\n" +
-                "    \"round_trip_delay\": 0,\n" +
-                "    \"end_system_delay\": 0\n" +
-                "  },\n" +
-                "  \"sdes_ssrc\": 2141660700\n" +
-                "}").toByteArray()
-//
+        val PACKET_4 = (
+                """{
+    "sender_information": {
+        "ntp_timestamp_sec": 3811646280,
+        "ntp_timestamp_usec": 210071145,
+        "rtp_timestamp": 1610824168,
+        "packets": 595,
+        "octets": 95200
+    },
+    "ssrc": 2141660700,
+    "type": 202,
+    "report_count": 1,
+    "report_blocks": [{
+            "source_ssrc": 299816601,
+            "fraction_lost": 0,
+            "packets_lost": 1,
+            "highest_seq_no": 34312,
+            "ia_jitter": 42,
+            "lsr": 457573597,
+            "dlsr": 128451
+        }
+    ],
+    "report_blocks_xr": {
+        "type": 0,
+        "id": 0,
+        "fraction_lost": 0,
+        "fraction_discard": 0,
+        "burst_density": 0,
+        "gap_density": 0,
+        "burst_duration": 0,
+        "gap_duration": 0,
+        "round_trip_delay": 0,
+        "end_system_delay": 0
+    },
+    "sdes_ssrc": 2141660700
+}"""
+                ).toByteArray()
     }
 
     @Test
