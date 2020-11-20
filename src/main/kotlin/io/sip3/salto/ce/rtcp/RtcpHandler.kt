@@ -69,61 +69,25 @@ open class RtcpHandler : AbstractVerticle() {
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtcp) { event ->
             val packet = event.body()
-            if (packet.source == "hep3") {
-                try {
-                    handleHep(packet)
-                } catch (e: Exception) {
-                    logger.error(e) { "RtcpHandler 'handleHep()' failed." }
-                }
-            }
-            if (packet.source == "sip3") {
-                try {
-                    handleRaw(packet)
-                } catch (e: Exception) {
-                    logger.error(e) { "RtcpHandler 'handleRaw()' failed." }
-                }
-            }
-        }
-    }
-
-    open fun handleHep(packet: Packet) {
-        val json = JsonObject(packet.payload.toString(Charset.defaultCharset()))
-        try {
-            if (json.getJsonObject("sender_information").getLong("ntp_timestamp_sec").toInt() != 0
-                    && json.getJsonObject("sender_information").getLong("ntp_timestamp_usec").toInt() != 0) {
-                val report = SenderReport().apply {
-                    reportBlockCount = json.getInteger("report_count").toByte()
-                    // Sender SSRC
-                    senderSsrc = json.getLong("ssrc")
-                    // NTP Timestamp: Most and Least significant words
-                    ntpTimestampMsw = json.getJsonObject("sender_information").getLong("ntp_timestamp_sec")
-                    ntpTimestampLsw = json.getJsonObject("sender_information").getLong("ntp_timestamp_usec")
-                    // Sender's packet count
-                    senderPacketCount = json.getJsonObject("sender_information").getLong("packets")
-
-                    // Reports
-                    val reports = json.getJsonArray("report_blocks")
-
-                    reports.forEach { blockReport ->
-                        blockReport as JsonObject
-                        reportBlocks.add(RtcpReportBlock().apply {
-                            ssrc = blockReport.getLong("source_ssrc")
-                            fractionLost = blockReport.getInteger("fraction_lost").toShort()
-                            cumulativePacketLost = blockReport.getLong("packets_lost")
-                            extendedSeqNumber = blockReport.getLong("highest_seq_no")
-                            interarrivalJitter = blockReport.getLong("ia_jitter")
-                            lsrTimestamp = blockReport.getLong("lsr")
-
-                        })
+            when (packet.source) {
+                "sip3" -> {
+                    try {
+                        handleRaw(packet)
+                    } catch (e: Exception) {
+                        logger.error(e) { "RtcpHandler 'handleRaw()' failed." }
                     }
                 }
-                onSenderReport(packet, report)
+                "hep3" -> {
+                    try {
+                        handleHep(packet)
+                    } catch (e: Exception) {
+                        logger.error(e) { "RtcpHandler 'handleHep()' failed." }
+                    }
+                }
             }
-        } catch (e: Exception) {
-            logger.trace(e) { "RtcpHepHandler failed." }
         }
-
     }
+
 
     open fun handleRaw(packet: Packet) {
         val payload = Unpooled.wrappedBuffer(packet.payload)
@@ -176,6 +140,43 @@ open class RtcpHandler : AbstractVerticle() {
             }
         }
     }
+
+    open fun handleHep(packet: Packet) {
+        val json = JsonObject(packet.payload.toString(Charset.defaultCharset()))
+        if (json.getJsonObject("sender_information").getLong("ntp_timestamp_sec").toInt() != 0
+                && json.getJsonObject("sender_information").getLong("ntp_timestamp_usec").toInt() != 0) {
+            val report = SenderReport().apply {
+                reportBlockCount = json.getInteger("report_count").toByte()
+                // Sender SSRC
+                senderSsrc = json.getLong("ssrc")
+                json.getJsonObject("sender_information")?.let { senderInfo ->
+                    // NTP Timestamp: Most and Least significant words
+                    ntpTimestampMsw = senderInfo.getLong("ntp_timestamp_sec")
+                    ntpTimestampLsw = senderInfo.getLong("ntp_timestamp_usec")
+                    // Sender's packet count
+                    senderPacketCount = senderInfo.getLong("packets")
+                }
+
+                // Reports
+                val reports = json.getJsonArray("report_blocks")
+
+                reports.forEach { blockReport ->
+                    blockReport as JsonObject
+                    reportBlocks.add(RtcpReportBlock().apply {
+                        ssrc = blockReport.getLong("source_ssrc")
+                        fractionLost = blockReport.getInteger("fraction_lost").toShort()
+                        cumulativePacketLost = blockReport.getLong("packets_lost")
+                        extendedSeqNumber = blockReport.getLong("highest_seq_no")
+                        interarrivalJitter = blockReport.getLong("ia_jitter")
+                        lsrTimestamp = blockReport.getLong("lsr")
+
+                    })
+                }
+            }
+            onSenderReport(packet, report)
+        }
+    }
+
 
     private fun readSenderReport(headerByte: Byte, buffer: ByteBuf): SenderReport {
         return SenderReport().apply {

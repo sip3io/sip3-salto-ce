@@ -37,6 +37,6 @@ class Packet {
     }
 
     override fun toString(): String {
-        return "Packet(timestamp=$timestamp, srcAddr=$srcAddr, dstAddr=$dstAddr, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes, source=$source)"
+        return "Packet(timestamp=$timestamp, srcAddr=$srcAddr, dstAddr=$dstAddr, source=$source, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"
     }
 }

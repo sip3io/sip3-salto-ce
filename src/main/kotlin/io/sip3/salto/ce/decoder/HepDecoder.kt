@@ -133,7 +133,6 @@ class HepDecoder : AbstractVerticle() {
         }
 
         val packet = Packet().apply {
-            this.source = "hep3"
             this.timestamp = Timestamp(seconds!! * 1000 + uSeconds!! / 1000).apply { nanos += (uSeconds % 1000).toInt() }
             this.srcAddr = Address().apply {
                 addr = IpUtil.convertToString(srcAddr!!)
@@ -143,6 +142,7 @@ class HepDecoder : AbstractVerticle() {
                 addr = IpUtil.convertToString(dstAddr!!)
                 port = dstPort!!
             }
+            this.source = "hep3"
             when (protocolType) {
                 HEP3_TYPE_SIP -> this.protocolCode = PacketTypes.SIP
                 HEP3_TYPE_RTCP -> this.protocolCode = PacketTypes.RTCP

@@ -112,47 +112,43 @@ class RtcpHandlerTest : VertxTest() {
                 0x00.toByte(), 0x04.toByte(), 0x85.toByte(), 0x1f.toByte()
         )
 
-        val PACKET_4 = byteArrayOf(
-                0x7b.toByte(), 0x22.toByte(), 0x73.toByte(), 0x65.toByte(), 0x6e.toByte(), 0x64.toByte(), 0x65.toByte(), 0x72.toByte(), 0x5f.toByte(), 0x69.toByte(), 0x6e.toByte(), 0x66.toByte(), 0x6f.toByte(), 0x72.toByte(), 0x6d.toByte(), 0x61.toByte(), 0x74.toByte(),
-                0x69.toByte(), 0x6f.toByte(), 0x6e.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x7b.toByte(), 0x22.toByte(), 0x6e.toByte(), 0x74.toByte(), 0x70.toByte(), 0x5f.toByte(), 0x74.toByte(), 0x69.toByte(), 0x6d.toByte(), 0x65.toByte(), 0x73.toByte(),
-                0x74.toByte(), 0x61.toByte(), 0x6d.toByte(), 0x70.toByte(), 0x5f.toByte(), 0x73.toByte(), 0x65.toByte(), 0x63.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x33.toByte(), 0x38.toByte(), 0x31.toByte(), 0x31.toByte(), 0x36.toByte(), 0x34.toByte(),
-                0x36.toByte(), 0x32.toByte(), 0x38.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x6e.toByte(), 0x74.toByte(), 0x70.toByte(), 0x5f.toByte(), 0x74.toByte(), 0x69.toByte(), 0x6d.toByte(), 0x65.toByte(), 0x73.toByte(), 0x74.toByte(),
-                0x61.toByte(), 0x6d.toByte(), 0x70.toByte(), 0x5f.toByte(), 0x75.toByte(), 0x73.toByte(), 0x65.toByte(), 0x63.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x32.toByte(), 0x31.toByte(), 0x30.toByte(), 0x30.toByte(), 0x37.toByte(), 0x31.toByte(),
-                0x31.toByte(), 0x34.toByte(), 0x35.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x72.toByte(), 0x74.toByte(), 0x70.toByte(), 0x5f.toByte(), 0x74.toByte(), 0x69.toByte(), 0x6d.toByte(), 0x65.toByte(), 0x73.toByte(), 0x74.toByte(), 0x61.toByte(),
-                0x6d.toByte(), 0x70.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x31.toByte(), 0x36.toByte(), 0x31.toByte(), 0x30.toByte(), 0x38.toByte(), 0x32.toByte(), 0x34.toByte(), 0x31.toByte(), 0x36.toByte(), 0x38.toByte(), 0x2c.toByte(), 0x22.toByte(),
-                0x70.toByte(), 0x61.toByte(), 0x63.toByte(), 0x6b.toByte(), 0x65.toByte(), 0x74.toByte(), 0x73.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x35.toByte(), 0x39.toByte(), 0x35.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x6f.toByte(), 0x63.toByte(),
-                0x74.toByte(), 0x65.toByte(), 0x74.toByte(), 0x73.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x39.toByte(), 0x35.toByte(), 0x32.toByte(), 0x30.toByte(), 0x30.toByte(), 0x7d.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x73.toByte(), 0x73.toByte(),
-                0x72.toByte(), 0x63.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x32.toByte(), 0x31.toByte(), 0x34.toByte(), 0x31.toByte(), 0x36.toByte(), 0x36.toByte(), 0x30.toByte(), 0x37.toByte(), 0x30.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(),
-                0x74.toByte(), 0x79.toByte(), 0x70.toByte(), 0x65.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x32.toByte(), 0x30.toByte(), 0x32.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x72.toByte(), 0x65.toByte(), 0x70.toByte(), 0x6f.toByte(), 0x72.toByte(),
-                0x74.toByte(), 0x5f.toByte(), 0x63.toByte(), 0x6f.toByte(), 0x75.toByte(), 0x6e.toByte(), 0x74.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x31.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x72.toByte(), 0x65.toByte(), 0x70.toByte(), 0x6f.toByte(),
-                0x72.toByte(), 0x74.toByte(), 0x5f.toByte(), 0x62.toByte(), 0x6c.toByte(), 0x6f.toByte(), 0x63.toByte(), 0x6b.toByte(), 0x73.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x5b.toByte(), 0x7b.toByte(), 0x22.toByte(), 0x73.toByte(), 0x6f.toByte(),
-                0x75.toByte(), 0x72.toByte(), 0x63.toByte(), 0x65.toByte(), 0x5f.toByte(), 0x73.toByte(), 0x73.toByte(), 0x72.toByte(), 0x63.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x32.toByte(), 0x39.toByte(), 0x39.toByte(), 0x38.toByte(), 0x31.toByte(),
-                0x36.toByte(), 0x36.toByte(), 0x30.toByte(), 0x31.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x66.toByte(), 0x72.toByte(), 0x61.toByte(), 0x63.toByte(), 0x74.toByte(), 0x69.toByte(), 0x6f.toByte(), 0x6e.toByte(), 0x5f.toByte(), 0x6c.toByte(),
-                0x6f.toByte(), 0x73.toByte(), 0x74.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x70.toByte(), 0x61.toByte(), 0x63.toByte(), 0x6b.toByte(), 0x65.toByte(), 0x74.toByte(), 0x73.toByte(), 0x5f.toByte(),
-                0x6c.toByte(), 0x6f.toByte(), 0x73.toByte(), 0x74.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x31.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x68.toByte(), 0x69.toByte(), 0x67.toByte(), 0x68.toByte(), 0x65.toByte(), 0x73.toByte(), 0x74.toByte(),
-                0x5f.toByte(), 0x73.toByte(), 0x65.toByte(), 0x71.toByte(), 0x5f.toByte(), 0x6e.toByte(), 0x6f.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x33.toByte(), 0x34.toByte(), 0x33.toByte(), 0x31.toByte(), 0x32.toByte(), 0x2c.toByte(), 0x22.toByte(),
-                0x69.toByte(), 0x61.toByte(), 0x5f.toByte(), 0x6a.toByte(), 0x69.toByte(), 0x74.toByte(), 0x74.toByte(), 0x65.toByte(), 0x72.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x34.toByte(), 0x32.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x6c.toByte(),
-                0x73.toByte(), 0x72.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x34.toByte(), 0x35.toByte(), 0x37.toByte(), 0x35.toByte(), 0x37.toByte(), 0x33.toByte(), 0x35.toByte(), 0x39.toByte(), 0x37.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x64.toByte(),
-                0x6c.toByte(), 0x73.toByte(), 0x72.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x31.toByte(), 0x32.toByte(), 0x38.toByte(), 0x34.toByte(), 0x35.toByte(), 0x31.toByte(), 0x7d.toByte(), 0x5d.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x72.toByte(),
-                0x65.toByte(), 0x70.toByte(), 0x6f.toByte(), 0x72.toByte(), 0x74.toByte(), 0x5f.toByte(), 0x62.toByte(), 0x6c.toByte(), 0x6f.toByte(), 0x63.toByte(), 0x6b.toByte(), 0x73.toByte(), 0x5f.toByte(), 0x78.toByte(), 0x72.toByte(), 0x22.toByte(),
-                0x3a.toByte(), 0x7b.toByte(), 0x22.toByte(), 0x74.toByte(), 0x79.toByte(), 0x70.toByte(), 0x65.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x69.toByte(), 0x64.toByte(), 0x22.toByte(), 0x3a.toByte(),
-                0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x66.toByte(), 0x72.toByte(), 0x61.toByte(), 0x63.toByte(), 0x74.toByte(), 0x69.toByte(), 0x6f.toByte(), 0x6e.toByte(), 0x5f.toByte(), 0x6c.toByte(), 0x6f.toByte(), 0x73.toByte(), 0x74.toByte(),
-                0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x66.toByte(), 0x72.toByte(), 0x61.toByte(), 0x63.toByte(), 0x74.toByte(), 0x69.toByte(), 0x6f.toByte(), 0x6e.toByte(), 0x5f.toByte(), 0x64.toByte(), 0x69.toByte(),
-                0x73.toByte(), 0x63.toByte(), 0x61.toByte(), 0x72.toByte(), 0x64.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x62.toByte(), 0x75.toByte(), 0x72.toByte(), 0x73.toByte(), 0x74.toByte(), 0x5f.toByte(),
-                0x64.toByte(), 0x65.toByte(), 0x6e.toByte(), 0x73.toByte(), 0x69.toByte(), 0x74.toByte(), 0x79.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x67.toByte(), 0x61.toByte(), 0x70.toByte(), 0x5f.toByte(),
-                0x64.toByte(), 0x65.toByte(), 0x6e.toByte(), 0x73.toByte(), 0x69.toByte(), 0x74.toByte(), 0x79.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x62.toByte(), 0x75.toByte(), 0x72.toByte(), 0x73.toByte(),
-                0x74.toByte(), 0x5f.toByte(), 0x64.toByte(), 0x75.toByte(), 0x72.toByte(), 0x61.toByte(), 0x74.toByte(), 0x69.toByte(), 0x6f.toByte(), 0x6e.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x67.toByte(),
-                0x61.toByte(), 0x70.toByte(), 0x5f.toByte(), 0x64.toByte(), 0x75.toByte(), 0x72.toByte(), 0x61.toByte(), 0x74.toByte(), 0x69.toByte(), 0x6f.toByte(), 0x6e.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(),
-                0x72.toByte(), 0x6f.toByte(), 0x75.toByte(), 0x6e.toByte(), 0x64.toByte(), 0x5f.toByte(), 0x74.toByte(), 0x72.toByte(), 0x69.toByte(), 0x70.toByte(), 0x5f.toByte(), 0x64.toByte(), 0x65.toByte(), 0x6c.toByte(), 0x61.toByte(), 0x79.toByte(),
-                0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x65.toByte(), 0x6e.toByte(), 0x64.toByte(), 0x5f.toByte(), 0x73.toByte(), 0x79.toByte(), 0x73.toByte(), 0x74.toByte(), 0x65.toByte(), 0x6d.toByte(), 0x5f.toByte(),
-                0x64.toByte(), 0x65.toByte(), 0x6c.toByte(), 0x61.toByte(), 0x79.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x30.toByte(), 0x7d.toByte(), 0x2c.toByte(), 0x22.toByte(), 0x73.toByte(), 0x64.toByte(), 0x65.toByte(), 0x73.toByte(), 0x5f.toByte(),
-                0x73.toByte(), 0x73.toByte(), 0x72.toByte(), 0x63.toByte(), 0x22.toByte(), 0x3a.toByte(), 0x32.toByte(), 0x31.toByte(), 0x34.toByte(), 0x31.toByte(), 0x36.toByte(), 0x36.toByte(), 0x30.toByte(), 0x37.toByte(), 0x30.toByte(), 0x30.toByte(),
-                0x7d.toByte()
-//                , 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x11.toByte(), 0x00.toByte(), 0x2a.toByte(), 0x39.toByte(), 0x34.toByte(), 0x36.toByte(), 0x62.toByte(), 0x35.toByte(), 0x62.toByte(), 0x33.toByte(), 0x63.toByte(), 0x2d.toByte(),
-//                0x38.toByte(), 0x38.toByte(), 0x38.toByte(), 0x61.toByte(), 0x2d.toByte(), 0x31.toByte(), 0x32.toByte(), 0x33.toByte(), 0x39.toByte(), 0x2d.toByte(), 0x38.toByte(), 0x38.toByte(), 0x38.toByte(), 0x31.toByte(), 0x2d.toByte(), 0x30.toByte(),
-//                0x30.toByte(), 0x31.toByte(), 0x35.toByte(), 0x35.toByte(), 0x64.toByte(), 0x30.toByte(), 0x39.toByte(), 0x63.toByte(), 0x34.toByte(), 0x30.toByte(), 0x31.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x12.toByte(), 0x00.toByte(),
-//                0x08.toByte(), 0x00.toByte(), 0x00.toByte()
-        )
+        val PACKET_4 = ("{\n" +
+                "  \"sender_information\": {\n" +
+                "    \"ntp_timestamp_sec\": 3811646280,\n" +
+                "    \"ntp_timestamp_usec\": 210071145,\n" +
+                "    \"rtp_timestamp\": 1610824168,\n" +
+                "    \"packets\": 595,\n" +
+                "    \"octets\": 95200\n" +
+                "  },\n" +
+                "  \"ssrc\": 2141660700,\n" +
+                "  \"type\": 202,\n" +
+                "  \"report_count\": 1,\n" +
+                "  \"report_blocks\": [\n" +
+                "    {\n" +
+                "      \"source_ssrc\": 299816601,\n" +
+                "      \"fraction_lost\": 0,\n" +
+                "      \"packets_lost\": 1,\n" +
+                "      \"highest_seq_no\": 34312,\n" +
+                "      \"ia_jitter\": 42,\n" +
+                "      \"lsr\": 457573597,\n" +
+                "      \"dlsr\": 128451\n" +
+                "    }\n" +
+                "  ],\n" +
+                "  \"report_blocks_xr\": {\n" +
+                "    \"type\": 0,\n" +
+                "    \"id\": 0,\n" +
+                "    \"fraction_lost\": 0,\n" +
+                "    \"fraction_discard\": 0,\n" +
+                "    \"burst_density\": 0,\n" +
+                "    \"gap_density\": 0,\n" +
+                "    \"burst_duration\": 0,\n" +
+                "    \"gap_duration\": 0,\n" +
+                "    \"round_trip_delay\": 0,\n" +
+                "    \"end_system_delay\": 0\n" +
+                "  },\n" +
+                "  \"sdes_ssrc\": 2141660700\n" +
+                "}").toByteArray()
+//
     }
 
     @Test
@@ -170,7 +166,6 @@ class RtcpHandlerTest : VertxTest() {
                 execute = {
                     listOf(PACKET_1, PACKET_2, PACKET_3).map { payload ->
                         Packet().apply {
-                            source = "sip3"
                             srcAddr = Address().apply {
                                 addr = "10.250.240.5"
                                 port = 12057
@@ -179,6 +174,7 @@ class RtcpHandlerTest : VertxTest() {
                                 addr = "10.150.140.5"
                                 port = 13057
                             }
+                            source = "sip3"
                             protocolCode = PacketTypes.RTCP
                             this.payload = payload
                             timestamp = Timestamp(System.currentTimeMillis())
@@ -242,22 +238,21 @@ class RtcpHandlerTest : VertxTest() {
                     vertx.deployTestVerticle(RtcpHandler::class, vertx.orCreateContext.config())
                 },
                 execute = {
-                    listOf(PACKET_4).map { payload ->
-                        Packet().apply {
-                            source = "hep3"
-                            srcAddr = Address().apply {
-                                addr = "10.250.240.5"
-                                port = 12057
-                            }
-                            dstAddr = Address().apply {
-                                addr = "10.150.140.5"
-                                port = 13057
-                            }
-                            protocolCode = PacketTypes.RTCP
-                            this.payload = payload
-                            timestamp = Timestamp(System.currentTimeMillis())
+                    val packet = Packet().apply {
+                        srcAddr = Address().apply {
+                            addr = "10.250.240.5"
+                            port = 12057
                         }
-                    }.forEach { vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, it) }
+                        dstAddr = Address().apply {
+                            addr = "10.150.140.5"
+                            port = 13057
+                        }
+                        source = "hep3"
+                        protocolCode = PacketTypes.RTCP
+                        this.payload = PACKET_4
+                        timestamp = Timestamp(System.currentTimeMillis())
+                    }
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, packet)
                 },
                 assert = {
                     vertx.eventBus().consumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_rtcp") { event ->

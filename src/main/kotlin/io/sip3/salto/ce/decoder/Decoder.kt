@@ -115,7 +115,6 @@ class Decoder : AbstractVerticle() {
             }
 
             val packet = Packet().apply {
-                this.source = "sip3"
                 this.timestamp = Timestamp(millis!!).apply { this.nanos = nanos!! }
                 this.srcAddr = Address().apply {
                     addr = IpUtil.convertToString(srcAddr!!)
@@ -125,6 +124,7 @@ class Decoder : AbstractVerticle() {
                     addr = IpUtil.convertToString(dstAddr!!)
                     port = dstPort!!
                 }
+                this.source = "sip3"
                 this.protocolCode = protocolCode!!
                 this.payload = payload!!
             }
