@@ -144,8 +144,7 @@ open class RtcpHandler : AbstractVerticle() {
     open fun handleHep(packet: Packet) {
         val json = JsonObject(packet.payload.toString(Charset.defaultCharset()))
         json.getJsonObject("sender_information")?.let { senderInfo ->
-            if (senderInfo.getLong("ntp_timestamp_sec").toInt() != 0
-                    && senderInfo.getLong("ntp_timestamp_usec").toInt() != 0) {
+            if (senderInfo.getLong("ntp_timestamp_sec") != 0L && senderInfo.getLong("ntp_timestamp_usec") != 0L) {
                 val report = SenderReport().apply {
                     reportBlockCount = json.getInteger("report_count").toByte()
                     // Sender SSRC
@@ -157,23 +156,21 @@ open class RtcpHandler : AbstractVerticle() {
                     // Sender's packet count
                     senderPacketCount = senderInfo.getLong("packets")
 
-
                     // Reports
-                    val reports = json.getJsonArray("report_blocks")
-
-                    reports.forEach { blockReport ->
-                        blockReport as JsonObject
-                        reportBlocks.add(RtcpReportBlock().apply {
-                            ssrc = blockReport.getLong("source_ssrc")
-                            fractionLost = blockReport.getInteger("fraction_lost").toShort()
-                            cumulativePacketLost = blockReport.getLong("packets_lost")
-                            extendedSeqNumber = blockReport.getLong("highest_seq_no")
-                            interarrivalJitter = blockReport.getLong("ia_jitter")
-                            lsrTimestamp = blockReport.getLong("lsr")
-
-                        })
-                    }
+                    json.getJsonArray("report_blocks")
+                            .forEach { blockReport ->
+                                blockReport as JsonObject
+                                reportBlocks.add(RtcpReportBlock().apply {
+                                    ssrc = blockReport.getLong("source_ssrc")
+                                    fractionLost = blockReport.getInteger("fraction_lost").toShort()
+                                    cumulativePacketLost = blockReport.getLong("packets_lost")
+                                    extendedSeqNumber = blockReport.getLong("highest_seq_no")
+                                    interarrivalJitter = blockReport.getLong("ia_jitter")
+                                    lsrTimestamp = blockReport.getLong("lsr")
+                                })
+                            }
                 }
+
                 onSenderReport(packet, report)
             }
         }

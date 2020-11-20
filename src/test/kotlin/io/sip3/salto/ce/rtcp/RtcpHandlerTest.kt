@@ -112,43 +112,43 @@ class RtcpHandlerTest : VertxTest() {
                 0x00.toByte(), 0x04.toByte(), 0x85.toByte(), 0x1f.toByte()
         )
 
-        val PACKET_4 = (
-                """{
-    "sender_information": {
-        "ntp_timestamp_sec": 3811646280,
-        "ntp_timestamp_usec": 210071145,
-        "rtp_timestamp": 1610824168,
-        "packets": 595,
-        "octets": 95200
-    },
-    "ssrc": 2141660700,
-    "type": 202,
-    "report_count": 1,
-    "report_blocks": [{
-            "source_ssrc": 299816601,
-            "fraction_lost": 0,
-            "packets_lost": 1,
-            "highest_seq_no": 34312,
-            "ia_jitter": 42,
-            "lsr": 457573597,
-            "dlsr": 128451
-        }
-    ],
-    "report_blocks_xr": {
-        "type": 0,
-        "id": 0,
-        "fraction_lost": 0,
-        "fraction_discard": 0,
-        "burst_density": 0,
-        "gap_density": 0,
-        "burst_duration": 0,
-        "gap_duration": 0,
-        "round_trip_delay": 0,
-        "end_system_delay": 0
-    },
-    "sdes_ssrc": 2141660700
-}"""
-                ).toByteArray()
+        val PACKET_4 = """
+                        {
+                            "sender_information": {
+                                "ntp_timestamp_sec": 3811646280,
+                                "ntp_timestamp_usec": 210071145,
+                                "rtp_timestamp": 1610824168,
+                                "packets": 595,
+                                "octets": 95200
+                            },
+                            "ssrc": 2141660700,
+                            "type": 202,
+                            "report_count": 1,
+                            "report_blocks": [{
+                                    "source_ssrc": 299816601,
+                                    "fraction_lost": 0,
+                                    "packets_lost": 1,
+                                    "highest_seq_no": 34312,
+                                    "ia_jitter": 42,
+                                    "lsr": 457573597,
+                                    "dlsr": 128451
+                                }
+                            ],
+                            "report_blocks_xr": {
+                                "type": 0,
+                                "id": 0,
+                                "fraction_lost": 0,
+                                "fraction_discard": 0,
+                                "burst_density": 0,
+                                "gap_density": 0,
+                                "burst_duration": 0,
+                                "gap_duration": 0,
+                                "round_trip_delay": 0,
+                                "end_system_delay": 0
+                            },
+                            "sdes_ssrc": 2141660700
+                        }
+""".trimIndent().toByteArray()
     }
 
     @Test
