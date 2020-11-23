@@ -60,6 +60,7 @@ open class RtprHandler : AbstractVerticle() {
     private var cumulativeMetrics = true
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
+    private var durationTimeout: Long = 1800000
 
     private val sdp = mutableMapOf<Long, SdpSession>()
     private val rtp = mutableMapOf<Long, RtprSession>()
@@ -79,6 +80,9 @@ open class RtprHandler : AbstractVerticle() {
             }
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
+            }
+            config.getLong("duration-timeout")?.let {
+                durationTimeout = it
             }
         }
 
@@ -157,6 +161,10 @@ open class RtprHandler : AbstractVerticle() {
             sdpSession.codec(report.payloadType.toInt())?.let { codec ->
                 report.codecName = codec.name
 
+                if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
+                    report.duration = report.expectedPacketCount * sdpSession.ptime
+                }
+
                 // Raw rFactor value
                 val ppl = report.fractionLost * 100
                 val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
@@ -175,21 +183,22 @@ open class RtprHandler : AbstractVerticle() {
 
     private fun terminateExpiredSessions() {
         val now = System.currentTimeMillis()
-
-        sdp.filterValues { it.timestamp + aggregationTimeout < now }
-                .forEach { (key, _) -> sdp.remove(key) }
+        val expiredCallIds = mutableSetOf<String>()
 
         rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
                 .forEach { (sessionId, session) ->
                     terminateRtprSession(session)
-                    rtp.remove(sessionId)
+                    rtp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
                 }
 
         rtcp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
                 .forEach { (sessionId, session) ->
                     terminateRtprSession(session)
-                    rtcp.remove(sessionId)
+                    rtcp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
                 }
+
+        sdp.filterValues { it.callId in expiredCallIds || it.timestamp + durationTimeout < now }
+                .forEach { (key, _) -> sdp.remove(key) }
     }
 
     private fun terminateRtprSession(session: RtprSession) {

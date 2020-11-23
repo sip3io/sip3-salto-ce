@@ -57,6 +57,8 @@ server:
 #    aggregation-timeout: 30000
 #  rtp-r:
 #    cumulative-metrics: true
+#    expiration-delay: 4000
+#    aggregation-timeout: 30000
 
 #! Metrics
 #metrics:
