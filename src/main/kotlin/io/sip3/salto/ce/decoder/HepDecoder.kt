@@ -41,6 +41,7 @@ class HepDecoder : AbstractVerticle() {
 
         const val HEP3_HEADER_LENGTH = 6
         const val HEP3_TYPE_SIP: Byte = 1
+        const val HEP3_TYPE_RTCP: Byte = 5
     }
 
     private val packetsDecoded = Metrics.counter("packets_decoded", mapOf("proto" to "hep"))
@@ -141,8 +142,10 @@ class HepDecoder : AbstractVerticle() {
                 addr = IpUtil.convertToString(dstAddr!!)
                 port = dstPort!!
             }
+            this.source = "hep3"
             when (protocolType) {
                 HEP3_TYPE_SIP -> this.protocolCode = PacketTypes.SIP
+                HEP3_TYPE_RTCP -> this.protocolCode = PacketTypes.RTCP
                 else -> throw NotImplementedError("Unknown HEPv3 protocol type: $protocolType")
             }
             this.payload = payload!!

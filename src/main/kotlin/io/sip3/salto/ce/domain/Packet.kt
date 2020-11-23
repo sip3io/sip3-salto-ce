@@ -25,6 +25,8 @@ class Packet {
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
 
+    lateinit var source: String
+
     var protocolCode: Byte = 0
     lateinit var payload: ByteArray
 
@@ -35,6 +37,6 @@ class Packet {
     }
 
     override fun toString(): String {
-        return "Packet(timestamp=$timestamp, srcAddr=$srcAddr, dstAddr=$dstAddr, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"
+        return "Packet(timestamp=$timestamp, srcAddr=$srcAddr, dstAddr=$dstAddr, source=$source, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"
     }
 }

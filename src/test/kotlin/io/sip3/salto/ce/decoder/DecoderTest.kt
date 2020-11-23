@@ -85,6 +85,7 @@ class DecoderTest : VertxTest() {
                             val dst = packet.dstAddr
                             assertEquals("229.35.193.201", dst.addr)
                             assertEquals(3535, dst.port)
+                            assertEquals("sip3", packet.source)
                             assertEquals("INVITE", packet.payload.toString(Charset.defaultCharset()))
                         }
                         context.completeNow()
@@ -118,6 +119,7 @@ class DecoderTest : VertxTest() {
                             val dst = packet.dstAddr
                             assertEquals("229.35.193.201", dst.addr)
                             assertEquals(3535, dst.port)
+                            assertEquals("sip3", packet.source)
                             assertEquals("INVITE", packet.payload.toString(Charset.defaultCharset()))
                         }
                         context.completeNow()

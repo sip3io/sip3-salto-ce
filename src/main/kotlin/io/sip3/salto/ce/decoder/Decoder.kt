@@ -124,6 +124,7 @@ class Decoder : AbstractVerticle() {
                     addr = IpUtil.convertToString(dstAddr!!)
                     port = dstPort!!
                 }
+                this.source = "sip3"
                 this.protocolCode = protocolCode!!
                 this.payload = payload!!
             }

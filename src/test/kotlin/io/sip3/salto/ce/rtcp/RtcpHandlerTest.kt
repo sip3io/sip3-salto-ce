@@ -111,6 +111,44 @@ class RtcpHandlerTest : VertxTest() {
                 0x70.toByte(), 0x1a.toByte(), 0x03.toByte(), 0xd7.toByte(),
                 0x00.toByte(), 0x04.toByte(), 0x85.toByte(), 0x1f.toByte()
         )
+
+        val PACKET_4 = """
+                        {
+                            "sender_information": {
+                                "ntp_timestamp_sec": 3811646280,
+                                "ntp_timestamp_usec": 210071145,
+                                "rtp_timestamp": 1610824168,
+                                "packets": 595,
+                                "octets": 95200
+                            },
+                            "ssrc": 2141660700,
+                            "type": 202,
+                            "report_count": 1,
+                            "report_blocks": [{
+                                    "source_ssrc": 299816601,
+                                    "fraction_lost": 0,
+                                    "packets_lost": 1,
+                                    "highest_seq_no": 34312,
+                                    "ia_jitter": 42,
+                                    "lsr": 457573597,
+                                    "dlsr": 128451
+                                }
+                            ],
+                            "report_blocks_xr": {
+                                "type": 0,
+                                "id": 0,
+                                "fraction_lost": 0,
+                                "fraction_discard": 0,
+                                "burst_density": 0,
+                                "gap_density": 0,
+                                "burst_duration": 0,
+                                "gap_duration": 0,
+                                "round_trip_delay": 0,
+                                "end_system_delay": 0
+                            },
+                            "sdes_ssrc": 2141660700
+                        }
+                       """.trimIndent().toByteArray()
     }
 
     @Test
@@ -136,6 +174,7 @@ class RtcpHandlerTest : VertxTest() {
                                 addr = "10.150.140.5"
                                 port = 13057
                             }
+                            source = "sip3"
                             protocolCode = PacketTypes.RTCP
                             this.payload = payload
                             timestamp = Timestamp(System.currentTimeMillis())
@@ -181,6 +220,54 @@ class RtcpHandlerTest : VertxTest() {
                         if (packetCount == 3) {
                             context.completeNow()
                         }
+                    }
+                }
+        )
+    }
+
+    @Test
+    fun `Parse HEP3 RTCP report`() {
+        runTest(
+                deploy = {
+                    vertx.orCreateContext.config().put("media", JsonObject().apply {
+                        put("rtcp", JsonObject().apply {
+                            put("expiration-delay", 2000)
+                            put("aggregation-timeout", 1500)
+                        })
+                    })
+                    vertx.deployTestVerticle(RtcpHandler::class, vertx.orCreateContext.config())
+                },
+                execute = {
+                    val packet = Packet().apply {
+                        srcAddr = Address().apply {
+                            addr = "10.250.240.5"
+                            port = 12057
+                        }
+                        dstAddr = Address().apply {
+                            addr = "10.150.140.5"
+                            port = 13057
+                        }
+                        source = "hep3"
+                        protocolCode = PacketTypes.RTCP
+                        this.payload = PACKET_4
+                        timestamp = Timestamp(System.currentTimeMillis())
+                    }
+                    vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, packet)
+                },
+                assert = {
+                    vertx.eventBus().consumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_rtcp") { event ->
+                        context.verify {
+                            val (packet, report) = event.body()
+                            assertEquals(PacketTypes.RTCP, packet.protocolCode)
+                            assertEquals(596, report.expectedPacketCount)
+                            assertEquals(1, report.lostPacketCount)
+                            assertEquals(42F, report.lastJitter)
+                            assertEquals(42F, report.minJitter)
+                            assertEquals(42F, report.maxJitter)
+                            assertEquals(42F, report.avgJitter)
+
+                        }
+                        context.completeNow()
                     }
                 }
         )
