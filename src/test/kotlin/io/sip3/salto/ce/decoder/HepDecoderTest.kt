@@ -23,9 +23,6 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.buffer.Buffer
-import io.vertx.core.json.JsonObject
-import io.vertx.core.parsetools.JsonParser
-import io.vertx.kotlin.core.json.get
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.nio.charset.Charset
@@ -256,15 +253,15 @@ class HepDecoderTest : VertxTest() {
                         val (_, packet) = event.body()
                         context.verify {
                             assertEquals(546, packet.payload.size)
-                            assertEquals(1571254062044, packet.timestamp.time)
-                            assertEquals(44000436, packet.timestamp.nanos)
+                            assertEquals(1602657480066, packet.timestamp.time)
+                            assertEquals(66000334, packet.timestamp.nanos)
                             assertEquals(PacketTypes.RTCP, packet.protocolCode)
                             val src = packet.srcAddr
                             assertEquals("192.168.9.119", src.addr)
-                            assertEquals(5062, src.port)
+                            assertEquals(17969, src.port)
                             val dst = packet.dstAddr
                             assertEquals("192.168.4.140", dst.addr)
-                            assertEquals(5062, dst.port)
+                            assertEquals(5005, dst.port)
                             assertEquals("hep3", packet.source)
                         }
                         context.completeNow()
