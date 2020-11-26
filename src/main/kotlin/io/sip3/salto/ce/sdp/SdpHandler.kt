@@ -24,6 +24,7 @@ import io.sip3.commons.vertx.util.localPublish
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.address
+import io.sip3.salto.ce.util.defineRtcpPort
 import io.sip3.salto.ce.util.ptime
 import io.sip3.salto.ce.util.sessionDescription
 import io.vertx.core.AbstractVerticle
@@ -147,7 +148,7 @@ class SdpHandler : AbstractVerticle() {
 
                         address = mediaDescription.address()
                         rtpPort = mediaDescription.port
-                        rtcpPort = mediaDescription.rtcpPort
+                        rtcpPort = mediaDescription.defineRtcpPort(session.isRtcpMux)
 
                         codecs = session.codecs
                         ptime = session.ptime
@@ -172,6 +173,10 @@ class SdpHandler : AbstractVerticle() {
 
         var request: MediaDescriptionField? = null
         var response: MediaDescriptionField? = null
+
+        val isRtcpMux:Boolean by lazy {
+            (response?.isRtcpMux ?: false) && (request?.isRtcpMux ?: false)
+        }
 
         val ptime: Int by lazy {
             return@lazy response?.ptime()

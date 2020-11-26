@@ -16,13 +16,14 @@
 
 package io.sip3.salto.ce.util
 
-import io.sip3.commons.util.IpUtil
 import org.restcomm.media.sdp.fields.MediaDescriptionField
 
-fun MediaDescriptionField.sdpSessionId(): Long {
-    val addr = IpUtil.convertToInt(this.connection.address).toLong()
-    val port = this.port.toLong()
-    return (addr shl 32) or port
+fun MediaDescriptionField.defineRtcpPort(isRtcpMux: Boolean): Int {
+    return if (this.rtcp != null && this.rtcp?.port != this.port ) {
+        this.rtcp.port
+    } else {
+        if (this.rtcpMux != null && isRtcpMux) this.port else this.port + 1
+    }
 }
 
 fun MediaDescriptionField.ptime(): Int? {
