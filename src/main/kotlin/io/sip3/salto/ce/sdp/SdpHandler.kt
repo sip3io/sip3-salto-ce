@@ -133,7 +133,7 @@ class SdpHandler : AbstractVerticle() {
             (response ?: request)?.getFormat(payloadType)?.let { payload ->
                 codecs[payload.codec]
                         ?: codecs.values.firstOrNull { it.payloadTypes.contains(payloadType) }
-                        ?: Codec()
+                        ?: Codec().apply { this.payloadTypes = listOf(payloadType) }
             }
         }.forEach { session.codecs.add(it) }
     }

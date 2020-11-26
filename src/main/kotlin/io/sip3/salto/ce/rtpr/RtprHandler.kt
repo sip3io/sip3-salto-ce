@@ -158,22 +158,21 @@ open class RtprHandler : AbstractVerticle() {
         (sdp[sdpSessionId(packet.srcAddr)] ?: sdp[sdpSessionId(packet.dstAddr)])?.let { sdpSession ->
             report.callId = sdpSession.callId
 
-            sdpSession.codec(report.payloadType.toInt())?.let { codec ->
-                report.codecName = codec.name
-
-                if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
-                    report.duration = report.expectedPacketCount * sdpSession.ptime
-                }
-
-                // Raw rFactor value
-                val ppl = report.fractionLost * 100
-                val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
-
-                report.rFactor = (R0 - ieEff)
-
-                // MoS
-                report.mos = computeMos(report.rFactor)
+            if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
+                report.duration = report.expectedPacketCount * sdpSession.ptime
             }
+
+            val codec = sdpSession.codec(report.payloadType.toInt()) ?: sdpSession.codecs.first()
+            report.codecName = codec.name
+
+            // Raw rFactor value
+            val ppl = report.fractionLost * 100
+            val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
+
+            report.rFactor = (R0 - ieEff)
+
+            // MoS
+            report.mos = computeMos(report.rFactor)
         }
     }
 
