@@ -75,7 +75,7 @@ class SdpHandler : AbstractVerticle() {
                             when (payloadType) {
                                 is Int -> setOf(payloadType)
                                 is String -> payloadType.toIntRange()
-                                else -> emptySet()
+                                else -> throw IllegalArgumentException("Couldn't parse `payload_types`. Unknown type: $payloadType")
                             }
                         }
                         .toSet()
@@ -127,15 +127,25 @@ class SdpHandler : AbstractVerticle() {
         } else {
             (request ?: response)?.payloadTypes?.toList()
         }
-        requireNotNull(payloadTypes) { "Payload types is undefined. CallID: ${session.callId}" }
+        requireNotNull(payloadTypes) { "Payload types are undefined. CallID: ${session.callId}" }
 
-        payloadTypes.mapNotNull { payloadType ->
-            (response ?: request)?.getFormat(payloadType)?.let { payload ->
-                codecs[payload.codec]
-                        ?: codecs.values.firstOrNull { it.payloadTypes.contains(payloadType) }
-                        ?: Codec().apply { this.payloadTypes = listOf(payloadType) }
+        session.codecs = payloadTypes.map { payloadType ->
+            var codec: Codec? = null
+
+            // Define Codec by name
+            val payload = response?.getFormat(payloadType) ?: request?.getFormat(payloadType)
+            if (payload != null) {
+                codec = codecs[payload.codec]
             }
-        }.forEach { session.codecs.add(it) }
+
+            // Define Codec by Payload Type
+            if (codec == null) {
+                codec = codecs.values.firstOrNull { it.payloadTypes.contains(payloadType) }
+            }
+
+            // Use default Codec if still Undefined
+            return@map codec ?: Codec().apply { this.payloadTypes = listOf(payloadType) }
+        }
     }
 
     private fun send(session: SdpSessionDescription) {
@@ -169,7 +179,7 @@ class SdpHandler : AbstractVerticle() {
         }
 
         lateinit var callId: String
-        val codecs = mutableListOf<Codec>()
+        lateinit var codecs: List<Codec>
 
         var request: MediaDescriptionField? = null
         var response: MediaDescriptionField? = null

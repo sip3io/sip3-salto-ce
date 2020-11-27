@@ -60,7 +60,7 @@ open class RtprHandler : AbstractVerticle() {
     private var cumulativeMetrics = true
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
-    private var durationTimeout: Long = 1800000
+    private var durationTimeout: Long = 3600000
 
     private val sdp = mutableMapOf<Long, SdpSession>()
     private val rtp = mutableMapOf<Long, RtprSession>()
@@ -92,9 +92,13 @@ open class RtprHandler : AbstractVerticle() {
 
         vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
             val sdpSessions = event.body()
-            sdpSessions.forEach {
-                sdp[it.rtpId] = it
-                sdp.putIfAbsent(it.rtcpId, it)
+            sdpSessions.forEach { sdpSession ->
+                sdp[sdpSession.rtpId] = sdpSession
+
+                // Put same `sdpSession` with Id for RTCP port if different
+                if (sdpSession.rtpId != sdpSession.rtcpId) {
+                    sdp[sdpSession.rtcpId] = sdpSession
+                }
             }
         }
 
@@ -196,7 +200,7 @@ open class RtprHandler : AbstractVerticle() {
                     rtcp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
                 }
 
-        sdp.filterValues { it.callId in expiredCallIds || it.timestamp + durationTimeout < now }
+        sdp.filterValues { expiredCallIds.contains(it.callId) || it.timestamp + durationTimeout < now }
                 .forEach { (key, _) -> sdp.remove(key) }
     }
 
