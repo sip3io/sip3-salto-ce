@@ -114,7 +114,9 @@ open class SipMessageHandler : AbstractVerticle() {
     open fun handleSipMessage(packet: Packet, message: SIPMessage) {
         // Find `x-correlation-header`
         (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.let { header ->
-            packet.attributes[Attributes.x_call_id] = header.value
+            if (header.value.isNotBlank()) {
+                packet.attributes[Attributes.x_call_id] = header.value
+            }
         }
 
         udfExecutor.execute(RoutesCE.sip_message_udf,
