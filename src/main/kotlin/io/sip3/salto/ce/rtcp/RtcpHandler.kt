@@ -20,13 +20,13 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.ByteBufUtil
 import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.payload.RtpReportPayload
+import io.sip3.commons.util.MediaUtil.rtpSessionId
 import io.sip3.commons.util.remainingCapacity
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.util.MediaUtil.rtpSessionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
@@ -217,7 +217,7 @@ open class RtcpHandler : AbstractVerticle() {
 
     private fun onSenderReport(packet: Packet, senderReport: SenderReport) {
         senderReport.reportBlocks.forEach { report ->
-            val sessionId = rtpSessionId(packet.srcAddr, packet.dstAddr, senderReport.senderSsrc)
+            val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, senderReport.senderSsrc)
             var isNewSession = false
 
             val session = sessions.computeIfAbsent(sessionId) {

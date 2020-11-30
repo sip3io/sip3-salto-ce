@@ -23,7 +23,6 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
-import io.sip3.commons.util.IpUtil
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localRequest
@@ -48,10 +47,6 @@ class RtprHandlerTest : VertxTest() {
         val DST_ADDR = Address().apply {
             addr = "10.20.20.20"
             port = 20500
-        }
-
-        private val SESSION_ID = run {
-            (IpUtil.convertToInt(SRC_ADDR.addr).toLong() shl 32) or (SRC_ADDR.port and 0xfffe).toLong()
         }
 
         // Periodic RTP report with RTP source
@@ -87,7 +82,7 @@ class RtprHandlerTest : VertxTest() {
         val RTPR_2 = RtpReportPayload().apply {
             source = RtpReportPayload.SOURCE_RTP
             cumulative = false
-            payloadType = 1
+            payloadType = 0
             ssrc = 2
 
             expectedPacketCount = 3
@@ -137,17 +132,20 @@ class RtprHandlerTest : VertxTest() {
 
         // SDP
         val SDP_SESSION = SdpSession().apply {
-            id = SESSION_ID
             callId = "callId_uuid@domain.io"
             timestamp = System.currentTimeMillis()
 
-            codec = Codec().apply {
+            address = SRC_ADDR.addr
+            rtpPort = SRC_ADDR.port
+            rtcpPort = SRC_ADDR.port + 1
+
+            codecs = mutableListOf(Codec().apply {
                 name = "PCMU"
-                payloadType = 0
+                payloadTypes = listOf(0)
                 clockRate = 8000
                 bpl = 4.3F
                 ie = 0F
-            }
+            })
         }
     }
 
@@ -355,7 +353,7 @@ class RtprHandlerTest : VertxTest() {
                                     context.verify {
                                         val tags = summary.id.tags
                                         assertTrue(tags.isNotEmpty())
-                                        assertTrue(tags.any { it.value == SDP_SESSION.codec.name })
+                                        assertTrue(tags.any { it.value == SDP_SESSION.codecs.first().name })
                                     }
                                     context.completeNow()
                                 }
