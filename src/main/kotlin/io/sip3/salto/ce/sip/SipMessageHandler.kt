@@ -113,9 +113,9 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun handleSipMessage(packet: Packet, message: SIPMessage) {
         // Find `x-correlation-header`
-        (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.let { header ->
-            if (header.value.isNotBlank()) {
-                packet.attributes[Attributes.x_call_id] = header.value
+        (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.value?.let { value ->
+            if (value.isNotBlank()) {
+                packet.attributes[Attributes.x_call_id] = value
             }
         }
 
