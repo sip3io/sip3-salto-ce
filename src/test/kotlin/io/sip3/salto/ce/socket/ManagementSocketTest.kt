@@ -116,17 +116,20 @@ class ManagementSocketTest : VertxTest() {
     @Test
     fun `Send SDP session to registered remote host`() {
         val sdpSession = SdpSession().apply {
-            id = 10070L
             timestamp = System.currentTimeMillis()
             callId = "SomeKindOfCallId"
 
-            codec = Codec().apply {
+            address = "127.0.0.1"
+            rtpPort = 1000
+            rtcpPort = 1001
+
+            codecs = mutableListOf(Codec().apply {
                 name = "PCMU"
-                payloadType = 0
+                payloadTypes = listOf(0)
                 clockRate = 8000
                 ie = 1F
                 bpl = 2F
-            }
+            })
         }
 
         lateinit var socket: DatagramSocket

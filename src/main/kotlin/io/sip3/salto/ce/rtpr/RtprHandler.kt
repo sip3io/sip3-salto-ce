@@ -20,7 +20,8 @@ import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.IpUtil
+import io.sip3.commons.util.MediaUtil.rtpSessionId
+import io.sip3.commons.util.MediaUtil.sdpSessionId
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
@@ -29,7 +30,6 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
-import io.sip3.salto.ce.util.MediaUtil.rtpSessionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
@@ -60,6 +60,7 @@ open class RtprHandler : AbstractVerticle() {
     private var cumulativeMetrics = true
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
+    private var durationTimeout: Long = 3600000
 
     private val sdp = mutableMapOf<Long, SdpSession>()
     private val rtp = mutableMapOf<Long, RtprSession>()
@@ -80,6 +81,9 @@ open class RtprHandler : AbstractVerticle() {
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
             }
+            config.getLong("duration-timeout")?.let {
+                durationTimeout = it
+            }
         }
 
         vertx.setPeriodic(expirationDelay) {
@@ -88,7 +92,14 @@ open class RtprHandler : AbstractVerticle() {
 
         vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
             val sdpSessions = event.body()
-            sdpSessions.forEach { sdp[it.id] = it }
+            sdpSessions.forEach { sdpSession ->
+                sdp[sdpSession.rtpId] = sdpSession
+
+                // Put same `sdpSession` with Id for RTCP port if different
+                if (sdpSession.rtpId != sdpSession.rtcpId) {
+                    sdp[sdpSession.rtcpId] = sdpSession
+                }
+            }
         }
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr) { event ->
@@ -127,7 +138,7 @@ open class RtprHandler : AbstractVerticle() {
             updateWithSdp(packet, report)
         }
 
-        val sessionId = rtpSessionId(packet.srcAddr, packet.dstAddr, report.ssrc)
+        val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, report.ssrc)
         val session = if (report.source == RtpReportPayload.SOURCE_RTP) {
             rtp.getOrPut(sessionId) { RtprSession(packet) }
         } else {
@@ -148,11 +159,14 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     private fun updateWithSdp(packet: Packet, report: RtpReportPayload) {
-        (sdp[sessionId(packet.srcAddr)] ?: sdp[sessionId(packet.dstAddr)])?.let { sdpSession ->
+        (sdp[sdpSessionId(packet.srcAddr)] ?: sdp[sdpSessionId(packet.dstAddr)])?.let { sdpSession ->
             report.callId = sdpSession.callId
 
-            val codec = sdpSession.codec
-            report.payloadType = codec.payloadType
+            if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
+                report.duration = report.expectedPacketCount * sdpSession.ptime
+            }
+
+            val codec = sdpSession.codec(report.payloadType.toInt()) ?: sdpSession.codecs.first()
             report.codecName = codec.name
 
             // Raw rFactor value
@@ -166,27 +180,28 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    private fun sessionId(address: Address): Long {
-        return (IpUtil.convertToInt(address.addr).toLong() shl 32) or (address.port and 0xfffe).toLong()
+    private fun sdpSessionId(address: Address): Long {
+        return sdpSessionId(address.addr, address.port)
     }
 
     private fun terminateExpiredSessions() {
         val now = System.currentTimeMillis()
-
-        sdp.filterValues { it.timestamp + aggregationTimeout < now }
-                .forEach { (key, _) -> sdp.remove(key) }
+        val expiredCallIds = mutableSetOf<String>()
 
         rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
                 .forEach { (sessionId, session) ->
                     terminateRtprSession(session)
-                    rtp.remove(sessionId)
+                    rtp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
                 }
 
         rtcp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
                 .forEach { (sessionId, session) ->
                     terminateRtprSession(session)
-                    rtcp.remove(sessionId)
+                    rtcp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
                 }
+
+        sdp.filterValues { expiredCallIds.contains(it.callId) || it.timestamp + durationTimeout < now }
+                .forEach { (key, _) -> sdp.remove(key) }
     }
 
     private fun terminateRtprSession(session: RtprSession) {

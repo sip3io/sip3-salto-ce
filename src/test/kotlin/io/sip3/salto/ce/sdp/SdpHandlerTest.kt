@@ -45,7 +45,7 @@ class SdpHandlerTest : VertxTest() {
 
         val CODEC = Codec().apply {
             name = "PCMA"
-            payloadType = 8
+            payloadTypes = listOf(8)
             clockRate = 8000
             ie = 0.0F
             bpl = 4.3F
@@ -380,7 +380,7 @@ class SdpHandlerTest : VertxTest() {
 
         runTest(
                 deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, JsonObject())
+                    vertx.deployTestVerticle(SdpHandler::class, CONFIG)
                 },
                 execute = {
                     vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
@@ -393,18 +393,18 @@ class SdpHandlerTest : VertxTest() {
                             val session1 = sessions[0]
                             val session2 = sessions[1]
 
-                            assertNotEquals(session1.id, session2.id)
+                            assertNotEquals(session1.rtpId, session2.rtpId)
                             assertEquals(session1.callId, session2.callId)
                             assertEquals(transaction.callId, session1.callId)
-                            assertEquals(session1.codec, session2.codec)
+                            assertEquals(session1.codecs, session2.codecs)
                             assertEquals(20, session1.ptime)
 
-                            session1.codec.apply {
-                                assertEquals("UNDEFINED", name)
-                                assertEquals(8000, clockRate)
-                                assertEquals(0x08.toByte(), payloadType)
-                                assertEquals(5.0F, ie)
-                                assertEquals(10.0F, bpl)
+                            session1.codecs.first().apply {
+                                assertEquals(CODEC.name, name)
+                                assertEquals(CODEC.clockRate, clockRate)
+                                assertEquals(CODEC.payloadTypes, payloadTypes)
+                                assertEquals(CODEC.ie, ie)
+                                assertEquals(CODEC.bpl, bpl)
                             }
 
                             context.completeNow()
@@ -422,7 +422,7 @@ class SdpHandlerTest : VertxTest() {
 
         runTest(
                 deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, JsonObject())
+                    vertx.deployTestVerticle(SdpHandler::class, CONFIG)
                 },
                 execute = {
                     vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
@@ -436,12 +436,12 @@ class SdpHandlerTest : VertxTest() {
 
                             assertEquals(transaction.callId, session.callId)
 
-                            session.codec.apply {
-                                assertEquals("UNDEFINED", name)
-                                assertEquals(8000, clockRate)
-                                assertEquals(0x08.toByte(), payloadType)
-                                assertEquals(5.0F, ie)
-                                assertEquals(10.0F, bpl)
+                            session.codecs.first().apply {
+                                assertEquals(CODEC.name, name)
+                                assertEquals(CODEC.clockRate, clockRate)
+                                assertEquals(CODEC.payloadTypes, payloadTypes)
+                                assertEquals(CODEC.ie, ie)
+                                assertEquals(CODEC.bpl, bpl)
                             }
 
                             context.completeNow()
@@ -459,7 +459,7 @@ class SdpHandlerTest : VertxTest() {
 
         runTest(
                 deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, JsonObject())
+                    vertx.deployTestVerticle(SdpHandler::class, CONFIG)
                 },
                 execute = {
                     vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
@@ -473,12 +473,12 @@ class SdpHandlerTest : VertxTest() {
 
                             assertEquals(transaction.callId, session.callId)
 
-                            session.codec.apply {
-                                assertEquals("UNDEFINED", name)
-                                assertEquals(8000, clockRate)
-                                assertEquals(0x08.toByte(), payloadType)
-                                assertEquals(5.0F, ie)
-                                assertEquals(10.0F, bpl)
+                            session.codecs.first().apply {
+                                assertEquals(CODEC.name, name)
+                                assertEquals(CODEC.clockRate, clockRate)
+                                assertEquals(CODEC.payloadTypes, payloadTypes)
+                                assertEquals(CODEC.ie, ie)
+                                assertEquals(CODEC.bpl, bpl)
                             }
 
                             context.completeNow()
@@ -534,16 +534,16 @@ class SdpHandlerTest : VertxTest() {
                             val session1 = sessions[0]
                             val session2 = sessions[1]
 
-                            assertNotEquals(session1.id, session2.id)
+                            assertNotEquals(session1.rtpId, session2.rtpId)
                             assertEquals(session1.callId, session2.callId)
                             assertEquals(transaction.callId, session1.callId)
-                            assertEquals(session1.codec, session2.codec)
+                            assertEquals(session1.codecs, session2.codecs)
                             assertEquals(20, session1.ptime)
 
-                            session1.codec.apply {
+                            session1.codecs.first().apply {
                                 assertEquals(CODEC.name, name)
                                 assertEquals(CODEC.clockRate, clockRate)
-                                assertEquals(CODEC.payloadType, payloadType)
+                                assertEquals(CODEC.payloadTypes, payloadTypes)
                                 assertEquals(CODEC.ie, ie)
                                 assertEquals(CODEC.bpl, bpl)
                             }
@@ -578,10 +578,10 @@ class SdpHandlerTest : VertxTest() {
                             assertEquals(transaction.callId, session.callId)
                             assertEquals(30, session.ptime)
 
-                            session.codec.apply {
+                            session.codecs.first().apply {
                                 assertEquals(CODEC.name, name)
                                 assertEquals(CODEC.clockRate, clockRate)
-                                assertEquals(CODEC.payloadType, payloadType)
+                                assertEquals(CODEC.payloadTypes, payloadTypes)
                                 assertEquals(CODEC.ie, ie)
                                 assertEquals(CODEC.bpl, bpl)
                             }

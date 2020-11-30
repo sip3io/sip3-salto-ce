@@ -112,7 +112,7 @@ class BootstrapTest : VertxTest() {
 
                             val codec = (codecs.first() as JsonObject).mapTo(Codec::class.java)
                             assertEquals("PCMA", codec.name)
-                            assertEquals(0x08, codec.payloadType)
+                            assertEquals(0x08, codec.payloadTypes.first())
                             assertEquals(8000, codec.clockRate)
                             assertEquals(0.0F, codec.ie)
                             assertEquals(4.3F, codec.bpl)
