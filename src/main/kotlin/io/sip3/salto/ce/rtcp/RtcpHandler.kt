@@ -29,8 +29,12 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
+import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.dispatcher
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
-import org.apache.commons.net.ntp.TimeStamp
 import java.nio.charset.Charset
 import java.sql.Timestamp
 import kotlin.experimental.and
@@ -38,7 +42,7 @@ import kotlin.experimental.and
 /**
  * Handles RTCP packets
  */
-@Instance(singleton = true)
+@Instance
 open class RtcpHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -51,12 +55,18 @@ open class RtcpHandler : AbstractVerticle() {
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
 
+    private var instances: Int = 1
+
     private val sessions = mutableMapOf<Long, RtcpSession>()
 
     override fun start() {
         context.config().getJsonObject("media")?.getJsonObject("rtcp")?.let { config ->
             config.getLong("expiration-delay")?.let { expirationDelay = it }
             config.getLong("aggregation-timeout")?.let { aggregationTimeout = it }
+        }
+
+        config().getJsonObject("vertx")?.getInteger("instances")?.let {
+            instances = it
         }
 
         vertx.setPeriodic(expirationDelay) {
@@ -84,6 +94,14 @@ open class RtcpHandler : AbstractVerticle() {
                         logger.error(e) { "RtcpHandler 'handleHep()' failed." }
                     }
                 }
+            }
+        }
+
+        GlobalScope.launch(vertx.dispatcher()) {
+            val index = vertx.sharedData().getLocalCounterAwait(RoutesCE.rtcp)
+            vertx.eventBus().localConsumer<Pair<Packet, SenderReport>>(RoutesCE.rtcp + "_${index.getAndIncrementAwait()}") { event ->
+                val (packet, senderReport) = event.body()
+                handleSenderReport(packet, senderReport)
             }
         }
     }
@@ -176,7 +194,6 @@ open class RtcpHandler : AbstractVerticle() {
         }
     }
 
-
     private fun readSenderReport(headerByte: Byte, buffer: ByteBuf): SenderReport {
         return SenderReport().apply {
             reportBlockCount = headerByte.and(31)
@@ -216,20 +233,24 @@ open class RtcpHandler : AbstractVerticle() {
     }
 
     private fun onSenderReport(packet: Packet, senderReport: SenderReport) {
-        senderReport.reportBlocks.forEach { report ->
-            val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, senderReport.senderSsrc)
-            var isNewSession = false
+        val index = (packet.srcAddr.port * packet.dstAddr.port).hashCode() % instances
+        vertx.eventBus().localRequest<Any>(RoutesCE.rtcp + "_${index}", Pair(packet, senderReport))
+    }
 
-            val session = sessions.computeIfAbsent(sessionId) {
-                isNewSession = true
-                RtcpSession().apply {
-                    createdAt = packet.timestamp
-                    dstAddr = packet.dstAddr
-                    srcAddr = packet.srcAddr
-                    this.lastNtpTimestamp = senderReport.ntpTimestamp
-                }
+    private fun handleSenderReport(packet: Packet, senderReport: SenderReport) {
+        val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, senderReport.senderSsrc)
+        var isNewSession = false
+
+        val session = sessions.computeIfAbsent(sessionId) {
+            isNewSession = true
+            RtcpSession().apply {
+                createdAt = packet.timestamp
+                dstAddr = packet.dstAddr
+                srcAddr = packet.srcAddr
             }
+        }
 
+        senderReport.reportBlocks.forEach { report ->
             // If interarrival jitter is greater than maximum, current jitter is bad
             if (report.interarrivalJitter < MAX_VALID_JITTER) {
                 session.lastJitter = report.interarrivalJitter.toFloat()
@@ -266,16 +287,14 @@ open class RtcpHandler : AbstractVerticle() {
                     receivedPacketCount = expectedPacketCount - lostPacketCount
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
-                    duration = (senderReport.ntpTimestamp - session.lastNtpTimestamp).toInt()
                 }
             }
 
             session.previousReport = report
-            session.lastNtpTimestamp = senderReport.ntpTimestamp
-            session.lastPacketTimestamp = packet.timestamp.time
-
             vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
         }
+
+        session.lastPacketTimestamp = packet.timestamp.time
     }
 
     class RtcpSession {
@@ -289,7 +308,6 @@ open class RtcpHandler : AbstractVerticle() {
         var lastJitter = 0F
 
         lateinit var previousReport: RtcpReportBlock
-        var lastNtpTimestamp: Long = 0
         var lastPacketTimestamp: Long = 0
     }
 
@@ -301,9 +319,6 @@ open class RtcpHandler : AbstractVerticle() {
 
         var ntpTimestampMsw: Long = 0
         var ntpTimestampLsw: Long = 0
-        val ntpTimestamp by lazy {
-            TimeStamp("${ntpTimestampMsw.toString(16)}.${ntpTimestampLsw.toString(16)}").time
-        }
 
         var senderPacketCount: Long = 0
 

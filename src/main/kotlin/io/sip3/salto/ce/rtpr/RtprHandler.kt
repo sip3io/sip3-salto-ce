@@ -32,6 +32,11 @@ import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
+import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.dispatcher
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -39,7 +44,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Handles RTP reports
  */
-@Instance(singleton = true)
+@Instance
 open class RtprHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -61,6 +66,8 @@ open class RtprHandler : AbstractVerticle() {
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
     private var durationTimeout: Long = 3600000
+
+    private var instances: Int = 1
 
     private val sdp = mutableMapOf<Long, SdpSession>()
     private val rtp = mutableMapOf<Long, RtprSession>()
@@ -84,6 +91,10 @@ open class RtprHandler : AbstractVerticle() {
             config.getLong("duration-timeout")?.let {
                 durationTimeout = it
             }
+        }
+
+        config().getJsonObject("vertx")?.getInteger("instances")?.let {
+            instances = it
         }
 
         vertx.setPeriodic(expirationDelay) {
@@ -114,9 +125,21 @@ open class RtprHandler : AbstractVerticle() {
         vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_rtcp") { event ->
             try {
                 val (packet, report) = event.body()
-                handle(packet, report)
+                route(packet, report)
             } catch (e: Exception) {
-                logger.error(e) { "RtprHandler 'handle()' failed." }
+                logger.error(e) { "RtprHandler 'route()' failed." }
+            }
+        }
+
+        GlobalScope.launch(vertx.dispatcher()) {
+            val index = vertx.sharedData().getLocalCounterAwait(RoutesCE.rtpr)
+            vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_${index.getAndIncrementAwait()}") { event ->
+                try {
+                    val (packet, report) = event.body()
+                    handle(packet, report)
+                } catch (e: Exception) {
+                    logger.error(e) { "RtprHandler 'handle()' failed." }
+                }
             }
         }
     }
@@ -129,8 +152,13 @@ open class RtprHandler : AbstractVerticle() {
 
         // Ignore cumulative reports from old SIP3 Captain versions
         if (!report.cumulative) {
-            handle(packet, report)
+            route(packet, report)
         }
+    }
+
+    open fun route(packet: Packet, report: RtpReportPayload) {
+        val index = (packet.srcAddr.port + packet.dstAddr.port).hashCode() % instances
+        vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_${index}", Pair(packet, report))
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
