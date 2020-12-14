@@ -161,10 +161,10 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
-                .apply {
-                    transaction.srcAddr.host?.let { put("src_host", it) }
-                    transaction.dstAddr.host?.let { put("dst_host", it) }
-                }
+            .apply {
+                transaction.srcAddr.host?.let { put("src_host", it) }
+                transaction.dstAddr.host?.let { put("dst_host", it) }
+            }
 
         transaction.tryingAt?.let { tryingAt ->
             if (createdAt < tryingAt) {
@@ -208,10 +208,10 @@ open class SipCallHandler : AbstractVerticle() {
         val createdAt = transaction.createdAt
 
         val attributes = excludeSessionAttributes(transaction.attributes)
-                .apply {
-                    transaction.srcAddr.host?.let { put("src_host", it) }
-                    transaction.dstAddr.host?.let { put("dst_host", it) }
-                }
+            .apply {
+                transaction.srcAddr.host?.let { put("src_host", it) }
+                transaction.dstAddr.host?.let { put("dst_host", it) }
+            }
 
         transaction.terminatedAt?.let { terminatedAt ->
             if (createdAt < terminatedAt) {
@@ -229,17 +229,17 @@ open class SipCallHandler : AbstractVerticle() {
                     session.createdAt + terminationTimeout
                 } else {
                     session.terminatedAt?.let { it + terminationTimeout }
-                            ?: session.answeredAt?.let { it + durationTimeout }
-                            ?: session.createdAt + aggregationTimeout
+                        ?: session.answeredAt?.let { it + durationTimeout }
+                        ?: session.createdAt + aggregationTimeout
                 }
                 val isExpired = expiresAt < now
 
                 if (!isExpired && session.state == ANSWERED) {
                     val attributes = excludeSessionAttributes(session.attributes)
-                            .apply {
-                                session.srcAddr.host?.let { put("src_host", it) }
-                                session.dstAddr.host?.let { put("dst_host", it) }
-                            }
+                        .apply {
+                            session.srcAddr.host?.let { put("src_host", it) }
+                            session.dstAddr.host?.let { put("dst_host", it) }
+                        }
 
                     Metrics.counter(ESTABLISHED, attributes).increment()
                 }
@@ -266,66 +266,67 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         udfExecutor.execute(RoutesCE.sip_call_udf,
-                // Prepare UDF payload
-                mappingFunction = {
-                    mutableMapOf<String, Any>().apply {
-                        val src = session.srcAddr
-                        put("src_addr", src.addr)
-                        put("src_port", src.port)
-                        src.host?.let { put("src_host", it) }
+            // Prepare UDF payload
+            mappingFunction = {
+                mutableMapOf<String, Any>().apply {
+                    val src = session.srcAddr
+                    put("src_addr", src.addr)
+                    put("src_port", src.port)
+                    src.host?.let { put("src_host", it) }
 
-                        val dst = session.dstAddr
-                        put("dst_addr", dst.addr)
-                        put("dst_port", dst.port)
-                        dst.host?.let { put("dst_host", it) }
+                    val dst = session.dstAddr
+                    put("dst_addr", dst.addr)
+                    put("dst_port", dst.port)
+                    dst.host?.let { put("dst_host", it) }
 
-                        put("payload", mutableMapOf<String, Any>().apply {
-                            put("created_at", session.createdAt)
-                            put("terminated_at", session.terminatedAt!!)
+                    put("payload", mutableMapOf<String, Any>().apply {
+                        put("created_at", session.createdAt)
+                        put("terminated_at", session.terminatedAt!!)
 
-                            put("state", session.state)
-                            put("caller", session.caller)
-                            put("callee", session.callee)
-                            put("call_id", session.callId)
+                        put("state", session.state)
+                        put("caller", session.caller)
+                        put("callee", session.callee)
+                        put("call_id", session.callId)
 
-                            session.duration?.let { put("duration", it) }
-                            session.setupTime?.let { put("setup_time", it) }
-                            session.establishTime?.let { put("establish_time", it) }
+                        session.duration?.let { put("duration", it) }
+                        session.setupTime?.let { put("setup_time", it) }
+                        session.establishTime?.let { put("establish_time", it) }
+                        session.cancelTime?.let { put("cancel_time", it) }
 
-                            session.attributes.forEach { k, v -> put(k, v) }
-                        })
-                    }
-                },
-                // Handle UDF result
-                completionHandler = { asr ->
-                    val (_, attributes) = asr.result()
-
-                    attributes.forEach { (k, v) -> session.attributes[k] = v }
-
-                    writeAttributes(session)
-                    writeToDatabase(PREFIX, session, upsert = (session.state == ANSWERED))
-                    calculateCallSessionMetrics(session)
+                        session.attributes.forEach { k, v -> put(k, v) }
+                    })
                 }
+            },
+            // Handle UDF result
+            completionHandler = { asr ->
+                val (_, attributes) = asr.result()
+
+                attributes.forEach { (k, v) -> session.attributes[k] = v }
+
+                writeAttributes(session)
+                writeToDatabase(PREFIX, session, upsert = (session.state == ANSWERED))
+                calculateCallSessionMetrics(session)
+            }
         )
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
         val attributes = session.attributes
-                .toMutableMap()
-                .apply {
-                    put(Attributes.state, session.state)
-                    session.srcAddr.host?.let { put("src_host", it) }
-                    session.dstAddr.host?.let { put("dst_host", it) }
-                    remove(Attributes.caller)
-                    remove(Attributes.callee)
-                    remove(Attributes.x_call_id)
-                }
+            .toMutableMap()
+            .apply {
+                put(Attributes.state, session.state)
+                session.srcAddr.host?.let { put("src_host", it) }
+                session.dstAddr.host?.let { put("dst_host", it) }
+                remove(Attributes.caller)
+                remove(Attributes.callee)
+                remove(Attributes.x_call_id)
+            }
 
         Metrics.counter(ATTEMPTS, attributes).increment()
 
         session.duration?.let { duration ->
             durationDistributions.ceilingKey(duration)
-                    ?.let { attributes[Attributes.distribution] = it }
+                ?.let { attributes[Attributes.distribution] = it }
 
             Metrics.summary(DURATION, attributes).record(duration.toDouble())
         }
@@ -333,27 +334,28 @@ open class SipCallHandler : AbstractVerticle() {
 
     open fun writeAttributes(session: SipSession) {
         val attributes = session.attributes
-                .toMutableMap()
-                .apply {
-                    remove(Attributes.src_host)
-                    remove(Attributes.dst_host)
+            .toMutableMap()
+            .apply {
+                remove(Attributes.src_host)
+                remove(Attributes.dst_host)
 
-                    put(Attributes.method, "INVITE")
-                    put(Attributes.state, session.state)
+                put(Attributes.method, "INVITE")
+                put(Attributes.state, session.state)
 
-                    put(Attributes.call_id, "")
-                    remove(Attributes.x_call_id)
+                put(Attributes.call_id, "")
+                remove(Attributes.x_call_id)
 
-                    val caller = get(Attributes.caller) ?: session.caller
-                    put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
+                val caller = get(Attributes.caller) ?: session.caller
+                put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
 
-                    val callee = get(Attributes.callee) ?: session.callee
-                    put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
+                val callee = get(Attributes.callee) ?: session.callee
+                put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
 
-                    session.duration?.let { put(Attributes.duration, it) }
-                    session.setupTime?.let { put(Attributes.setup_time, it) }
-                    session.establishTime?.let { put(Attributes.establish_time, it) }
-                }
+                session.duration?.let { put(Attributes.duration, it) }
+                session.setupTime?.let { put(Attributes.setup_time, it) }
+                session.establishTime?.let { put(Attributes.establish_time, it) }
+                session.cancelTime?.let { put(Attributes.cancel_time, it) }
+            }
 
         vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
     }
@@ -449,6 +451,7 @@ open class SipCallHandler : AbstractVerticle() {
         var duration: Long? = null
         var setupTime: Long? = null
         var establishTime: Long? = null
+        var cancelTime: Long? = null
 
         var attributes = mutableMapOf<String, Any>()
 
@@ -483,7 +486,14 @@ open class SipCallHandler : AbstractVerticle() {
                     }
                     SipTransaction.CANCELED -> {
                         state = CANCELED
-                        terminatedAt = transaction.terminatedAt ?: transaction.createdAt
+                        (transaction.terminatedAt ?: transaction.createdAt).let { terminatedAt ->
+                            this.terminatedAt = terminatedAt
+                            transaction.ringingAt?.let { ringingAt ->
+                                if (terminatedAt > ringingAt) {
+                                    cancelTime = terminatedAt - ringingAt
+                                }
+                            }
+                        }
                     }
                     SipTransaction.FAILED -> {
                         state = FAILED
