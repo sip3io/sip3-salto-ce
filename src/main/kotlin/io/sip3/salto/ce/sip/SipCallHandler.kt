@@ -292,6 +292,7 @@ open class SipCallHandler : AbstractVerticle() {
                         session.setupTime?.let { put("setup_time", it) }
                         session.establishTime?.let { put("establish_time", it) }
                         session.cancelTime?.let { put("cancel_time", it) }
+                        session.terminatedBy?.let { put("terminated_by", it) }
 
                         session.attributes.forEach { k, v -> put(k, v) }
                     })
@@ -355,6 +356,7 @@ open class SipCallHandler : AbstractVerticle() {
                 session.setupTime?.let { put(Attributes.setup_time, it) }
                 session.establishTime?.let { put(Attributes.establish_time, it) }
                 session.cancelTime?.let { put(Attributes.cancel_time, it) }
+                session.terminatedBy?.let { put(Attributes.terminated_by, it) }
             }
 
         vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
@@ -410,9 +412,12 @@ open class SipCallHandler : AbstractVerticle() {
                     put("caller", session.caller)
                     put("callee", session.callee)
 
+                    session.duration?.let { put("duration", it) }
                     session.setupTime?.let { put("setup_time", it) }
                     session.establishTime?.let { put("establish_time", it) }
-                    session.duration?.let { put("duration", it) }
+                    session.cancelTime?.let { put("cancel_time", it) }
+                    session.terminatedBy?.let { put("terminated_by", it) }
+
                     session.attributes.forEach { (name, value) -> put(name, value) }
                 }
             })
@@ -452,6 +457,7 @@ open class SipCallHandler : AbstractVerticle() {
         var setupTime: Long? = null
         var establishTime: Long? = null
         var cancelTime: Long? = null
+        var terminatedBy: String? = null
 
         var attributes = mutableMapOf<String, Any>()
 
@@ -512,6 +518,8 @@ open class SipCallHandler : AbstractVerticle() {
                 answeredAt?.let { answeredAt ->
                     duration = transaction.createdAt - answeredAt
                 }
+
+                terminatedBy = if (srcAddr.addr == transaction.srcAddr.addr) "caller" else "callee"
 
                 transaction.attributes.forEach { (name, value) -> attributes[name] = value }
             }
