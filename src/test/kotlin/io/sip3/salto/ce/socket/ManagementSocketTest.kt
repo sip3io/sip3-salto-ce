@@ -90,26 +90,26 @@ class ManagementSocketTest : VertxTest() {
     @Test
     fun `Receive register from remote host with host information`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(ManagementSocket::class, config)
-                },
-                execute = {
-                    vertx.createDatagramSocket().send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {}
-                },
-                assert = {
-                    val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                        put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db_name", "sip3")
-                    })
+            deploy = {
+                vertx.deployTestVerticle(ManagementSocket::class, config)
+            },
+            execute = {
+                vertx.createDatagramSocket().send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {}
+            },
+            assert = {
+                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
+                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("db_name", "sip3")
+                })
 
-                    vertx.setPeriodic(500, 100) {
-                        mongo.findOne("hosts", HOST, JsonObject()) { asr ->
-                            if (asr.succeeded() && asr.result() != null) {
-                                context.completeNow()
-                            }
+                vertx.setPeriodic(500, 100) {
+                    mongo.findOne("hosts", HOST, JsonObject()) { asr ->
+                        if (asr.succeeded() && asr.result() != null) {
+                            context.completeNow()
                         }
                     }
                 }
+            }
         )
     }
 
@@ -135,28 +135,28 @@ class ManagementSocketTest : VertxTest() {
         lateinit var socket: DatagramSocket
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(ManagementSocket::class, config)
-                },
-                execute = {
-                    socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_info", listOf(sdpSession))
-                    }
-                },
-                assert = {
-                    socket = vertx.createDatagramSocket()
-                    socket.handler { packet ->
-                        context.verify {
-                            val message = packet.data().toJsonObject()
-                            assertEquals(ManagementSocket.TYPE_SDP_SESSION, message.getString("type"))
-                        }
-                        context.completeNow()
-                    }
-                    socket.listen(remotePort, "127.0.0.1") {}
-                },
-                cleanup = {
-                    socket.close()
+            deploy = {
+                vertx.deployTestVerticle(ManagementSocket::class, config)
+            },
+            execute = {
+                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_info", listOf(sdpSession))
                 }
+            },
+            assert = {
+                socket = vertx.createDatagramSocket()
+                socket.handler { packet ->
+                    context.verify {
+                        val message = packet.data().toJsonObject()
+                        assertEquals(ManagementSocket.TYPE_SDP_SESSION, message.getString("type"))
+                    }
+                    context.completeNow()
+                }
+                socket.listen(remotePort, "127.0.0.1") {}
+            },
+            cleanup = {
+                socket.close()
+            }
         )
     }
 }

@@ -379,38 +379,38 @@ class SdpHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, CONFIG)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                        context.verify {
-                            val sessions = event.body()
-                            assertEquals(2, sessions.size)
-                            val session1 = sessions[0]
-                            val session2 = sessions[1]
+            deploy = {
+                vertx.deployTestVerticle(SdpHandler::class, CONFIG)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+            },
+            assert = {
+                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                    context.verify {
+                        val sessions = event.body()
+                        assertEquals(2, sessions.size)
+                        val session1 = sessions[0]
+                        val session2 = sessions[1]
 
-                            assertNotEquals(session1.rtpId, session2.rtpId)
-                            assertEquals(session1.callId, session2.callId)
-                            assertEquals(transaction.callId, session1.callId)
-                            assertEquals(session1.codecs, session2.codecs)
-                            assertEquals(20, session1.ptime)
+                        assertNotEquals(session1.rtpId, session2.rtpId)
+                        assertEquals(session1.callId, session2.callId)
+                        assertEquals(transaction.callId, session1.callId)
+                        assertEquals(session1.codecs, session2.codecs)
+                        assertEquals(20, session1.ptime)
 
-                            session1.codecs.first().apply {
-                                assertEquals(CODEC.name, name)
-                                assertEquals(CODEC.clockRate, clockRate)
-                                assertEquals(CODEC.payloadTypes, payloadTypes)
-                                assertEquals(CODEC.ie, ie)
-                                assertEquals(CODEC.bpl, bpl)
-                            }
-
-                            context.completeNow()
+                        session1.codecs.first().apply {
+                            assertEquals(CODEC.name, name)
+                            assertEquals(CODEC.clockRate, clockRate)
+                            assertEquals(CODEC.payloadTypes, payloadTypes)
+                            assertEquals(CODEC.ie, ie)
+                            assertEquals(CODEC.bpl, bpl)
                         }
+
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 
@@ -421,33 +421,33 @@ class SdpHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, CONFIG)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                        context.verify {
-                            val sessions = event.body()
-                            assertEquals(1, sessions.size)
-                            val session = sessions.first()
+            deploy = {
+                vertx.deployTestVerticle(SdpHandler::class, CONFIG)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+            },
+            assert = {
+                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                    context.verify {
+                        val sessions = event.body()
+                        assertEquals(1, sessions.size)
+                        val session = sessions.first()
 
-                            assertEquals(transaction.callId, session.callId)
+                        assertEquals(transaction.callId, session.callId)
 
-                            session.codecs.first().apply {
-                                assertEquals(CODEC.name, name)
-                                assertEquals(CODEC.clockRate, clockRate)
-                                assertEquals(CODEC.payloadTypes, payloadTypes)
-                                assertEquals(CODEC.ie, ie)
-                                assertEquals(CODEC.bpl, bpl)
-                            }
-
-                            context.completeNow()
+                        session.codecs.first().apply {
+                            assertEquals(CODEC.name, name)
+                            assertEquals(CODEC.clockRate, clockRate)
+                            assertEquals(CODEC.payloadTypes, payloadTypes)
+                            assertEquals(CODEC.ie, ie)
+                            assertEquals(CODEC.bpl, bpl)
                         }
+
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 
@@ -458,33 +458,33 @@ class SdpHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, CONFIG)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                        context.verify {
-                            val sessions = event.body()
-                            assertEquals(1, sessions.size)
-                            val session = sessions.first()
+            deploy = {
+                vertx.deployTestVerticle(SdpHandler::class, CONFIG)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+            },
+            assert = {
+                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                    context.verify {
+                        val sessions = event.body()
+                        assertEquals(1, sessions.size)
+                        val session = sessions.first()
 
-                            assertEquals(transaction.callId, session.callId)
+                        assertEquals(transaction.callId, session.callId)
 
-                            session.codecs.first().apply {
-                                assertEquals(CODEC.name, name)
-                                assertEquals(CODEC.clockRate, clockRate)
-                                assertEquals(CODEC.payloadTypes, payloadTypes)
-                                assertEquals(CODEC.ie, ie)
-                                assertEquals(CODEC.bpl, bpl)
-                            }
-
-                            context.completeNow()
+                        session.codecs.first().apply {
+                            assertEquals(CODEC.name, name)
+                            assertEquals(CODEC.clockRate, clockRate)
+                            assertEquals(CODEC.payloadTypes, payloadTypes)
+                            assertEquals(CODEC.ie, ie)
+                            assertEquals(CODEC.bpl, bpl)
                         }
+
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 
@@ -495,20 +495,20 @@ class SdpHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, JsonObject())
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
-                    vertx.setTimer(2000L) {
-                        context.completeNow()
-                    }
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") {
-                        context.failNow(IllegalStateException("No sdp_info expected"))
-                    }
+            deploy = {
+                vertx.deployTestVerticle(SdpHandler::class, JsonObject())
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+                vertx.setTimer(2000L) {
+                    context.completeNow()
                 }
+            },
+            assert = {
+                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") {
+                    context.failNow(IllegalStateException("No sdp_info expected"))
+                }
+            }
         )
     }
 
@@ -520,38 +520,38 @@ class SdpHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, CONFIG)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                        context.verify {
-                            val sessions = event.body()
-                            assertEquals(2, sessions.size)
-                            val session1 = sessions[0]
-                            val session2 = sessions[1]
+            deploy = {
+                vertx.deployTestVerticle(SdpHandler::class, CONFIG)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+            },
+            assert = {
+                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                    context.verify {
+                        val sessions = event.body()
+                        assertEquals(2, sessions.size)
+                        val session1 = sessions[0]
+                        val session2 = sessions[1]
 
-                            assertNotEquals(session1.rtpId, session2.rtpId)
-                            assertEquals(session1.callId, session2.callId)
-                            assertEquals(transaction.callId, session1.callId)
-                            assertEquals(session1.codecs, session2.codecs)
-                            assertEquals(20, session1.ptime)
+                        assertNotEquals(session1.rtpId, session2.rtpId)
+                        assertEquals(session1.callId, session2.callId)
+                        assertEquals(transaction.callId, session1.callId)
+                        assertEquals(session1.codecs, session2.codecs)
+                        assertEquals(20, session1.ptime)
 
-                            session1.codecs.first().apply {
-                                assertEquals(CODEC.name, name)
-                                assertEquals(CODEC.clockRate, clockRate)
-                                assertEquals(CODEC.payloadTypes, payloadTypes)
-                                assertEquals(CODEC.ie, ie)
-                                assertEquals(CODEC.bpl, bpl)
-                            }
+                        session1.codecs.first().apply {
+                            assertEquals(CODEC.name, name)
+                            assertEquals(CODEC.clockRate, clockRate)
+                            assertEquals(CODEC.payloadTypes, payloadTypes)
+                            assertEquals(CODEC.ie, ie)
+                            assertEquals(CODEC.bpl, bpl)
                         }
-
-                        context.completeNow()
                     }
+
+                    context.completeNow()
                 }
+            }
         )
     }
 
@@ -563,33 +563,33 @@ class SdpHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SdpHandler::class, CONFIG)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                        val sessions = event.body()
-                        val session = sessions.first()
+            deploy = {
+                vertx.deployTestVerticle(SdpHandler::class, CONFIG)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+            },
+            assert = {
+                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                    val sessions = event.body()
+                    val session = sessions.first()
 
-                        context.verify {
-                            assertEquals(transaction.callId, session.callId)
-                            assertEquals(30, session.ptime)
+                    context.verify {
+                        assertEquals(transaction.callId, session.callId)
+                        assertEquals(30, session.ptime)
 
-                            session.codecs.first().apply {
-                                assertEquals(CODEC.name, name)
-                                assertEquals(CODEC.clockRate, clockRate)
-                                assertEquals(CODEC.payloadTypes, payloadTypes)
-                                assertEquals(CODEC.ie, ie)
-                                assertEquals(CODEC.bpl, bpl)
-                            }
+                        session.codecs.first().apply {
+                            assertEquals(CODEC.name, name)
+                            assertEquals(CODEC.clockRate, clockRate)
+                            assertEquals(CODEC.payloadTypes, payloadTypes)
+                            assertEquals(CODEC.ie, ie)
+                            assertEquals(CODEC.bpl, bpl)
                         }
-
-                        context.completeNow()
                     }
+
+                    context.completeNow()
                 }
+            }
         )
     }
 

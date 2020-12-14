@@ -38,8 +38,8 @@ class MongoExtension : BeforeAllCallback, AfterAllCallback {
 
     override fun beforeAll(context: ExtensionContext?) {
         val config = MongodConfig.builder().version(Version.V4_0_2)
-                .net(Net(HOST, PORT, false))
-                .build()
+            .net(Net(HOST, PORT, false))
+            .build()
 
         mongo = MongodStarter.getDefaultInstance().prepare(config)
         mongo.start()

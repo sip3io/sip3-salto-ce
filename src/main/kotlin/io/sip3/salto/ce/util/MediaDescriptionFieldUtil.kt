@@ -19,7 +19,7 @@ package io.sip3.salto.ce.util
 import org.restcomm.media.sdp.fields.MediaDescriptionField
 
 fun MediaDescriptionField.defineRtcpPort(isRtcpMux: Boolean): Int {
-    return if (this.rtcp != null && this.rtcp?.port != this.port ) {
+    return if (this.rtcp != null && this.rtcp?.port != this.port) {
         this.rtcp.port
     } else {
         if (this.rtcpMux != null && isRtcpMux) this.port else this.port + 1

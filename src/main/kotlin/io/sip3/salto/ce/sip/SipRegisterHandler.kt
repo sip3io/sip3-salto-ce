@@ -144,10 +144,10 @@ open class SipRegisterHandler : AbstractVerticle() {
         val createdAt = registration.createdAt
 
         val attributes = excludeRegistrationAttributes(registration.attributes)
-                .apply {
-                    registration.srcAddr.host?.let { put("src_host", it) }
-                    registration.dstAddr.host?.let { put("dst_host", it) }
-                }
+            .apply {
+                registration.srcAddr.host?.let { put("src_host", it) }
+                registration.dstAddr.host?.let { put("dst_host", it) }
+            }
 
         registration.terminatedAt?.let { terminatedAt ->
             if (createdAt < terminatedAt) {
@@ -155,7 +155,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
 
             registration.expiresAt?.let { expiresAt ->
-                if (expiresAt == terminatedAt ) {
+                if (expiresAt == terminatedAt) {
                     Metrics.counter(REMOVED, attributes).increment()
                 }
             }
@@ -166,10 +166,10 @@ open class SipRegisterHandler : AbstractVerticle() {
         val now = System.currentTimeMillis()
 
         activeRegistrations.filterValues { it.createdAt + aggregationTimeout < now }
-                .forEach { (id, registration) ->
-                    activeRegistrations.remove(id)
-                    terminateRegistration(registration)
-                }
+            .forEach { (id, registration) ->
+                activeRegistrations.remove(id)
+                terminateRegistration(registration)
+            }
     }
 
     open fun terminateRegistration(registration: SipRegistration) {
@@ -206,10 +206,10 @@ open class SipRegisterHandler : AbstractVerticle() {
                 // Calculate `active` registrations
                 if (expiresAt >= now) {
                     val attributes = excludeRegistrationAttributes(session.attributes)
-                            .apply {
-                                session.srcAddr.host?.let { put("src_host", it) }
-                                session.dstAddr.host?.let { put("dst_host", it) }
-                            }
+                        .apply {
+                            session.srcAddr.host?.let { put("src_host", it) }
+                            session.dstAddr.host?.let { put("dst_host", it) }
+                        }
                     Metrics.counter(ACTIVE, attributes).increment()
                 }
 
@@ -238,23 +238,23 @@ open class SipRegisterHandler : AbstractVerticle() {
 
     open fun writeAttributes(registration: SipRegistration) {
         val attributes = registration.attributes
-                .toMutableMap()
-                .apply {
-                    remove(Attributes.src_host)
-                    remove(Attributes.dst_host)
+            .toMutableMap()
+            .apply {
+                remove(Attributes.src_host)
+                remove(Attributes.dst_host)
 
-                    put(Attributes.method, "REGISTER")
-                    put(Attributes.state, registration.state)
+                put(Attributes.method, "REGISTER")
+                put(Attributes.state, registration.state)
 
-                    put(Attributes.call_id, "")
-                    remove(Attributes.x_call_id)
+                put(Attributes.call_id, "")
+                remove(Attributes.x_call_id)
 
-                    val caller = get(Attributes.caller) ?: registration.caller
-                    put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
+                val caller = get(Attributes.caller) ?: registration.caller
+                put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
 
-                    val callee = get(Attributes.callee) ?: registration.callee
-                    put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
-                }
+                val callee = get(Attributes.callee) ?: registration.callee
+                put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
+            }
 
         vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
     }
@@ -316,12 +316,12 @@ open class SipRegisterHandler : AbstractVerticle() {
                     registration.duration?.let { document.put("duration", it) }
 
                     var registrations: Any = registration.registrations
-                            .map { (createdAt, terminatedAt) ->
-                                JsonObject().apply {
-                                    put("created_at", createdAt)
-                                    put("terminated_at", terminatedAt)
-                                }
+                        .map { (createdAt, terminatedAt) ->
+                            JsonObject().apply {
+                                put("created_at", createdAt)
+                                put("terminated_at", terminatedAt)
                             }
+                        }
                     registration.registrations.clear()
 
                     if (upsert) {

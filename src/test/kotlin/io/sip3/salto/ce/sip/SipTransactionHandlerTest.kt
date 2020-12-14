@@ -238,142 +238,142 @@ class SipTransactionHandlerTest : VertxTest() {
     @Test
     fun `Deploy multiple 'SipTransactionHandler' instances`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject(), instances = 4)
-                },
-                execute = {
-                    // Do nothing...
-                },
-                assert = {
-                    vertx.setPeriodic(100) {
-                        val endpoints = vertx.eventBus().endpoints()
-                        if (endpoints.size == 4) {
-                            context.verify {
-                                (0..3).forEach { i ->
-                                    assertTrue(endpoints.contains(SipTransactionHandler.PREFIX + "_$i"))
-                                }
+            deploy = {
+                vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject(), instances = 4)
+            },
+            execute = {
+                // Do nothing...
+            },
+            assert = {
+                vertx.setPeriodic(100) {
+                    val endpoints = vertx.eventBus().endpoints()
+                    if (endpoints.size == 4) {
+                        context.verify {
+                            (0..3).forEach { i ->
+                                assertTrue(endpoints.contains(SipTransactionHandler.PREFIX + "_$i"))
                             }
-                            context.completeNow()
                         }
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 
     @Test
     fun `Aggregate valid OPTIONS transaction`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("transaction", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("termination-timeout", 100)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("transaction", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("termination-timeout", 100)
                         })
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(200, 100) {
-                        vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_1))
-                        vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_2))
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
-
-                        document = document.getJsonObject("document")
-                        context.verify {
-                            assertTrue(collection.startsWith("sip_options_index"))
-                            assertEquals(NOW, document.getLong("created_at"))
-                            assertEquals(NOW + 25, document.getLong("terminated_at"))
-                            assertEquals(PACKET_OPTIONS_1.srcAddr.addr, document.getString("src_addr"))
-                            assertEquals(PACKET_OPTIONS_1.srcAddr.port, document.getInteger("src_port"))
-                            assertEquals(PACKET_OPTIONS_1.dstAddr.addr, document.getString("dst_addr"))
-                            assertEquals(PACKET_OPTIONS_1.dstAddr.port, document.getInteger("dst_port"))
-                            assertEquals("caller", document.getString("caller"))
-                            assertEquals("succeed", document.getString("state"))
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 100) {
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_1))
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_2))
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    var (collection, document) = event.body()
+
+                    document = document.getJsonObject("document")
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_options_index"))
+                        assertEquals(NOW, document.getLong("created_at"))
+                        assertEquals(NOW + 25, document.getLong("terminated_at"))
+                        assertEquals(PACKET_OPTIONS_1.srcAddr.addr, document.getString("src_addr"))
+                        assertEquals(PACKET_OPTIONS_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(PACKET_OPTIONS_1.dstAddr.addr, document.getString("dst_addr"))
+                        assertEquals(PACKET_OPTIONS_1.dstAddr.port, document.getInteger("dst_port"))
+                        assertEquals("caller", document.getString("caller"))
+                        assertEquals("succeed", document.getString("state"))
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
     @Test
     fun `Aggregate valid MESSAGE transaction`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("transaction", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("termination-timeout", 100)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("transaction", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("termination-timeout", 100)
                         })
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(200, 100) {
-                        vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_1))
-                        vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_2))
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, document) = event.body()
-
-                        document = document.getJsonObject("document")
-                        context.verify {
-                            assertTrue(collection.startsWith("sip_message_index"))
-                            assertEquals(NOW, document.getLong("created_at"))
-                            assertEquals(NOW + 25, document.getLong("terminated_at"))
-                            assertEquals(PACKET_MESSAGE_1.srcAddr.addr, document.getString("src_addr"))
-                            assertEquals(PACKET_MESSAGE_1.srcAddr.port, document.getInteger("src_port"))
-                            assertEquals(PACKET_MESSAGE_1.dstAddr.addr, document.getString("dst_addr"))
-                            assertEquals(PACKET_MESSAGE_1.dstAddr.port, document.getInteger("dst_port"))
-                            assertEquals("caller", document.getString("caller"))
-                            assertEquals("succeed", document.getString("state"))
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 100) {
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_1))
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_2))
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    var (collection, document) = event.body()
+
+                    document = document.getJsonObject("document")
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_message_index"))
+                        assertEquals(NOW, document.getLong("created_at"))
+                        assertEquals(NOW + 25, document.getLong("terminated_at"))
+                        assertEquals(PACKET_MESSAGE_1.srcAddr.addr, document.getString("src_addr"))
+                        assertEquals(PACKET_MESSAGE_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(PACKET_MESSAGE_1.dstAddr.addr, document.getString("dst_addr"))
+                        assertEquals(PACKET_MESSAGE_1.dstAddr.port, document.getInteger("dst_port"))
+                        assertEquals("caller", document.getString("caller"))
+                        assertEquals("succeed", document.getString("state"))
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
     @Test
     fun `Aggregate failed INVITE transaction`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("transaction", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("aggregation-timeout", 100)
-                                put("termination-timeout", 100)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("transaction", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 100)
+                            put("termination-timeout", 100)
                         })
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(200, 100) {
-                        vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_1))
-                        vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_2))
-                        vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_3))
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<SipTransaction>(RoutesCE.sip + "_call_0") { event ->
-                        val transaction = event.body()
-
-                        context.verify {
-                            assertEquals("INVITE", transaction.cseqMethod)
-                            assertEquals(SipTransaction.FAILED, transaction.state)
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 100) {
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_1))
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_2))
+                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_3))
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<SipTransaction>(RoutesCE.sip + "_call_0") { event ->
+                    val transaction = event.body()
+
+                    context.verify {
+                        assertEquals("INVITE", transaction.cseqMethod)
+                        assertEquals(SipTransaction.FAILED, transaction.state)
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 

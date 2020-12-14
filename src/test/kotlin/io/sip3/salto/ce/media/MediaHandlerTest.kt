@@ -81,86 +81,86 @@ class MediaHandlerTest : VertxTest() {
     @Test
     fun `Write cumulative RTP report to database`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(MediaHandler::class)
-                },
-                execute = {
-                    val session = RtprSession(PACKET_1).apply {
-                        add(RTPR)
-                    }
-                    vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        val (collection, operation) = event.body()
-
-                        val document = operation.getJsonObject("document")
-
-                        context.verify {
-                            assertTrue(collection.startsWith("rtpr_rtp_index"))
-
-                            assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
-                            assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
-                            assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
-                            assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
-
-                            assertEquals(RTPR.createdAt, document.getLong("created_at"))
-                            assertEquals(RTPR.startedAt, document.getLong("started_at"))
-
-                            assertEquals(RTPR.callId, document.getString("call_id"))
-                            assertEquals(RTPR.codecName, document.getString("codec_name"))
-
-                            assertEquals(RTPR.payloadType, document.getInteger("payload_type").toByte())
-                            assertEquals(RTPR.ssrc, document.getLong("ssrc"))
-
-
-                            val packets = document.getJsonObject("packets")
-                            assertEquals(RTPR.expectedPacketCount, packets.getInteger("expected"))
-                            assertEquals(RTPR.receivedPacketCount, packets.getInteger("received"))
-                            assertEquals(RTPR.lostPacketCount, packets.getInteger("lost"))
-                            assertEquals(RTPR.rejectedPacketCount, packets.getInteger("rejected"))
-
-                            val jitter = document.getJsonObject("jitter")
-                            assertEquals(RTPR.lastJitter, jitter.getDouble("last").toFloat())
-                            assertEquals(RTPR.avgJitter, jitter.getDouble("avg").toFloat())
-                            assertEquals(RTPR.minJitter, jitter.getDouble("min").toFloat())
-                            assertEquals(RTPR.maxJitter, jitter.getDouble("max").toFloat())
-
-                            assertEquals(RTPR.rFactor, document.getFloat("r_factor"))
-                            assertEquals(RTPR.mos, document.getFloat("mos"))
-                            assertEquals(RTPR.fractionLost, document.getFloat("fraction_lost"))
-                        }
-                        context.completeNow()
-                    }
+            deploy = {
+                vertx.deployTestVerticle(MediaHandler::class)
+            },
+            execute = {
+                val session = RtprSession(PACKET_1).apply {
+                    add(RTPR)
                 }
+                vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("rtpr_rtp_index"))
+
+                        assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
+                        assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
+                        assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
+
+                        assertEquals(RTPR.createdAt, document.getLong("created_at"))
+                        assertEquals(RTPR.startedAt, document.getLong("started_at"))
+
+                        assertEquals(RTPR.callId, document.getString("call_id"))
+                        assertEquals(RTPR.codecName, document.getString("codec_name"))
+
+                        assertEquals(RTPR.payloadType, document.getInteger("payload_type").toByte())
+                        assertEquals(RTPR.ssrc, document.getLong("ssrc"))
+
+
+                        val packets = document.getJsonObject("packets")
+                        assertEquals(RTPR.expectedPacketCount, packets.getInteger("expected"))
+                        assertEquals(RTPR.receivedPacketCount, packets.getInteger("received"))
+                        assertEquals(RTPR.lostPacketCount, packets.getInteger("lost"))
+                        assertEquals(RTPR.rejectedPacketCount, packets.getInteger("rejected"))
+
+                        val jitter = document.getJsonObject("jitter")
+                        assertEquals(RTPR.lastJitter, jitter.getDouble("last").toFloat())
+                        assertEquals(RTPR.avgJitter, jitter.getDouble("avg").toFloat())
+                        assertEquals(RTPR.minJitter, jitter.getDouble("min").toFloat())
+                        assertEquals(RTPR.maxJitter, jitter.getDouble("max").toFloat())
+
+                        assertEquals(RTPR.rFactor, document.getFloat("r_factor"))
+                        assertEquals(RTPR.mos, document.getFloat("mos"))
+                        assertEquals(RTPR.fractionLost, document.getFloat("fraction_lost"))
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
     @Test
     fun `Update cumulative RTP report attributes`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(MediaHandler::class)
-                },
-                execute = {
-                    val session = RtprSession(PACKET_1).apply {
-                        add(RTPR)
-                    }
-                    vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
-                        val (prefix, attributes) = event.body()
-
-                        context.verify {
-                            assertEquals("rtp", prefix)
-                            assertEquals(2, attributes.size)
-                            assertEquals(12F, attributes[Attributes.r_factor])
-                            assertEquals(13F, attributes[Attributes.mos])
-                        }
-                        context.completeNow()
-                    }
+            deploy = {
+                vertx.deployTestVerticle(MediaHandler::class)
+            },
+            execute = {
+                val session = RtprSession(PACKET_1).apply {
+                    add(RTPR)
                 }
+                vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                    val (prefix, attributes) = event.body()
+
+                    context.verify {
+                        assertEquals("rtp", prefix)
+                        assertEquals(2, attributes.size)
+                        assertEquals(12F, attributes[Attributes.r_factor])
+                        assertEquals(13F, attributes[Attributes.mos])
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 }

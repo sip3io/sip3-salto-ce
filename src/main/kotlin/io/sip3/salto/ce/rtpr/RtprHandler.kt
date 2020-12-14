@@ -217,19 +217,19 @@ open class RtprHandler : AbstractVerticle() {
         val expiredCallIds = mutableSetOf<String>()
 
         rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
-                .forEach { (sessionId, session) ->
-                    terminateRtprSession(session)
-                    rtp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
-                }
+            .forEach { (sessionId, session) ->
+                terminateRtprSession(session)
+                rtp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
+            }
 
         rtcp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
-                .forEach { (sessionId, session) ->
-                    terminateRtprSession(session)
-                    rtcp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
-                }
+            .forEach { (sessionId, session) ->
+                terminateRtprSession(session)
+                rtcp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
+            }
 
         sdp.filterValues { expiredCallIds.contains(it.callId) || it.timestamp + durationTimeout < now }
-                .forEach { (key, _) -> sdp.remove(key) }
+            .forEach { (key, _) -> sdp.remove(key) }
     }
 
     private fun terminateRtprSession(session: RtprSession) {

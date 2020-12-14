@@ -72,9 +72,9 @@ open class RtcpHandler : AbstractVerticle() {
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
             sessions.filterValues { it.lastPacketTimestamp + aggregationTimeout < now }
-                    .forEach { (sessionId, _) ->
-                        sessions.remove(sessionId)
-                    }
+                .forEach { (sessionId, _) ->
+                    sessions.remove(sessionId)
+                }
         }
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtcp) { event ->
@@ -176,17 +176,17 @@ open class RtcpHandler : AbstractVerticle() {
 
                     // Reports
                     json.getJsonArray("report_blocks")
-                            .forEach { blockReport ->
-                                blockReport as JsonObject
-                                reportBlocks.add(RtcpReportBlock().apply {
-                                    ssrc = blockReport.getLong("source_ssrc")
-                                    fractionLost = blockReport.getInteger("fraction_lost").toShort()
-                                    cumulativePacketLost = blockReport.getLong("packets_lost")
-                                    extendedSeqNumber = blockReport.getLong("highest_seq_no")
-                                    interarrivalJitter = blockReport.getLong("ia_jitter")
-                                    lsrTimestamp = blockReport.getLong("lsr")
-                                })
-                            }
+                        .forEach { blockReport ->
+                            blockReport as JsonObject
+                            reportBlocks.add(RtcpReportBlock().apply {
+                                ssrc = blockReport.getLong("source_ssrc")
+                                fractionLost = blockReport.getInteger("fraction_lost").toShort()
+                                cumulativePacketLost = blockReport.getLong("packets_lost")
+                                extendedSeqNumber = blockReport.getLong("highest_seq_no")
+                                interarrivalJitter = blockReport.getLong("ia_jitter")
+                                lsrTimestamp = blockReport.getLong("lsr")
+                            })
+                        }
                 }
 
                 onSenderReport(packet, report)

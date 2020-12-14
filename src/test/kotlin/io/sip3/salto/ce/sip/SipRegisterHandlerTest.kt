@@ -24,9 +24,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -163,52 +161,52 @@ class SipRegisterHandlerTest : VertxTest() {
             addPacket(PACKET_4)
         }
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("register", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("aggregation-timeout", 200)
-                                put("duration-timeout", 200)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("register", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 200)
+                            put("duration-timeout", 200)
                         })
                     })
-                },
-                execute = {
-                    vertx.setTimer(400) {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction401)
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction200)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        val (collection, operation) = event.body()
-
-                        val document = operation.getJsonObject("document")
-
-                        context.verify {
-                            assertTrue(collection.startsWith("sip_register_index_"))
-
-                            document.getJsonObject("\$setOnInsert").apply {
-                                assertEquals(PACKET_1.timestamp.time, getLong("created_at"))
-                                assertEquals(PACKET_1.srcAddr.addr, getString("src_addr"))
-                                assertEquals(PACKET_1.srcAddr.port, getInteger("src_port"))
-                                assertEquals(PACKET_1.dstAddr.addr, getString("dst_addr"))
-                                assertEquals(PACKET_1.dstAddr.port, getInteger("dst_port"))
-                                assertNotNull(getString("call_id"))
-                            }
-
-                            document.getJsonObject("\$set").apply {
-                                assertEquals("1010", getString("caller"))
-                                assertEquals("1010", getString("callee"))
-                                assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
-                                assertEquals(PACKET_3.timestamp.time + 120000, getLong("terminated_at"))
-                                assertEquals(PACKET_3.timestamp.time + 120000 - PACKET_1.timestamp.time, getLong("duration"))
-                            }
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setTimer(400) {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction401)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction200)
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_register_index_"))
+
+                        document.getJsonObject("\$setOnInsert").apply {
+                            assertEquals(PACKET_1.timestamp.time, getLong("created_at"))
+                            assertEquals(PACKET_1.srcAddr.addr, getString("src_addr"))
+                            assertEquals(PACKET_1.srcAddr.port, getInteger("src_port"))
+                            assertEquals(PACKET_1.dstAddr.addr, getString("dst_addr"))
+                            assertEquals(PACKET_1.dstAddr.port, getInteger("dst_port"))
+                            assertNotNull(getString("call_id"))
+                        }
+
+                        document.getJsonObject("\$set").apply {
+                            assertEquals("1010", getString("caller"))
+                            assertEquals("1010", getString("callee"))
+                            assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
+                            assertEquals(PACKET_3.timestamp.time + 120000, getLong("terminated_at"))
+                            assertEquals(PACKET_3.timestamp.time + 120000 - PACKET_1.timestamp.time, getLong("duration"))
+                        }
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
@@ -220,47 +218,47 @@ class SipRegisterHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("register", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("aggregation-timeout", 200)
-                                put("duration-timeout", 200)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("register", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 200)
+                            put("duration-timeout", 200)
                         })
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(200, 10000) {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction401)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        val (collection, operation) = event.body()
-
-                        val document = operation.getJsonObject("document")
-
-                        context.verify {
-                            assertTrue(collection.startsWith("sip_register_index_"))
-
-                            document.apply {
-                                assertEquals(PACKET_1.timestamp.time, getLong("created_at"))
-                                assertEquals(PACKET_1.srcAddr.addr, getString("src_addr"))
-                                assertEquals(PACKET_1.srcAddr.port, getInteger("src_port"))
-                                assertEquals(PACKET_1.dstAddr.addr, getString("dst_addr"))
-                                assertEquals(PACKET_1.dstAddr.port, getInteger("dst_port"))
-                                assertNotNull(getString("call_id"))
-
-                                assertEquals("1010", getString("caller"))
-                                assertEquals("1010", getString("callee"))
-                                assertEquals(SipRegisterHandler.UNAUTHORIZED, getString("state"))
-                            }
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 10000) {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction401)
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_register_index_"))
+
+                        document.apply {
+                            assertEquals(PACKET_1.timestamp.time, getLong("created_at"))
+                            assertEquals(PACKET_1.srcAddr.addr, getString("src_addr"))
+                            assertEquals(PACKET_1.srcAddr.port, getInteger("src_port"))
+                            assertEquals(PACKET_1.dstAddr.addr, getString("dst_addr"))
+                            assertEquals(PACKET_1.dstAddr.port, getInteger("dst_port"))
+                            assertNotNull(getString("call_id"))
+
+                            assertEquals("1010", getString("caller"))
+                            assertEquals("1010", getString("callee"))
+                            assertEquals(SipRegisterHandler.UNAUTHORIZED, getString("state"))
+                        }
+                    }
+                    context.completeNow()
+                }
+            }
         )
 
     }

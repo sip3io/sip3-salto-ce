@@ -29,88 +29,88 @@ class AttributesHandlerTest : VertxTest() {
     @Test
     fun `Write STRING attribute`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(AttributesHandler::class)
-                },
-                execute = {
-                    val attributes = mapOf<String, Any>("name" to "string")
-                    vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_STRING, attributes))
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
+            deploy = {
+                vertx.deployTestVerticle(AttributesHandler::class)
+            },
+            execute = {
+                val attributes = mapOf<String, Any>("name" to "string")
+                vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_STRING, attributes))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    var (collection, operation) = event.body()
 
-                        val filter = operation.getJsonObject("filter")
-                        val document = operation.getJsonObject("document")
+                    val filter = operation.getJsonObject("filter")
+                    val document = operation.getJsonObject("document")
 
-                        context.verify {
-                            assertTrue(collection.startsWith("attributes"))
-                            assertEquals(Attribute.TYPE_STRING + ".name", filter.getString("name"))
-                            assertEquals(Attribute.TYPE_STRING, document.getJsonObject("\$setOnInsert").getString("type"))
-                        }
-                        if (document.containsKey("\$addToSet")) {
-                            context.completeNow()
-                        }
+                    context.verify {
+                        assertTrue(collection.startsWith("attributes"))
+                        assertEquals(Attribute.TYPE_STRING + ".name", filter.getString("name"))
+                        assertEquals(Attribute.TYPE_STRING, document.getJsonObject("\$setOnInsert").getString("type"))
+                    }
+                    if (document.containsKey("\$addToSet")) {
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 
     @Test
     fun `Write NUMBER attribute`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(AttributesHandler::class)
-                },
-                execute = {
-                    val attributes = mapOf<String, Any>("name" to 42)
-                    vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_NUMBER, attributes))
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
+            deploy = {
+                vertx.deployTestVerticle(AttributesHandler::class)
+            },
+            execute = {
+                val attributes = mapOf<String, Any>("name" to 42)
+                vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_NUMBER, attributes))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    var (collection, operation) = event.body()
 
-                        val filter = operation.getJsonObject("filter")
-                        val document = operation.getJsonObject("document")
+                    val filter = operation.getJsonObject("filter")
+                    val document = operation.getJsonObject("document")
 
-                        context.verify {
-                            assertTrue(collection.startsWith("attributes"))
-                            assertEquals(Attribute.TYPE_NUMBER + ".name", filter.getString("name"))
-                            assertEquals(Attribute.TYPE_NUMBER, document.getJsonObject("\$setOnInsert").getString("type"))
-                            assertFalse(document.containsKey("\$addToSet"))
-                        }
-                        context.completeNow()
+                    context.verify {
+                        assertTrue(collection.startsWith("attributes"))
+                        assertEquals(Attribute.TYPE_NUMBER + ".name", filter.getString("name"))
+                        assertEquals(Attribute.TYPE_NUMBER, document.getJsonObject("\$setOnInsert").getString("type"))
+                        assertFalse(document.containsKey("\$addToSet"))
                     }
+                    context.completeNow()
                 }
+            }
         )
     }
 
     @Test
     fun `Write BOOLEAN attribute`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(AttributesHandler::class)
-                },
-                execute = {
-                    val attributes = mapOf<String, Any>("name" to true)
-                    vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_BOOLEAN, attributes))
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
+            deploy = {
+                vertx.deployTestVerticle(AttributesHandler::class)
+            },
+            execute = {
+                val attributes = mapOf<String, Any>("name" to true)
+                vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_BOOLEAN, attributes))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    var (collection, operation) = event.body()
 
-                        val filter = operation.getJsonObject("filter")
-                        val document = operation.getJsonObject("document")
+                    val filter = operation.getJsonObject("filter")
+                    val document = operation.getJsonObject("document")
 
-                        context.verify {
-                            assertTrue(collection.startsWith("attributes"))
-                            assertEquals(Attribute.TYPE_BOOLEAN + ".name", filter.getString("name"))
-                            assertEquals(Attribute.TYPE_BOOLEAN, document.getJsonObject("\$setOnInsert").getString("type"))
-                            assertFalse(document.containsKey("\$addToSet"))
-                        }
-                        context.completeNow()
+                    context.verify {
+                        assertTrue(collection.startsWith("attributes"))
+                        assertEquals(Attribute.TYPE_BOOLEAN + ".name", filter.getString("name"))
+                        assertEquals(Attribute.TYPE_BOOLEAN, document.getJsonObject("\$setOnInsert").getString("type"))
+                        assertFalse(document.containsKey("\$addToSet"))
                     }
+                    context.completeNow()
                 }
+            }
         )
     }
 }
