@@ -368,25 +368,25 @@ class SipCallHandlerTest : VertxTest() {
     @Test
     fun `Deploy multiple 'SipCallHandler' instances`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject(), instances = 4)
-                },
-                execute = {
-                    // Do nothing...
-                },
-                assert = {
-                    vertx.setPeriodic(100) {
-                        val endpoints = vertx.eventBus().endpoints()
-                        if (endpoints.size == 4) {
-                            context.verify {
-                                (0..3).forEach { i ->
-                                    assertTrue(endpoints.contains(SipCallHandler.PREFIX + "_$i"))
-                                }
+            deploy = {
+                vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject(), instances = 4)
+            },
+            execute = {
+                // Do nothing...
+            },
+            assert = {
+                vertx.setPeriodic(100) {
+                    val endpoints = vertx.eventBus().endpoints()
+                    if (endpoints.size == 4) {
+                        context.verify {
+                            (0..3).forEach { i ->
+                                assertTrue(endpoints.contains(SipCallHandler.PREFIX + "_$i"))
                             }
-                            context.completeNow()
                         }
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 
@@ -396,41 +396,41 @@ class SipCallHandlerTest : VertxTest() {
             addPacket(UNKNOWN_PACKET_1)
         }
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("call", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("aggregation-timeout", 100)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("call", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 100)
                         })
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(200, 100) {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
-
-                        val document = operation.getJsonObject("document")
-
-                        context.verify {
-                            assertTrue(collection.startsWith("sip_call_index_"))
-                            assertEquals(NOW, document.getLong("created_at"))
-                            assertEquals(SipTransactionTest.PACKET_1.srcAddr.addr, document.getString("src_addr"))
-                            assertEquals(SipTransactionTest.PACKET_1.srcAddr.port, document.getInteger("src_port"))
-                            assertEquals(SipTransactionTest.PACKET_1.dstAddr.addr, document.getString("dst_addr"))
-                            assertEquals(SipTransactionTest.PACKET_1.dstAddr.port, document.getInteger("dst_port"))
-                            assertEquals("6469362828735520143", document.getString("caller"))
-                            assertEquals("1951290411854098895", document.getString("callee"))
-                            assertEquals("unknown", document.getString("state"))
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 100) {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    var (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_call_index_"))
+                        assertEquals(NOW, document.getLong("created_at"))
+                        assertEquals(SipTransactionTest.PACKET_1.srcAddr.addr, document.getString("src_addr"))
+                        assertEquals(SipTransactionTest.PACKET_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(SipTransactionTest.PACKET_1.dstAddr.addr, document.getString("dst_addr"))
+                        assertEquals(SipTransactionTest.PACKET_1.dstAddr.port, document.getInteger("dst_port"))
+                        assertEquals("6469362828735520143", document.getString("caller"))
+                        assertEquals("1951290411854098895", document.getString("callee"))
+                        assertEquals("unknown", document.getString("state"))
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
@@ -443,44 +443,44 @@ class SipCallHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("call", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("termination-timeout", 100)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("call", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("termination-timeout", 100)
                         })
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(200, 200) {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        var (collection, operation) = event.body()
-
-                        val document = operation.getJsonObject("document")
-
-                        context.verify {
-                            assertTrue(collection.startsWith("sip_call_index_"))
-                            assertEquals(NOW, document.getLong("created_at"))
-                            assertEquals(NOW + 107 + 342, document.getLong("terminated_at"))
-                            assertEquals(FAILED_PACKET_1.srcAddr.addr, document.getString("src_addr"))
-                            assertEquals(FAILED_PACKET_1.srcAddr.port, document.getInteger("src_port"))
-                            assertEquals(FAILED_PACKET_1.dstAddr.addr, document.getString("dst_addr"))
-                            assertEquals(FAILED_PACKET_1.dstAddr.port, document.getInteger("dst_port"))
-                            assertEquals("caller", document.getString("caller"))
-                            assertEquals("321", document.getString("callee"))
-                            assertEquals("failed", document.getString("state"))
-                            assertEquals("503", document.getString("error_code"))
-                            assertEquals(true, document.getBoolean("include-me"))
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 200) {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    var (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_call_index_"))
+                        assertEquals(NOW, document.getLong("created_at"))
+                        assertEquals(NOW + 107 + 342, document.getLong("terminated_at"))
+                        assertEquals(FAILED_PACKET_1.srcAddr.addr, document.getString("src_addr"))
+                        assertEquals(FAILED_PACKET_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(FAILED_PACKET_1.dstAddr.addr, document.getString("dst_addr"))
+                        assertEquals(FAILED_PACKET_1.dstAddr.port, document.getInteger("dst_port"))
+                        assertEquals("caller", document.getString("caller"))
+                        assertEquals("321", document.getString("callee"))
+                        assertEquals("failed", document.getString("state"))
+                        assertEquals("503", document.getString("error_code"))
+                        assertEquals(true, document.getBoolean("include-me"))
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
@@ -497,58 +497,58 @@ class SipCallHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("call", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("termination-timeout", 100)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("call", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("termination-timeout", 100)
                         })
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(200, 100) {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", inviteTransaction)
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", byeTransaction)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        val (collection, operation) = event.body()
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 100) {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", inviteTransaction)
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", byeTransaction)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
 
-                        val filter = operation.getJsonObject("filter")
-                        val document = operation.getJsonObject("document")
+                    val filter = operation.getJsonObject("filter")
+                    val document = operation.getJsonObject("document")
 
-                        context.verify {
-                            assertTrue(collection.startsWith("sip_call_index_"))
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_call_index_"))
 
-                            assertEquals(NOW, filter.getLong("created_at"))
-                            assertEquals(ANSWERED_PACKET_1.srcAddr.addr, filter.getString("src_addr"))
-                            assertNull(filter.getString("src_host"))
-                            assertNull(filter.getString("dst_addr"))
-                            assertEquals(ANSWERED_PACKET_1.dstAddr.host, filter.getString("dst_host"))
-                            assertEquals("0a778dd44d9cc00e16ac97a623d5202a@192.168.0.21", filter.getString("call_id"))
+                        assertEquals(NOW, filter.getLong("created_at"))
+                        assertEquals(ANSWERED_PACKET_1.srcAddr.addr, filter.getString("src_addr"))
+                        assertNull(filter.getString("src_host"))
+                        assertNull(filter.getString("dst_addr"))
+                        assertEquals(ANSWERED_PACKET_1.dstAddr.host, filter.getString("dst_host"))
+                        assertEquals("0a778dd44d9cc00e16ac97a623d5202a@192.168.0.21", filter.getString("call_id"))
 
 
-                            val setOnInsert = document.getJsonObject("\$setOnInsert")
-                            assertEquals(NOW, setOnInsert.getLong("created_at"))
-                            assertEquals(ANSWERED_PACKET_1.srcAddr.addr, setOnInsert.getString("src_addr"))
-                            assertEquals(ANSWERED_PACKET_1.srcAddr.port, setOnInsert.getInteger("src_port"))
-                            assertEquals(ANSWERED_PACKET_1.dstAddr.addr, setOnInsert.getString("dst_addr"))
-                            assertEquals(ANSWERED_PACKET_1.dstAddr.port, setOnInsert.getInteger("dst_port"))
+                        val setOnInsert = document.getJsonObject("\$setOnInsert")
+                        assertEquals(NOW, setOnInsert.getLong("created_at"))
+                        assertEquals(ANSWERED_PACKET_1.srcAddr.addr, setOnInsert.getString("src_addr"))
+                        assertEquals(ANSWERED_PACKET_1.srcAddr.port, setOnInsert.getInteger("src_port"))
+                        assertEquals(ANSWERED_PACKET_1.dstAddr.addr, setOnInsert.getString("dst_addr"))
+                        assertEquals(ANSWERED_PACKET_1.dstAddr.port, setOnInsert.getInteger("dst_port"))
 
-                            val set = document.getJsonObject("\$set")
-                            assertEquals("4801370F02092417", set.getString("caller"))
-                            assertEquals("558552290881", set.getString("callee"))
-                            assertEquals("answered", set.getString("state"))
-                            set.getLong("terminated_at")?.let { terminatedAt ->
-                                assertEquals(NOW + 2 + 23 + 128 + 221 + 1, terminatedAt)
-                                context.completeNow()
-                            }
+                        val set = document.getJsonObject("\$set")
+                        assertEquals("4801370F02092417", set.getString("caller"))
+                        assertEquals("558552290881", set.getString("callee"))
+                        assertEquals("answered", set.getString("state"))
+                        set.getLong("terminated_at")?.let { terminatedAt ->
+                            assertEquals(NOW + 2 + 23 + 128 + 221 + 1, terminatedAt)
+                            context.completeNow()
                         }
                     }
                 }
+            }
         )
     }
 
@@ -561,50 +561,50 @@ class SipCallHandlerTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("call", JsonObject().apply {
-                                put("expiration-delay", 100)
-                                put("termination-timeout", 100)
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("call", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("termination-timeout", 100)
                         })
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(200, 200) {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<Map<String, Any>>(RoutesCE.sip_call_udf) { event ->
-                        val session = event.body()
-
-                        context.verify {
-                            assertEquals("127.0.0.1", session["src_addr"])
-                            assertEquals(5060, session["src_port"])
-                            assertNull(session["src_host"])
-
-                            assertEquals("127.0.0.2", session["dst_addr"])
-                            assertEquals(5061, session["dst_port"])
-                            assertEquals("Test", session["dst_host"])
-
-                            val payload = session["payload"] as Map<String, Any>
-
-                            assertEquals(NOW, payload["created_at"])
-                            assertEquals(NOW + 107 + 342, payload["terminated_at"])
-
-                            assertEquals("failed", payload["state"])
-                            assertEquals("caller", payload["caller"])
-                            assertEquals("321", payload["callee"])
-                            assertEquals("58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117", payload["call_id"])
-                            assertEquals(true, payload["include-me"])
-                        }
-                        context.completeNow()
-
-                        event.reply(true)
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 200) {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
                 }
+            },
+            assert = {
+                vertx.eventBus().localConsumer<Map<String, Any>>(RoutesCE.sip_call_udf) { event ->
+                    val session = event.body()
+
+                    context.verify {
+                        assertEquals("127.0.0.1", session["src_addr"])
+                        assertEquals(5060, session["src_port"])
+                        assertNull(session["src_host"])
+
+                        assertEquals("127.0.0.2", session["dst_addr"])
+                        assertEquals(5061, session["dst_port"])
+                        assertEquals("Test", session["dst_host"])
+
+                        val payload = session["payload"] as Map<String, Any>
+
+                        assertEquals(NOW, payload["created_at"])
+                        assertEquals(NOW + 107 + 342, payload["terminated_at"])
+
+                        assertEquals("failed", payload["state"])
+                        assertEquals("caller", payload["caller"])
+                        assertEquals("321", payload["callee"])
+                        assertEquals("58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117", payload["call_id"])
+                        assertEquals(true, payload["include-me"])
+                    }
+                    context.completeNow()
+
+                    event.reply(true)
+                }
+            }
         )
     }
 

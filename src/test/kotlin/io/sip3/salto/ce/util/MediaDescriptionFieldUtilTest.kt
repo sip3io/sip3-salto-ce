@@ -32,7 +32,8 @@ class MediaDescriptionFieldUtilTest {
             StringMsgParser.setComputeContentLengthFromMessage(true)
         }
 
-        val REQUEST_DESCRIPTION: MediaDescriptionField = StringMsgParser().parseSIPMessage("""
+        val REQUEST_DESCRIPTION: MediaDescriptionField = StringMsgParser().parseSIPMessage(
+            """
         INVITE sip:000155917690@ss63.invite.demo.sip3.io:5060 SIP/2.0
         Via: SIP/2.0/UDP 10.177.131.211:6333;branch=z9hG4bKmqffet30b03pp5mv5jj0.1
         From: <sip:000260971282@demo.sip3.io>;tag=82-2zyzysoabqjb3
@@ -65,10 +66,12 @@ class MediaDescriptionFieldUtilTest {
         a=sendrecv
         a=ptime:20
 
-        """.trimIndent().toByteArray(), true, false, null)
-                .sessionDescription()!!.getMediaDescription("audio")
+        """.trimIndent().toByteArray(), true, false, null
+        )
+            .sessionDescription()!!.getMediaDescription("audio")
 
-        val RESPONSE_DESCRIPTION: MediaDescriptionField = StringMsgParser().parseSIPMessage("""
+        val RESPONSE_DESCRIPTION: MediaDescriptionField = StringMsgParser().parseSIPMessage(
+            """
         SIP/2.0 200 OK
         Via: SIP/2.0/UDP 79.104.212.156:5060;branch=z9hG4bKg3Zqkv7ire9ruovboso4hm4njjprxhucp
         Record-Route: <sip:79.104.212.156;transport=udp;lr>
@@ -97,8 +100,9 @@ class MediaDescriptionFieldUtilTest {
         a=rtpmap:8 PCMA/8000
         a=rtpmap:99 telephone-event/8000
         a=fmtp:99 0-16
-        """.trimIndent().toByteArray(), true, false, null)
-                .sessionDescription()!!.getMediaDescription("audio")
+        """.trimIndent().toByteArray(), true, false, null
+        )
+            .sessionDescription()!!.getMediaDescription("audio")
 
     }
 

@@ -42,43 +42,43 @@ class MongoCollectionManagerTest : VertxTest() {
         val collection = "test_create_${TIME_SUFFIX.format(System.currentTimeMillis())}"
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
-                        put("time-suffix", "yyyyMMdd")
-                        put("mongo", JsonObject().apply {
-                            put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                            put("db", "sip3")
-                            put("collections", JsonArray().apply {
-                                add(JsonObject().apply {
-                                    put("prefix", "test_create")
-                                    put("indexes", JsonObject().apply {
-                                        put("ascending", listOf("name"))
-                                    })
+            deploy = {
+                vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
+                    put("time-suffix", "yyyyMMdd")
+                    put("mongo", JsonObject().apply {
+                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("db", "sip3")
+                        put("collections", JsonArray().apply {
+                            add(JsonObject().apply {
+                                put("prefix", "test_create")
+                                put("indexes", JsonObject().apply {
+                                    put("ascending", listOf("name"))
                                 })
                             })
                         })
                     })
-                },
-                assert = {
-                    val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                        put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db_name", "sip3")
-                    })
-                    vertx.setPeriodic(500, 100) {
-                        mongo.getCollections { asr ->
-                            if (asr.succeeded() && asr.result().contains(collection)) {
-                                mongo.listIndexes(collection) { asr2 ->
-                                    if (asr2.succeeded()) {
-                                        context.verify {
-                                            assertTrue(asr2.result().size() > 1)
-                                        }
-                                        context.completeNow()
+                })
+            },
+            assert = {
+                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
+                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("db_name", "sip3")
+                })
+                vertx.setPeriodic(500, 100) {
+                    mongo.getCollections { asr ->
+                        if (asr.succeeded() && asr.result().contains(collection)) {
+                            mongo.listIndexes(collection) { asr2 ->
+                                if (asr2.succeeded()) {
+                                    context.verify {
+                                        assertTrue(asr2.result().size() > 1)
                                     }
+                                    context.completeNow()
                                 }
                             }
                         }
                     }
                 }
+            }
         )
     }
 
@@ -88,39 +88,39 @@ class MongoCollectionManagerTest : VertxTest() {
         val collection = "test_indexes_${TIME_SUFFIX.format(System.currentTimeMillis())}"
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
-                        put("time-suffix", "yyyyMMdd")
-                        put("mongo", JsonObject().apply {
-                            put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                            put("db", "sip3")
-                            put("collections", JsonArray().apply {
-                                add(JsonObject().apply {
-                                    put("prefix", "test_indexes")
-                                    put("indexes", JsonObject().apply {
-                                        put("ascending", listOf("name"))
-                                    })
+            deploy = {
+                vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
+                    put("time-suffix", "yyyyMMdd")
+                    put("mongo", JsonObject().apply {
+                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("db", "sip3")
+                        put("collections", JsonArray().apply {
+                            add(JsonObject().apply {
+                                put("prefix", "test_indexes")
+                                put("indexes", JsonObject().apply {
+                                    put("ascending", listOf("name"))
                                 })
                             })
                         })
                     })
-                },
-                assert = {
-                    mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                        put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db_name", "sip3")
-                    })
+                })
+            },
+            assert = {
+                mongo = MongoClient.createShared(vertx, JsonObject().apply {
+                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("db_name", "sip3")
+                })
 
-                    mongo.createCollectionAwait(collection)
+                mongo.createCollectionAwait(collection)
 
-                    vertx.setPeriodic(500, 100) {
-                        mongo.listIndexes(collection) { asr ->
-                            if (asr.succeeded() && asr.result().size() > 1) {
-                                context.completeNow()
-                            }
+                vertx.setPeriodic(500, 100) {
+                    mongo.listIndexes(collection) { asr ->
+                        if (asr.succeeded() && asr.result().size() > 1) {
+                            context.completeNow()
                         }
                     }
                 }
+            }
         )
     }
 }

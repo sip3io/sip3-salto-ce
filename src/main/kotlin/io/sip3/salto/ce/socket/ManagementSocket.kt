@@ -74,10 +74,10 @@ class ManagementSocket : AbstractVerticle() {
             val now = System.currentTimeMillis()
 
             remoteHosts.filterValues { it.lastUpdate + expirationTimeout < now }
-                    .forEach { (name, remoteHost) ->
-                        logger.info { "Expired: $remoteHost" }
-                        remoteHosts.remove(name)
-                    }
+                .forEach { (name, remoteHost) ->
+                    logger.info { "Expired: $remoteHost" }
+                    remoteHosts.remove(name)
+                }
 
             sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
         }

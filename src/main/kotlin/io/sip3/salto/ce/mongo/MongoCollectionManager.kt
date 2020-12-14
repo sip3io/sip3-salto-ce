@@ -25,11 +25,7 @@ import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.coroutines.dispatcher
-import io.vertx.kotlin.ext.mongo.createCollectionAwait
-import io.vertx.kotlin.ext.mongo.createIndexAwait
-import io.vertx.kotlin.ext.mongo.dropCollectionAwait
-import io.vertx.kotlin.ext.mongo.getCollectionsAwait
-import io.vertx.kotlin.ext.mongo.listIndexesAwait
+import io.vertx.kotlin.ext.mongo.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
@@ -45,10 +41,10 @@ class MongoCollectionManager : AbstractVerticle() {
     private val logger = KotlinLogging.logger {}
 
     companion object {
-        
+
         const val DEFAULT_MAX_COLLECTIONS = 30
     }
-    
+
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
     private lateinit var client: MongoClient
@@ -96,10 +92,10 @@ class MongoCollectionManager : AbstractVerticle() {
 
     private suspend fun dropOldCollectionsByPrefix(collection: JsonObject) {
         client.getCollectionsAwait()
-                .filter { name -> name.startsWith(collection.getString("prefix")) }
-                .sortedDescending()
-                .drop(collection.getInteger("max-collections") ?: DEFAULT_MAX_COLLECTIONS)
-                .forEach { name -> client.dropCollectionAwait(name) }
+            .filter { name -> name.startsWith(collection.getString("prefix")) }
+            .sortedDescending()
+            .drop(collection.getInteger("max-collections") ?: DEFAULT_MAX_COLLECTIONS)
+            .forEach { name -> client.dropCollectionAwait(name) }
     }
 
     private suspend fun createCollectionIfNeeded(name: String, indexes: JsonObject? = null) {

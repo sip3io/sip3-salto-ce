@@ -41,26 +41,26 @@ class BootstrapTest : VertxTest() {
     fun `Deploy and test Groovy UDF`() {
         val message = "Groovy is awesome"
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
-                        put("server", JsonObject().apply {
-                            put("uri", "udp://0.0.0.0:${findRandomPort()}")
-                        })
+            deploy = {
+                vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
+                    put("server", JsonObject().apply {
+                        put("uri", "udp://0.0.0.0:${findRandomPort()}")
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(100) {
-                        vertx.eventBus().send("groovy", message)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<String>("kotlin") { event ->
-                        context.verify {
-                            assertEquals(message, event.body())
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(100) {
+                    vertx.eventBus().send("groovy", message)
                 }
+            },
+            assert = {
+                vertx.eventBus().localConsumer<String>("kotlin") { event ->
+                    context.verify {
+                        assertEquals(message, event.body())
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
@@ -68,59 +68,59 @@ class BootstrapTest : VertxTest() {
     fun `Deploy and test JavaScript UDF`() {
         val message = "JavaScript is awesome"
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
-                        put("server", JsonObject().apply {
-                            put("uri", "udp://0.0.0.0:${findRandomPort()}")
-                        })
+            deploy = {
+                vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
+                    put("server", JsonObject().apply {
+                        put("uri", "udp://0.0.0.0:${findRandomPort()}")
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(500, 100) {
-                        vertx.eventBus().send("js", message)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<String>("kotlin") { event ->
-                        context.verify {
-                            assertEquals(message, event.body())
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.setPeriodic(500, 100) {
+                    vertx.eventBus().send("js", message)
                 }
+            },
+            assert = {
+                vertx.eventBus().localConsumer<String>("kotlin") { event ->
+                    context.verify {
+                        assertEquals(message, event.body())
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
     @Test
     fun `Codec directory read`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
-                        put("server", JsonObject().apply {
-                            put("uri", "udp://0.0.0.0:${findRandomPort()}")
-                        })
+            deploy = {
+                vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
+                    put("server", JsonObject().apply {
+                        put("uri", "udp://0.0.0.0:${findRandomPort()}")
                     })
-                },
-                assert = {
-                    vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
-                        context.verify {
-                            val config = event.body()
-                            assertTrue(config.containsKey("codecs"))
+                })
+            },
+            assert = {
+                vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
+                    context.verify {
+                        val config = event.body()
+                        assertTrue(config.containsKey("codecs"))
 
-                            val codecs = config.getJsonArray("codecs")
-                            assertEquals(1, codecs.size())
+                        val codecs = config.getJsonArray("codecs")
+                        assertEquals(1, codecs.size())
 
-                            val codec = (codecs.first() as JsonObject).mapTo(Codec::class.java)
-                            assertEquals("PCMA", codec.name)
-                            assertEquals(0x08, codec.payloadTypes.first())
-                            assertEquals(8000, codec.clockRate)
-                            assertEquals(0.0F, codec.ie)
-                            assertEquals(4.3F, codec.bpl)
-                        }
-
-                        context.completeNow()
+                        val codec = (codecs.first() as JsonObject).mapTo(Codec::class.java)
+                        assertEquals("PCMA", codec.name)
+                        assertEquals(0x08, codec.payloadTypes.first())
+                        assertEquals(8000, codec.clockRate)
+                        assertEquals(0.0F, codec.ie)
+                        assertEquals(4.3F, codec.bpl)
                     }
+
+                    context.completeNow()
                 }
+            }
         )
     }
 }
