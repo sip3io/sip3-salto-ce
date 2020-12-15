@@ -19,29 +19,45 @@ package io.sip3.salto.ce.rtpr
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil
+import kotlin.math.max
 
-class RtprSession(packet: Packet) {
+class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
 
-    val timestamp = packet.timestamp
+    var createdAt: Long = 0L
+    val terminatedAt: Long
+        get() = report.startedAt + report.duration
+
     val srcAddr = packet.srcAddr
     val dstAddr = packet.dstAddr
     lateinit var report: RtpReportPayload
 
     var reportCount = 0
+    var badReportCount = 0
+
     var lastReportTimestamp: Long = Long.MAX_VALUE
 
     fun add(payload: RtpReportPayload) {
         if (reportCount == 0) {
             report = payload
         } else {
-            updateReport(payload)
+            mergeReport(payload)
         }
 
         reportCount++
+        rFactorThreshold?.let { if (report.rFactor in 0F..rFactorThreshold) badReportCount++ }
+
         lastReportTimestamp = payload.startedAt
     }
 
-    private fun updateReport(payload: RtpReportPayload) {
+    fun merge(other: RtprSession) {
+        mergeReport(other.report, other.reportCount)
+
+        reportCount += other.reportCount
+        badReportCount += other.badReportCount
+        lastReportTimestamp = max(lastReportTimestamp, other.lastReportTimestamp)
+    }
+
+    private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1 ) {
         report.apply {
             if (codecName == null) {
                 payload.codecName?.let { codecName = it }
@@ -60,7 +76,7 @@ class RtprSession(packet: Packet) {
             fractionLost = lostPacketCount.toFloat() / expectedPacketCount
 
             lastJitter = payload.lastJitter
-            avgJitter = (avgJitter * reportCount + payload.avgJitter) / (reportCount + 1)
+            avgJitter = (avgJitter * reportCount + payload.avgJitter) / (reportCount + reportCountIncrement)
             if (maxJitter < lastJitter) {
                 maxJitter = lastJitter
             }
@@ -70,13 +86,17 @@ class RtprSession(packet: Packet) {
 
             if (payload.rFactor > 0.0F)
                 if (rFactor > 0.0F) {
-                    rFactor = (rFactor * reportCount + payload.rFactor) / (reportCount + 1)
+                    rFactor = (rFactor * reportCount + payload.rFactor) / (reportCount + reportCountIncrement)
                 } else {
                     rFactor = payload.rFactor
                 }
 
             // MoS
             mos = MediaUtil.computeMos(rFactor)
+        }
+
+        if (createdAt > payload.startedAt) {
+            createdAt = payload.startedAt
         }
     }
 }

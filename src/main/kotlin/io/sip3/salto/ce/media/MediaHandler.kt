@@ -16,12 +16,14 @@
 
 package io.sip3.salto.ce.media
 
+import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.rtpr.RtprSession
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -38,9 +40,28 @@ open class MediaHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
+    // TODO: try to avoid usage of this two properties
+    private var expirationDelay: Long = 2000L
+    private var terminationTimeout: Long = 60000L
+
+    private var media = mutableMapOf<String, MutableMap<String, MediaSession>>()
+
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
+        }
+
+        vertx.setPeriodic(expirationDelay) {
+            terminateExpiredMediaSessions()
+        }
+
+        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+            try {
+                val sessions = event.body()
+                handleSdp(sessions)
+            } catch (e: Exception) {
+                logger.error(e) { "MediaHandler 'handleSdp()' failed." }
+            }
         }
 
         vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media) { event ->
@@ -53,6 +74,52 @@ open class MediaHandler : AbstractVerticle() {
         }
     }
 
+    open fun terminateExpiredMediaSessions() {
+        val now = System.currentTimeMillis()
+
+        media.filterValues { sessions ->
+            sessions.filterValues { session ->
+                session.terminatedAt + terminationTimeout < now
+            }.forEach { (sid, session) ->
+                sessions.remove(sid)
+                terminateMediaSession(session)
+            }
+            return@filterValues sessions.isEmpty()
+        }.forEach { (callId, _) ->
+            media.remove(callId)
+        }
+    }
+
+    open fun terminateMediaSession(session: MediaSession) {
+        // TODO: do some staff
+        calculateMetrics(session)
+    }
+
+    private fun calculateMetrics(session: MediaSession) {
+        // TODO: Write metrics
+    }
+
+    open fun handleSdp(sessions: List<SdpSession>) {
+        if (sessions.size != 2) {
+            throw IllegalStateException("Invalid SdpSession count: ${sessions.size}}")
+        }
+
+        val request = sessions[0]
+        val srcAddr = Address().apply {
+            addr = request.address
+            port = request.rtpPort
+        }
+
+        val response = sessions[1]
+        val dstAddr = Address().apply {
+            addr = response.address
+            port = response.rtpPort
+        }
+
+        media.getOrPut(request.callId) { mutableMapOf() }.putIfAbsent(dstAddr.compositeKey(srcAddr), MediaSession(srcAddr, dstAddr))
+    }
+
+    // TODO: Update after full migration to MediaSession
     open fun handle(session: RtprSession) {
         val report = session.report
         writeAttributes(report)
@@ -63,6 +130,12 @@ open class MediaHandler : AbstractVerticle() {
             else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
         }
         writeToDatabase(prefix, session)
+
+        if (report.source == RtpReportPayload.SOURCE_RTP && report.callId != null) {
+            val mediaSession = media.getOrPut(report.callId!!) { mutableMapOf() }
+                .getOrPut(session.dstAddr.compositeKey(session.srcAddr)) { MediaSession(session.srcAddr, session.dstAddr) }
+            mediaSession.add(session)
+        }
     }
 
     open fun writeAttributes(report: RtpReportPayload) {
@@ -80,7 +153,7 @@ open class MediaHandler : AbstractVerticle() {
     }
 
     open fun writeToDatabase(prefix: String, session: RtprSession) {
-        val collection = prefix + "_" + timeSuffix.format(session.timestamp)
+        val collection = prefix + "_" + timeSuffix.format(session.createdAt)
         val report = session.report
 
         val operation = JsonObject().apply {

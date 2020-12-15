@@ -66,6 +66,7 @@ open class RtprHandler : AbstractVerticle() {
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
     private var durationTimeout: Long = 3600000
+    private var rFactorThreshold: Float = 85F
 
     private var instances: Int = 1
 
@@ -90,6 +91,9 @@ open class RtprHandler : AbstractVerticle() {
             }
             config.getLong("duration-timeout")?.let {
                 durationTimeout = it
+            }
+            config.getFloat("r-factor-threshold")?.let {
+                rFactorThreshold = it
             }
         }
 
@@ -168,9 +172,9 @@ open class RtprHandler : AbstractVerticle() {
 
         val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, report.ssrc)
         val session = if (report.source == RtpReportPayload.SOURCE_RTP) {
-            rtp.getOrPut(sessionId) { RtprSession(packet) }
+            rtp.getOrPut(sessionId) { RtprSession(packet, rFactorThreshold) }
         } else {
-            rtcp.getOrPut(sessionId) { RtprSession(packet) }
+            rtcp.getOrPut(sessionId) { RtprSession(packet, rFactorThreshold) }
         }
         session.add(report)
 

@@ -228,7 +228,7 @@ class RtprHandlerTest : VertxTest() {
                         context.verify {
                             with(session) {
                                 assertEquals(1, reportCount)
-                                assertEquals(PACKET_2.timestamp, session.timestamp)
+                                assertEquals(PACKET_2.timestamp, session.createdAt)
                                 assertEquals(DST_ADDR, dstAddr)
                                 assertEquals(SRC_ADDR, srcAddr)
 
@@ -261,7 +261,7 @@ class RtprHandlerTest : VertxTest() {
                         context.verify {
                             with(session) {
                                 assertEquals(1, reportCount)
-                                assertEquals(PACKET_1.timestamp, session.timestamp)
+                                assertEquals(PACKET_1.timestamp, session.createdAt)
                                 assertEquals(DST_ADDR, dstAddr)
                                 assertEquals(SRC_ADDR, srcAddr)
                                 assertEquals(RTPR_1, session.report)
