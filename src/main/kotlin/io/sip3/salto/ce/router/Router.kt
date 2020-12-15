@@ -138,12 +138,20 @@ open class Router : AbstractVerticle() {
     open fun writeAttributes(packet: Packet) {
         val attributes = mutableMapOf<String, Any>().apply {
             val src = packet.srcAddr
+            put(Attributes.addr, if (recordIpAddressesAttributes) src.addr else "")
             put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
-            src.host?.let { put(Attributes.src_host, it) }
+            src.host?.let {
+                put(Attributes.host, it)
+                put(Attributes.src_host, it)
+            }
 
             val dst = packet.dstAddr
+            put(Attributes.addr, if (recordIpAddressesAttributes) dst.addr else "")
             put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
-            dst.host?.let { put(Attributes.dst_host, it) }
+            dst.host?.let {
+                put(Attributes.host, it)
+                put(Attributes.dst_host, it)
+            }
         }
 
         vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("ip", attributes))

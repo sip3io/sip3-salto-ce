@@ -111,7 +111,7 @@ class RouterTest : VertxTest() {
                     val (prefix, attributes) = event.body()
                     context.verify {
                         assertEquals("ip", prefix)
-                        assertEquals(2, attributes.size)
+                        assertEquals(3, attributes.size)
                         assertEquals("29.11.19.88", attributes["src_addr"])
                         assertEquals("23.08.20.15", attributes["dst_addr"])
                     }
@@ -229,7 +229,7 @@ class RouterTest : VertxTest() {
                     val (prefix, attributes) = event.body()
                     context.verify {
                         assertEquals("ip", prefix)
-                        assertEquals(3, attributes.size)
+                        assertEquals(5, attributes.size)
                         assertEquals("29.11.19.88", attributes["src_addr"])
                         assertEquals("test", attributes["src_host"])
                         assertEquals("23.08.20.15", attributes["dst_addr"])

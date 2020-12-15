@@ -347,9 +347,11 @@ open class SipCallHandler : AbstractVerticle() {
                 remove(Attributes.x_call_id)
 
                 val caller = get(Attributes.caller) ?: session.caller
+                put(Attributes.user, if (recordCallUsersAttributes) caller else "")
                 put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
 
                 val callee = get(Attributes.callee) ?: session.callee
+                put(Attributes.user, if (recordCallUsersAttributes) callee else "")
                 put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
 
                 session.duration?.let { put(Attributes.duration, it) }
