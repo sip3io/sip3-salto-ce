@@ -137,7 +137,7 @@ open class SipTransactionHandler : AbstractVerticle() {
             // 2. Wait `response-timeout` if transaction was created but hasn't received any response yet
             // 3. Wait `aggregation-timeout` if transaction was created and has received response with non final status code
             (transaction.terminatedAt?.let { it + terminationTimeout }
-                    ?: transaction.createdAt + (transaction.response?.let { aggregationTimeout } ?: responseTimeout)) < now
+                ?: transaction.createdAt + (transaction.response?.let { aggregationTimeout } ?: responseTimeout)) < now
         }.forEach { (tid, transaction) ->
             transactions.remove(tid)
             routeTransaction(transaction)
@@ -185,22 +185,22 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     open fun writeAttributes(transaction: SipTransaction) {
         val attributes = transaction.attributes
-                .toMutableMap()
-                .apply {
-                    remove(Attributes.src_host)
-                    remove(Attributes.dst_host)
+            .toMutableMap()
+            .apply {
+                remove(Attributes.src_host)
+                remove(Attributes.dst_host)
 
-                    put(Attributes.method, transaction.cseqMethod)
+                put(Attributes.method, transaction.cseqMethod)
 
-                    put(Attributes.call_id, "")
-                    remove(Attributes.x_call_id)
+                put(Attributes.call_id, "")
+                remove(Attributes.x_call_id)
 
-                    val caller = get(Attributes.caller) ?: transaction.caller
-                    put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
+                val caller = get(Attributes.caller) ?: transaction.caller
+                put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
 
-                    val callee = get(Attributes.callee) ?: transaction.callee
-                    put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
-                }
+                val callee = get(Attributes.callee) ?: transaction.callee
+                put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
+            }
 
         vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
 

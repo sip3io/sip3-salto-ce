@@ -71,15 +71,15 @@ class SdpHandler : AbstractVerticle() {
             val codec = Codec().apply {
                 name = codecObject.getString("name")
                 payloadTypes = codecObject.getJsonArray("payload_types")
-                        .flatMap { payloadType ->
-                            when (payloadType) {
-                                is Int -> setOf(payloadType)
-                                is String -> payloadType.toIntRange()
-                                else -> throw IllegalArgumentException("Couldn't parse `payload_types`. Unknown type: $payloadType")
-                            }
+                    .flatMap { payloadType ->
+                        when (payloadType) {
+                            is Int -> setOf(payloadType)
+                            is String -> payloadType.toIntRange()
+                            else -> throw IllegalArgumentException("Couldn't parse `payload_types`. Unknown type: $payloadType")
                         }
-                        .toSet()
-                        .toList()
+                    }
+                    .toSet()
+                    .toList()
 
                 clockRate = codecObject.getInteger("clock_rate")
 
@@ -123,7 +123,7 @@ class SdpHandler : AbstractVerticle() {
 
         val payloadTypes = if (request != null && response != null) {
             response.payloadTypes
-                    .intersect(request.payloadTypes.asIterable())
+                .intersect(request.payloadTypes.asIterable())
         } else {
             (request ?: response)?.payloadTypes?.toList()
         }
@@ -152,20 +152,20 @@ class SdpHandler : AbstractVerticle() {
         val now = System.currentTimeMillis()
 
         val sdpSessions = listOfNotNull(session.request, session.response)
-                .map { mediaDescription ->
-                    SdpSession().apply {
-                        timestamp = now
+            .map { mediaDescription ->
+                SdpSession().apply {
+                    timestamp = now
 
-                        address = mediaDescription.address()
-                        rtpPort = mediaDescription.port
-                        rtcpPort = mediaDescription.defineRtcpPort(session.isRtcpMux)
+                    address = mediaDescription.address()
+                    rtpPort = mediaDescription.port
+                    rtcpPort = mediaDescription.defineRtcpPort(session.isRtcpMux)
 
-                        codecs = session.codecs
-                        ptime = session.ptime
+                    codecs = session.codecs
+                    ptime = session.ptime
 
-                        callId = session.callId
-                    }
+                    callId = session.callId
                 }
+            }
 
         logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
         vertx.eventBus().localPublish(RoutesCE.sdp + "_info", sdpSessions)
@@ -184,14 +184,14 @@ class SdpHandler : AbstractVerticle() {
         var request: MediaDescriptionField? = null
         var response: MediaDescriptionField? = null
 
-        val isRtcpMux:Boolean by lazy {
+        val isRtcpMux: Boolean by lazy {
             (response?.isRtcpMux ?: false) && (request?.isRtcpMux ?: false)
         }
 
         val ptime: Int by lazy {
             return@lazy response?.ptime()
-                    ?: request?.ptime()
-                    ?: DEFAULT_PTIME
+                ?: request?.ptime()
+                ?: DEFAULT_PTIME
         }
 
         val requestAddress: String? by lazy {

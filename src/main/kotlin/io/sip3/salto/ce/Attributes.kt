@@ -36,6 +36,8 @@ object Attributes {
     const val distribution = "distribution"
     const val setup_time = "setup_time"
     const val establish_time = "establish_time"
+    const val cancel_time = "cancel_time"
+    const val terminated_by = "terminated_by"
     const val mos = "mos"
     const val r_factor = "r_factor"
 }

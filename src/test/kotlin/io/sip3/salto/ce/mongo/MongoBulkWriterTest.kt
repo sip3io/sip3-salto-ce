@@ -36,37 +36,37 @@ class MongoBulkWriterTest : VertxTest() {
             put("name", "test")
         }
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(MongoBulkWriter::class, JsonObject().apply {
-                        put("mongo", JsonObject().apply {
-                            put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                            put("db", "sip3")
-                            put("bulk-size", 1)
-                        })
+            deploy = {
+                vertx.deployTestVerticle(MongoBulkWriter::class, JsonObject().apply {
+                    put("mongo", JsonObject().apply {
+                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("db", "sip3")
+                        put("bulk-size", 1)
                     })
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair("test", JsonObject().apply { put("document", document) }))
-                },
-                assert = {
-                    val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                        put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db_name", "sip3")
-                    })
-                    vertx.setPeriodic(500, 100) {
-                        mongo.find("test", JsonObject()) { asr ->
-                            if (asr.succeeded()) {
-                                val documents = asr.result()
-                                if (documents.isNotEmpty()) {
-                                    context.verify {
-                                        assertEquals(document, documents[0])
-                                    }
-                                    context.completeNow()
+                })
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair("test", JsonObject().apply { put("document", document) }))
+            },
+            assert = {
+                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
+                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("db_name", "sip3")
+                })
+                vertx.setPeriodic(500, 100) {
+                    mongo.find("test", JsonObject()) { asr ->
+                        if (asr.succeeded()) {
+                            val documents = asr.result()
+                            if (documents.isNotEmpty()) {
+                                context.verify {
+                                    assertEquals(document, documents[0])
                                 }
+                                context.completeNow()
                             }
                         }
                     }
                 }
+            }
         )
     }
 }

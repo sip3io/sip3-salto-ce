@@ -87,33 +87,33 @@ open class Router : AbstractVerticle() {
         mapAddressToHost(packet.dstAddr)
 
         udfExecutor.execute(RoutesCE.packet_udf,
-                // Prepare UDF payload
-                mappingFunction = {
-                    mutableMapOf<String, Any>().apply {
-                        put("sender_addr", sender.addr)
-                        put("sender_port", sender.port)
-                        sender.host?.let { put("sender_host", it) }
+            // Prepare UDF payload
+            mappingFunction = {
+                mutableMapOf<String, Any>().apply {
+                    put("sender_addr", sender.addr)
+                    put("sender_port", sender.port)
+                    sender.host?.let { put("sender_host", it) }
 
-                        put("payload", mutableMapOf<String, Any>().apply {
-                            val src = packet.srcAddr
-                            put("src_addr", src.addr)
-                            put("src_port", src.port)
-                            src.host?.let { put("src_host", it) }
+                    put("payload", mutableMapOf<String, Any>().apply {
+                        val src = packet.srcAddr
+                        put("src_addr", src.addr)
+                        put("src_port", src.port)
+                        src.host?.let { put("src_host", it) }
 
-                            val dst = packet.dstAddr
-                            put("dst_addr", dst.addr)
-                            put("dst_port", dst.port)
-                            dst.host?.let { put("dst_host", it) }
-                        })
-                    }
-                },
-                // Handle UDF result
-                completionHandler = { asr ->
-                    val (result, _) = asr.result()
-                    if (result) {
-                        route(packet)
-                    }
-                })
+                        val dst = packet.dstAddr
+                        put("dst_addr", dst.addr)
+                        put("dst_port", dst.port)
+                        dst.host?.let { put("dst_host", it) }
+                    })
+                }
+            },
+            // Handle UDF result
+            completionHandler = { asr ->
+                val (result, _) = asr.result()
+                if (result) {
+                    route(packet)
+                }
+            })
     }
 
     open fun mapAddressToHost(address: Address) {
@@ -177,8 +177,8 @@ open class Router : AbstractVerticle() {
                 put(addr, name)
                 if (addr.contains("/")) {
                     SubnetUtils(addr).info
-                            .allAddresses
-                            .forEach { put(it, name) }
+                        .allAddresses
+                        .forEach { put(it, name) }
                 }
             }
         }

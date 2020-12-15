@@ -45,79 +45,79 @@ class RouterTest : VertxTest() {
     @Test
     fun `Route SIP packet without host mapping`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(Router::class)
-                },
-                execute = {
-                    val sender = Address().apply {
-                        addr = "127.0.0.1"
-                        port = 5060
-                    }
-                    val packet = Packet().apply {
-                        this.srcAddr = Address().apply {
-                            addr = "29.11.19.88"
-                            port = 30
-                        }
-                        this.dstAddr = Address().apply {
-                            addr = "23.08.20.15"
-                            port = 3
-                        }
-                        protocolCode = 3
-                    }
-                    vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
-                },
-                assert = {
-                    vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
-                        val packet = event.body()
-                        context.verify {
-                            assertTrue(packet is Packet)
-                        }
-                        context.completeNow()
-                    }
+            deploy = {
+                vertx.deployTestVerticle(Router::class)
+            },
+            execute = {
+                val sender = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
                 }
+                val packet = Packet().apply {
+                    this.srcAddr = Address().apply {
+                        addr = "29.11.19.88"
+                        port = 30
+                    }
+                    this.dstAddr = Address().apply {
+                        addr = "23.08.20.15"
+                        port = 3
+                    }
+                    protocolCode = 3
+                }
+                vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
+            },
+            assert = {
+                vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
+                    val packet = event.body()
+                    context.verify {
+                        assertTrue(packet is Packet)
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
     @Test
     fun `Send packet attributes without host mapping`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                        put("attributes", JsonObject().apply {
-                            put("record-ip-addresses", true)
-                        })
+            deploy = {
+                vertx.deployTestVerticle(Router::class, JsonObject().apply {
+                    put("attributes", JsonObject().apply {
+                        put("record-ip-addresses", true)
                     })
-                },
-                execute = {
-                    val sender = Address().apply {
-                        addr = "127.0.0.1"
-                        port = 5060
-                    }
-                    val packet = Packet().apply {
-                        this.srcAddr = Address().apply {
-                            addr = "29.11.19.88"
-                            port = 30
-                        }
-                        this.dstAddr = Address().apply {
-                            addr = "23.08.20.15"
-                            port = 3
-                        }
-                        protocolCode = 3
-                    }
-                    vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
-                        val (prefix, attributes) = event.body()
-                        context.verify {
-                            assertEquals("ip", prefix)
-                            assertEquals(2, attributes.size)
-                            assertEquals("29.11.19.88", attributes["src_addr"])
-                            assertEquals("23.08.20.15", attributes["dst_addr"])
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                val sender = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
                 }
+                val packet = Packet().apply {
+                    this.srcAddr = Address().apply {
+                        addr = "29.11.19.88"
+                        port = 30
+                    }
+                    this.dstAddr = Address().apply {
+                        addr = "23.08.20.15"
+                        port = 3
+                    }
+                    protocolCode = 3
+                }
+                vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                    val (prefix, attributes) = event.body()
+                    context.verify {
+                        assertEquals("ip", prefix)
+                        assertEquals(2, attributes.size)
+                        assertEquals("29.11.19.88", attributes["src_addr"])
+                        assertEquals("23.08.20.15", attributes["dst_addr"])
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
@@ -131,51 +131,51 @@ class RouterTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                        put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db_name", "sip3")
-                    })
-                    mongo.saveAwait("hosts", host)
+            deploy = {
+                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
+                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("db_name", "sip3")
+                })
+                mongo.saveAwait("hosts", host)
 
-                    vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                        put("mongo", JsonObject().apply {
-                            put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                            put("db", "sip3")
-                        })
+                vertx.deployTestVerticle(Router::class, JsonObject().apply {
+                    put("mongo", JsonObject().apply {
+                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("db", "sip3")
                     })
-                },
-                execute = {
-                    val sender = Address().apply {
-                        addr = "127.0.0.1"
-                        port = 5060
+                })
+            },
+            execute = {
+                val sender = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
+                }
+                val packet = Packet().apply {
+                    this.srcAddr = Address().apply {
+                        addr = "29.11.19.88"
+                        port = 30
                     }
-                    val packet = Packet().apply {
-                        this.srcAddr = Address().apply {
-                            addr = "29.11.19.88"
-                            port = 30
-                        }
-                        this.dstAddr = Address().apply {
-                            addr = "23.08.20.15"
-                            port = 3
-                        }
-                        protocolCode = 3
+                    this.dstAddr = Address().apply {
+                        addr = "23.08.20.15"
+                        port = 3
                     }
-                    vertx.setPeriodic(100) { vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet)) }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
-                        val packet = event.body()
-                        context.verify {
-                            assertTrue(packet is Packet)
-                            val src = packet.srcAddr
-                            if (src.host != null) {
-                                assertEquals(host["name"], src.host)
-                                context.completeNow()
-                            }
+                    protocolCode = 3
+                }
+                vertx.setPeriodic(100) { vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet)) }
+            },
+            assert = {
+                vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
+                    val packet = event.body()
+                    context.verify {
+                        assertTrue(packet is Packet)
+                        val src = packet.srcAddr
+                        if (src.host != null) {
+                            assertEquals(host["name"], src.host)
+                            context.completeNow()
                         }
                     }
                 }
+            }
         )
     }
 
@@ -189,186 +189,186 @@ class RouterTest : VertxTest() {
         }
 
         runTest(
-                deploy = {
-                    val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                        put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db_name", "sip3")
-                    })
-                    mongo.saveAwait("hosts", host)
+            deploy = {
+                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
+                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("db_name", "sip3")
+                })
+                mongo.saveAwait("hosts", host)
 
-                    vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                        put("mongo", JsonObject().apply {
-                            put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                            put("db", "sip3")
-                        })
-                        put("attributes", JsonObject().apply {
-                            put("record-ip-addresses", true)
-                        })
+                vertx.deployTestVerticle(Router::class, JsonObject().apply {
+                    put("mongo", JsonObject().apply {
+                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("db", "sip3")
                     })
-                },
-                execute = {
-                    val sender = Address().apply {
-                        addr = "127.0.0.1"
-                        port = 5060
-                    }
-                    val packet = Packet().apply {
-                        this.srcAddr = Address().apply {
-                            addr = "29.11.19.88"
-                            port = 30
-                        }
-                        this.dstAddr = Address().apply {
-                            addr = "23.08.20.15"
-                            port = 3
-                        }
-                        protocolCode = 3
-                    }
-                    vertx.setPeriodic(100) { vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet)) }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
-                        val (prefix, attributes) = event.body()
-                        context.verify {
-                            assertEquals("ip", prefix)
-                            assertEquals(3, attributes.size)
-                            assertEquals("29.11.19.88", attributes["src_addr"])
-                            assertEquals("test", attributes["src_host"])
-                            assertEquals("23.08.20.15", attributes["dst_addr"])
-                        }
-                        context.completeNow()
-                    }
+                    put("attributes", JsonObject().apply {
+                        put("record-ip-addresses", true)
+                    })
+                })
+            },
+            execute = {
+                val sender = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
                 }
+                val packet = Packet().apply {
+                    this.srcAddr = Address().apply {
+                        addr = "29.11.19.88"
+                        port = 30
+                    }
+                    this.dstAddr = Address().apply {
+                        addr = "23.08.20.15"
+                        port = 3
+                    }
+                    protocolCode = 3
+                }
+                vertx.setPeriodic(100) { vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet)) }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                    val (prefix, attributes) = event.body()
+                    context.verify {
+                        assertEquals("ip", prefix)
+                        assertEquals(3, attributes.size)
+                        assertEquals("29.11.19.88", attributes["src_addr"])
+                        assertEquals("test", attributes["src_host"])
+                        assertEquals("23.08.20.15", attributes["dst_addr"])
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
     @Test
     fun `Apply Groovy UDF to filter SIP packets`() {
         runTest(
-                deploy = {
-                    vertx.deployVerticle(UDF_GROOVY)
-                    vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                        put("udf", JsonObject().apply {
-                            put("check-period", 100)
-                            put("execution-timeout", 100)
-                        })
+            deploy = {
+                vertx.deployVerticle(UDF_GROOVY)
+                vertx.deployTestVerticle(Router::class, JsonObject().apply {
+                    put("udf", JsonObject().apply {
+                        put("check-period", 100)
+                        put("execution-timeout", 100)
                     })
-                },
-                execute = {
-                    val sender1 = Address().apply {
-                        addr = "127.0.0.1"
-                        port = 5060
-                        host = "test"
+                })
+            },
+            execute = {
+                val sender1 = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
+                    host = "test"
+                }
+                val packet1 = Packet().apply {
+                    this.srcAddr = Address().apply {
+                        addr = "29.11.19.88"
+                        port = 30
                     }
-                    val packet1 = Packet().apply {
-                        this.srcAddr = Address().apply {
-                            addr = "29.11.19.88"
-                            port = 30
-                        }
-                        this.dstAddr = Address().apply {
-                            addr = "23.08.20.15"
-                            port = 3
-                        }
-                        protocolCode = 3
+                    this.dstAddr = Address().apply {
+                        addr = "23.08.20.15"
+                        port = 3
                     }
-                    val sender2 = Address().apply {
-                        addr = "127.0.0.1"
-                        port = 5060
-                        host = "sip3-captain"
+                    protocolCode = 3
+                }
+                val sender2 = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
+                    host = "sip3-captain"
+                }
+                val packet2 = Packet().apply {
+                    this.srcAddr = Address().apply {
+                        addr = "29.11.19.88"
+                        port = 30
+                        host = "Test"
                     }
-                    val packet2 = Packet().apply {
-                        this.srcAddr = Address().apply {
-                            addr = "29.11.19.88"
-                            port = 30
-                            host = "Test"
-                        }
-                        this.dstAddr = Address().apply {
-                            addr = "23.08.20.15"
-                            port = 3
-                        }
-                        protocolCode = 3
+                    this.dstAddr = Address().apply {
+                        addr = "23.08.20.15"
+                        port = 3
                     }
-                    vertx.setPeriodic(100) {
-                        if (vertx.eventBus().endpoints().contains("packet_udf")) {
-                            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender1, packet1))
-                            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender2, packet2))
-                        }
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
-                        val packet = event.body()
-                        context.verify {
-                            assertTrue(packet is Packet)
-                            assertEquals("Test", packet.srcAddr.host)
-                        }
-                        context.completeNow()
+                    protocolCode = 3
+                }
+                vertx.setPeriodic(100) {
+                    if (vertx.eventBus().endpoints().contains("packet_udf")) {
+                        vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender1, packet1))
+                        vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender2, packet2))
                     }
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
+                    val packet = event.body()
+                    context.verify {
+                        assertTrue(packet is Packet)
+                        assertEquals("Test", packet.srcAddr.host)
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
     @Test
     fun `Apply Javascript UDF to filter SIP packets`() {
         runTest(
-                deploy = {
-                    vertx.deployVerticle(UDF_JS)
-                    vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                        put("udf", JsonObject().apply {
-                            put("check-period", 100)
-                            put("execution-timeout", 100)
-                        })
+            deploy = {
+                vertx.deployVerticle(UDF_JS)
+                vertx.deployTestVerticle(Router::class, JsonObject().apply {
+                    put("udf", JsonObject().apply {
+                        put("check-period", 100)
+                        put("execution-timeout", 100)
                     })
-                },
-                execute = {
-                    val sender1 = Address().apply {
-                        addr = "127.0.0.1"
-                        port = 5060
-                        host = "test"
+                })
+            },
+            execute = {
+                val sender1 = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
+                    host = "test"
+                }
+                val packet1 = Packet().apply {
+                    this.srcAddr = Address().apply {
+                        addr = "29.11.19.88"
+                        port = 30
                     }
-                    val packet1 = Packet().apply {
-                        this.srcAddr = Address().apply {
-                            addr = "29.11.19.88"
-                            port = 30
-                        }
-                        this.dstAddr = Address().apply {
-                            addr = "23.08.20.15"
-                            port = 3
-                        }
-                        protocolCode = 3
+                    this.dstAddr = Address().apply {
+                        addr = "23.08.20.15"
+                        port = 3
                     }
-                    val sender2 = Address().apply {
-                        addr = "127.0.0.1"
-                        port = 5060
-                        host = "sip3-captain"
+                    protocolCode = 3
+                }
+                val sender2 = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
+                    host = "sip3-captain"
+                }
+                val packet2 = Packet().apply {
+                    this.srcAddr = Address().apply {
+                        addr = "29.11.19.88"
+                        port = 30
+                        host = "Test"
                     }
-                    val packet2 = Packet().apply {
-                        this.srcAddr = Address().apply {
-                            addr = "29.11.19.88"
-                            port = 30
-                            host = "Test"
-                        }
-                        this.dstAddr = Address().apply {
-                            addr = "23.08.20.15"
-                            port = 3
-                        }
-                        protocolCode = 3
+                    this.dstAddr = Address().apply {
+                        addr = "23.08.20.15"
+                        port = 3
                     }
-                    vertx.setPeriodic(100) {
-                        if (vertx.eventBus().endpoints().contains("packet_udf")) {
-                            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender1, packet1))
-                            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender2, packet2))
-                        }
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
-                        val packet = event.body()
-                        context.verify {
-                            assertTrue(packet is Packet)
-                            assertEquals("Test", packet.srcAddr.host)
-                        }
-                        context.completeNow()
+                    protocolCode = 3
+                }
+                vertx.setPeriodic(100) {
+                    if (vertx.eventBus().endpoints().contains("packet_udf")) {
+                        vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender1, packet1))
+                        vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender2, packet2))
                     }
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
+                    val packet = event.body()
+                    context.verify {
+                        assertTrue(packet is Packet)
+                        assertEquals("Test", packet.srcAddr.host)
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 }

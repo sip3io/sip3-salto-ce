@@ -27,9 +27,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 import javax.sip.header.ExtensionHeader
@@ -181,80 +179,80 @@ class SipMessageHandlerTest : VertxTest() {
     @Test
     fun `Write packet with SIP message to database`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipMessageHandler::class)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                        val (collection, operation) = event.body()
+            deploy = {
+                vertx.deployTestVerticle(SipMessageHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
 
-                        val document = operation.getJsonObject("document")
+                    val document = operation.getJsonObject("document")
 
-                        context.verify {
-                            assertTrue(collection.startsWith("sip_call_raw_"))
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_call_raw_"))
 
-                            assertEquals("127.0.0.1", document.getString("src_addr"))
-                            assertEquals(5060, document.getInteger("src_port"))
-                            assertEquals("127.0.0.1", document.getString("dst_addr"))
-                            assertEquals(5060, document.getInteger("dst_port"))
-                            assertEquals("2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e", document.getString("call_id"))
-                        }
-                        context.completeNow()
+                        assertEquals("127.0.0.1", document.getString("src_addr"))
+                        assertEquals(5060, document.getInteger("src_port"))
+                        assertEquals("127.0.0.1", document.getString("dst_addr"))
+                        assertEquals(5060, document.getInteger("dst_port"))
+                        assertEquals("2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e", document.getString("call_id"))
                     }
+                    context.completeNow()
                 }
+            }
         )
     }
 
     @Test
     fun `Handle packet with SIP message based on its method`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipMessageHandler::class)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
-                        val (packet, _) = event.body()
+            deploy = {
+                vertx.deployTestVerticle(SipMessageHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (packet, _) = event.body()
 
-                        context.verify {
-                            assertEquals(PACKET_1, packet)
-                        }
-                        context.completeNow()
+                    context.verify {
+                        assertEquals(PACKET_1, packet)
                     }
+                    context.completeNow()
                 }
+            }
         )
     }
 
     @Test
     fun `Handle packet with SIP message and read extension header value`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("message", JsonObject().apply {
-                                put("extension-headers", listOf("User-Agent"))
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("message", JsonObject().apply {
+                            put("extension-headers", listOf("User-Agent"))
                         })
                     })
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
-                        val (_, message) = event.body()
+                })
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (_, message) = event.body()
 
-                        context.verify {
-                            assertEquals("Android Application", (message.getHeader("User-Agent") as ExtensionHeader).value)
-                        }
-                        context.completeNow()
+                    context.verify {
+                        assertEquals("Android Application", (message.getHeader("User-Agent") as ExtensionHeader).value)
                     }
+                    context.completeNow()
                 }
+            }
         )
     }
 
@@ -264,157 +262,157 @@ class SipMessageHandlerTest : VertxTest() {
         Metrics.addRegistry(registry)
 
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipMessageHandler::class)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_2)
-                },
-                assert = {
-                    vertx.setPeriodic(200L) {
-                        registry.find(RoutesCE.sip + "_invalid_messages").counter()?.let { counter ->
-                            context.verify {
-                                assertEquals(1.0, counter.count())
-                                val tags = counter.id.tags
-                                assertTrue(tags.isNotEmpty())
-                                assertTrue(tags.any { it.value == "INVITE" })
-                            }
-                            context.completeNow()
+            deploy = {
+                vertx.deployTestVerticle(SipMessageHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_2)
+            },
+            assert = {
+                vertx.setPeriodic(200L) {
+                    registry.find(RoutesCE.sip + "_invalid_messages").counter()?.let { counter ->
+                        context.verify {
+                            assertEquals(1.0, counter.count())
+                            val tags = counter.id.tags
+                            assertTrue(tags.isNotEmpty())
+                            assertTrue(tags.any { it.value == "INVITE" })
                         }
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 
     @Test
     fun `Handle packet with SIP message and exclude it by CSeq method`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
-                        put("sip", JsonObject().apply {
-                            put("message", JsonObject().apply {
-                                put("exclusions", listOf("OPTIONS"))
-                            })
+            deploy = {
+                vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("message", JsonObject().apply {
+                            put("exclusions", listOf("OPTIONS"))
                         })
                     })
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_3)
-                    vertx.setPeriodic(1000L) {
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
-                    }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
-                        val (packet, _) = event.body()
-
-                        context.verify {
-                            assertEquals(PACKET_1, packet)
-                        }
-                        context.completeNow()
-                    }
+                })
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_3)
+                vertx.setPeriodic(1000L) {
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
                 }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (packet, _) = event.body()
+
+                    context.verify {
+                        assertEquals(PACKET_1, packet)
+                    }
+                    context.completeNow()
+                }
+            }
         )
     }
 
     @Test
     fun `Handle packet with SIP message and ignore empty X-Call-ID`() {
         runTest(
-                deploy = {
-                    vertx.deployTestVerticle(SipMessageHandler::class)
-                },
-                execute = {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_4)
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
-                        val (packet, message) = event.body()
+            deploy = {
+                vertx.deployTestVerticle(SipMessageHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_4)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (packet, message) = event.body()
 
-                        context.verify {
-                            assertTrue((message.getHeader("X-Call-ID") as ExtensionHeader).value.isBlank())
-                            assertFalse(packet.attributes.containsKey("x_call_id"))
-                        }
-                        context.completeNow()
+                    context.verify {
+                        assertTrue((message.getHeader("X-Call-ID") as ExtensionHeader).value.isBlank())
+                        assertFalse(packet.attributes.containsKey("x_call_id"))
                     }
+                    context.completeNow()
                 }
+            }
         )
     }
 
     @Test
     fun `Apply Groovy UDF to packet with SIP message`() {
         runTest(
-                deploy = {
-                    vertx.deployVerticle(UDF_GROOVY)
-                    vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
-                        put("udf", JsonObject().apply {
-                            put("check-period", 100)
-                            put("execution-timeout", 100)
-                        })
+            deploy = {
+                vertx.deployVerticle(UDF_GROOVY)
+                vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
+                    put("udf", JsonObject().apply {
+                        put("check-period", 100)
+                        put("execution-timeout", 100)
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(1000) {
-                        val packet = Packet().apply {
-                            timestamp = PACKET_1.timestamp
-                            srcAddr = PACKET_1.srcAddr
-                            dstAddr = PACKET_1.dstAddr
-                            payload = PACKET_1.payload
-                        }
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip, packet)
+                })
+            },
+            execute = {
+                vertx.setPeriodic(1000) {
+                    val packet = Packet().apply {
+                        timestamp = PACKET_1.timestamp
+                        srcAddr = PACKET_1.srcAddr
+                        dstAddr = PACKET_1.dstAddr
+                        payload = PACKET_1.payload
                     }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
-                        val (packet, _) = event.body()
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, packet)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (packet, _) = event.body()
 
-                        val attributes = packet.attributes
-                        if (attributes.isNotEmpty()) {
-                            context.verify {
-                                assertEquals(2, attributes.size)
-                            }
-                            context.completeNow()
+                    val attributes = packet.attributes
+                    if (attributes.isNotEmpty()) {
+                        context.verify {
+                            assertEquals(2, attributes.size)
                         }
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 
     @Test
     fun `Apply JavaScript UDF to packet with SIP message`() {
         runTest(
-                deploy = {
-                    vertx.deployVerticle(UDF_JS)
-                    vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
-                        put("udf", JsonObject().apply {
-                            put("check-period", 100)
-                            put("execution-timeout", 100)
-                        })
+            deploy = {
+                vertx.deployVerticle(UDF_JS)
+                vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
+                    put("udf", JsonObject().apply {
+                        put("check-period", 100)
+                        put("execution-timeout", 100)
                     })
-                },
-                execute = {
-                    vertx.setPeriodic(1000) {
-                        val packet = Packet().apply {
-                            timestamp = PACKET_1.timestamp
-                            srcAddr = PACKET_1.srcAddr
-                            dstAddr = PACKET_1.dstAddr
-                            payload = PACKET_1.payload
-                        }
-                        vertx.eventBus().localRequest<Any>(RoutesCE.sip, packet)
+                })
+            },
+            execute = {
+                vertx.setPeriodic(1000) {
+                    val packet = Packet().apply {
+                        timestamp = PACKET_1.timestamp
+                        srcAddr = PACKET_1.srcAddr
+                        dstAddr = PACKET_1.dstAddr
+                        payload = PACKET_1.payload
                     }
-                },
-                assert = {
-                    vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
-                        val (packet, _) = event.body()
+                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, packet)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (packet, _) = event.body()
 
-                        val attributes = packet.attributes
-                        if (attributes.isNotEmpty()) {
-                            context.verify {
-                                assertEquals(2, attributes.size)
-                            }
-                            context.completeNow()
+                    val attributes = packet.attributes
+                    if (attributes.isNotEmpty()) {
+                        context.verify {
+                            assertEquals(2, attributes.size)
                         }
+                        context.completeNow()
                     }
                 }
+            }
         )
     }
 }

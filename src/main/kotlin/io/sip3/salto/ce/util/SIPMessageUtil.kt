@@ -114,7 +114,7 @@ fun SIPMessage.sessionDescription(): SessionDescription? {
 
 fun SIPMessage.expires(): Int? {
     return expires?.expires
-            ?: contactHeader?.contactParms?.getValue("expires")?.toString()?.toInt()
+        ?: contactHeader?.contactParms?.getValue("expires")?.toString()?.toInt()
 }
 
 fun URI.userOrNumber() = when (this) {
