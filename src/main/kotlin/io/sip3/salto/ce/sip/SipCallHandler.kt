@@ -72,12 +72,16 @@ open class SipCallHandler : AbstractVerticle() {
     private var expirationDelay: Long = 1000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 2000
+    private var generationTimeout: Long = 60000
+    private var youngGenerationThreshold = 1000
+    private var oldGenerationThreshold = 2000
     private var durationTimeout: Long = 3600000
     private var durationDistributions = TreeMap<Long, String>()
     private var transactionExclusions = emptyList<String>()
     private var recordCallUsersAttributes = false
 
-    private var activeSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
+    private var youngActiveSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
+    private var oldActiveSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
 
     private lateinit var udfExecutor: UdfExecutor
 
@@ -94,6 +98,15 @@ open class SipCallHandler : AbstractVerticle() {
             }
             config.getLong("termination-timeout")?.let {
                 terminationTimeout = it
+            }
+            config.getLong("generation-timeout")?.let {
+                generationTimeout = it
+            }
+            config.getInteger("young-generation-threshold")?.let {
+                youngGenerationThreshold = it
+            }
+            config.getInteger("old-generation-threshold")?.let {
+                oldGenerationThreshold = it
             }
             config.getLong("duration-timeout")?.let {
                 durationTimeout = it
@@ -136,21 +149,21 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun terminateInviteTransaction(transaction: SipTransaction) {
-        val session = activeSessions.get(transaction.callId)?.get(transaction.legId) ?: SipSession()
+        val session = youngActiveSessions.get(transaction.callId)?.get(transaction.legId) ?: SipSession()
         session.addInviteTransaction(transaction)
 
         when (session.state) {
             REDIRECTED, CANCELED, FAILED -> {
                 terminateCallSession(session)
-                activeSessions.get(transaction.callId)?.remove(transaction.legId)
+                youngActiveSessions.get(transaction.callId)?.remove(transaction.legId)
             }
             ANSWERED -> {
                 writeAttributes(session)
                 writeToDatabase(PREFIX, session, upsert = true)
-                activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
+                youngActiveSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
             else -> {
-                activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
+                youngActiveSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
         }
 
@@ -186,22 +199,25 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun terminateByeTransaction(transaction: SipTransaction) {
-        activeSessions.get(transaction.callId)?.let { sessions ->
-            val session = sessions[transaction.legId]
-            if (session != null) {
-                // In case of B2BUA we'll terminate particular call leg
-                session.addByeTransaction(transaction)
-            } else {
-                // In case of SIP Proxy we'll check and terminate all legs related to the call
-                sessions.forEach { (_, session) ->
-                    if (session.caller == transaction.caller && session.callee == transaction.callee) {
-                        session.addByeTransaction(transaction)
-                    }
+        youngActiveSessions.get(transaction.callId)?.let { terminateByeTransaction(transaction, it) }
+            ?: oldActiveSessions.get(transaction.callId)?.let { terminateByeTransaction(transaction, it) }
+
+        calculateByeTransactionMetrics(transaction)
+    }
+
+    private fun terminateByeTransaction(transaction: SipTransaction, sessions: MutableMap<String, SipSession>) {
+        val session = sessions[transaction.legId]
+        if (session != null) {
+            // In case of B2BUA we'll terminate particular call leg
+            session.addByeTransaction(transaction)
+        } else {
+            // In case of SIP Proxy we'll check and terminate all legs related to the call
+            sessions.forEach { (_, session) ->
+                if (session.caller == transaction.caller && session.callee == transaction.callee) {
+                    session.addByeTransaction(transaction)
                 }
             }
         }
-
-        calculateByeTransactionMetrics(transaction)
     }
 
     open fun calculateByeTransactionMetrics(transaction: SipTransaction) {
@@ -223,18 +239,51 @@ open class SipCallHandler : AbstractVerticle() {
     open fun terminateExpiredCallSessions() {
         val now = System.currentTimeMillis()
 
-        activeSessions.filterValues { sessions ->
-            sessions.filterValues { session ->
-                val expiresAt = if (session.state == UNKNOWN) {
-                    session.createdAt + terminationTimeout
-                } else {
-                    session.terminatedAt?.let { it + terminationTimeout }
-                        ?: session.answeredAt?.let { it + durationTimeout }
-                        ?: session.createdAt + aggregationTimeout
-                }
-                val isExpired = expiresAt < now
+        youngActiveSessions.filter { (callIdKey, sessions) ->
+            sessions.filter { (ledIdKey, session) ->
+                var isExpired = false
+                when (session.state) {
+                    UNKNOWN -> {
+                        isExpired = session.createdAt + terminationTimeout < now
+                    }
+                    ANSWERED -> {
+                        if (session.createdAt + generationTimeout < now || youngActiveSessions.size >= youngGenerationThreshold) {
+                            oldActiveSessions.getOrPut(callIdKey) { mutableMapOf() }.put(ledIdKey, session)
+                            youngActiveSessions.get(callIdKey)?.remove(ledIdKey)
+                            return@filter false
+                        }
 
-                if (!isExpired && session.state == ANSWERED) {
+                        isExpired = session.createdAt + durationTimeout < now
+                        if (!isExpired) {
+                            val attributes = excludeSessionAttributes(session.attributes)
+                                .apply {
+                                    session.srcAddr.host?.let { put("src_host", it) }
+                                    session.dstAddr.host?.let { put("dst_host", it) }
+                                }
+
+                            Metrics.counter(ESTABLISHED, attributes).increment()
+                        }
+                    }
+                    else -> {
+                        isExpired = session.terminatedAt?.let { it + terminationTimeout } ?: session.createdAt + aggregationTimeout < now
+                    }
+                }
+                return@filter isExpired
+            }.forEach { (ledIdKey, session) ->
+                sessions.remove(ledIdKey)
+                terminateCallSession(session)
+            }
+            return@filter sessions.isEmpty()
+        }.forEach { (callIdKey, _) ->
+            youngActiveSessions.remove(callIdKey)
+        }
+
+        oldActiveSessions.filter { (callIdKey, sessions) ->
+            sessions.forEach { (ledIdKey, session) ->
+                if (session.createdAt + durationTimeout < now || oldActiveSessions.size >= oldGenerationThreshold) {
+                    sessions.remove(ledIdKey)
+                    terminateCallSession(session)
+                } else {
                     val attributes = excludeSessionAttributes(session.attributes)
                         .apply {
                             session.srcAddr.host?.let { put("src_host", it) }
@@ -243,15 +292,10 @@ open class SipCallHandler : AbstractVerticle() {
 
                     Metrics.counter(ESTABLISHED, attributes).increment()
                 }
-
-                return@filterValues isExpired
-            }.forEach { (sid, session) ->
-                sessions.remove(sid)
-                terminateCallSession(session)
             }
-            return@filterValues sessions.isEmpty()
-        }.forEach { (callId, _) ->
-            activeSessions.remove(callId)
+            return@filter sessions.isEmpty()
+        }.forEach { (callIdKey, _) ->
+            oldActiveSessions.remove(callIdKey)
         }
     }
 

@@ -42,6 +42,9 @@ server:
 #    expiration-delay: 1000
 #    aggregation-timeout: 60000
 #    termination-timeout: 2000
+#    generation-timeout: 60000
+#    young-generation-threshold: 1000
+#    old-generation-threshold: 2000
 #    duration-timeout: 3600000
 #    duration-distributions: [10s, 30s, 1m, 5m, 1h]
 #    transaction-exclusions: [exclude-me]
