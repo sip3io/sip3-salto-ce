@@ -61,7 +61,7 @@ class Server : AbstractVerticle() {
         when (uri.scheme) {
             "udp" -> startUdpServer()
             "tcp" -> startTcpServer()
-            else -> NotImplementedError("Unknown protocol: '${uri.scheme}'")
+            else -> throw NotImplementedError("Unknown protocol: '${uri.scheme}'")
         }
     }
 
@@ -70,23 +70,28 @@ class Server : AbstractVerticle() {
             bufferSize?.let { receiveBufferSize = it }
         }
 
-        val socket = vertx.createDatagramSocket(options)
-        socket.handler { packet ->
-            val sender = Address().apply {
-                addr = packet.sender().host()
-                port = packet.sender().port()
+        vertx.createDatagramSocket(options)
+            .handler { packet ->
+                val sender = Address().apply {
+                    addr = packet.sender().host()
+                    port = packet.sender().port()
+                }
+                val buffer = packet.data()
+                try {
+                    onRawPacket(sender, buffer)
+                } catch (e: Exception) {
+                    logger.error(e) { "Server 'onPacket()' failed." }
+                }
             }
-            val buffer = packet.data()
-            onRawPacket(sender, buffer)
-        }
-
-        socket.listen(uri.port, uri.host) { connection ->
-            if (connection.failed()) {
-                logger.error("UDP connection failed. URI: $uri", connection.cause())
-                throw connection.cause()
+            .listen(uri.port, uri.host) { asr ->
+                if (asr.failed()) {
+                    asr.cause().let { e ->
+                        logger.error(e) { "UDP connection failed. URI: $uri" }
+                        throw e
+                    }
+                }
+                logger.info { "Listening on $uri" }
             }
-            logger.info("Listening on $uri")
-        }
     }
 
     private fun startTcpServer() {
@@ -101,27 +106,32 @@ class Server : AbstractVerticle() {
             }
         }
 
-        val server = vertx.createNetServer(options)
-        server.connectHandler { socket ->
-            val sender = Address().apply {
-                addr = socket.remoteAddress().host()
-                port = socket.remoteAddress().port()
+        vertx.createNetServer(options)
+            .connectHandler { socket ->
+                val sender = Address().apply {
+                    addr = socket.remoteAddress().host()
+                    port = socket.remoteAddress().port()
+                }
+                socket.handler { buffer ->
+                    try {
+                        onRawPacket(sender, buffer)
+                    } catch (e: Exception) {
+                        logger.error(e) { "Server 'onPacket()' failed." }
+                    }
+                }
             }
-            socket.handler { buffer ->
-                onRawPacket(sender, buffer)
+            .listen(uri.port, uri.host) { asr ->
+                if (asr.failed()) {
+                    asr.cause().let { e ->
+                        logger.error(e) { "UDP connection failed. URI: $uri" }
+                        throw e
+                    }
+                }
+                logger.info { "Listening on $uri" }
             }
-        }
-
-        server.listen(uri.port, uri.host) { connection ->
-            if (connection.failed()) {
-                logger.error("TCP connection failed. URI: $uri", connection.cause())
-                throw connection.cause()
-            }
-            logger.info("Listening on $uri")
-        }
     }
 
-    fun onRawPacket(sender: Address, buffer: Buffer) {
+    private fun onRawPacket(sender: Address, buffer: Buffer) {
         packetsReceived.increment()
 
         if (buffer.length() >= 4) {
