@@ -37,4 +37,17 @@ class Address {
     override fun toString(): String {
         return "Address(addr='$addr', port=$port, host=$host)"
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Address) return false
+
+        return addr == other.addr && port == other.port
+    }
+
+    override fun hashCode(): Int {
+        var result = addr.hashCode()
+        result = 31 * result + port
+        return result
+    }
 }

@@ -52,6 +52,8 @@ server:
 #    duration-timeout: 900000
 #    transaction-exclusions: [exclude-me]
 #media:
+#  expiration-delay: 4000
+#  aggregation-timeout: 30000
 #  rtcp:
 #    expiration-delay: 4000
 #    aggregation-timeout: 30000
@@ -59,7 +61,6 @@ server:
 #    cumulative-metrics: true
 #    expiration-delay: 4000
 #    aggregation-timeout: 30000
-#    duration-timeout: 3600000
 
 #! Metrics
 #metrics:

@@ -16,37 +16,36 @@
 
 package io.sip3.salto.ce.rtpr
 
+import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil
-import kotlin.math.max
 
 class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
 
     var createdAt: Long = 0L
-    val terminatedAt: Long
-        get() = report.startedAt + report.duration
+    var terminatedAt: Long = 0L
 
     val srcAddr = packet.srcAddr
     val dstAddr = packet.dstAddr
     lateinit var report: RtpReportPayload
 
+    var sdp: SdpSession? = null
+
     var reportCount = 0
     var badReportCount = 0
-
-    var lastReportTimestamp: Long = Long.MAX_VALUE
 
     fun add(payload: RtpReportPayload) {
         if (reportCount == 0) {
             report = payload
+            createdAt = payload.startedAt
+            terminatedAt = payload.startedAt + payload.duration
         } else {
             mergeReport(payload)
         }
 
         reportCount++
         rFactorThreshold?.let { if (report.rFactor in 0F..rFactorThreshold) badReportCount++ }
-
-        lastReportTimestamp = payload.startedAt
     }
 
     fun merge(other: RtprSession) {
@@ -54,7 +53,6 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
 
         reportCount += other.reportCount
         badReportCount += other.badReportCount
-        lastReportTimestamp = max(lastReportTimestamp, other.lastReportTimestamp)
     }
 
     private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1 ) {
@@ -98,5 +96,6 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
         if (createdAt > payload.startedAt) {
             createdAt = payload.startedAt
         }
+        terminatedAt = payload.startedAt + payload.duration
     }
 }

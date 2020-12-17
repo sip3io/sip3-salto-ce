@@ -19,17 +19,25 @@ package io.sip3.salto.ce.media
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.rtpr.RtprSession
+import kotlin.math.abs
 
 class MediaSession(val srcAddr: Address, val dstAddr: Address) {
 
     var createdAt: Long = 0L
     var terminatedAt: Long = 0L
 
-    val forward: MediaStream = MediaStream()
-    val reverse: MediaStream = MediaStream()
+    var aliveAt: Long = System.currentTimeMillis()
+
+    val forward = MediaStream()
+    val reverse = MediaStream()
+
+    lateinit var callId: String
+
+    val codecName: String?
+        get() = forward.codecName ?: reverse.codecName
 
     val isOneWay: Boolean
-        get() = forward.isEmpty() || reverse.isEmpty()
+        get() = forward.hasRtp() xor reverse.hasRtp()
 
     val reportCount: Int
         get() = forward.reportCount + reverse.reportCount
@@ -37,7 +45,20 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
     val badReportCount: Int
         get() = forward.badReportCount + reverse.badReportCount
 
-    lateinit var callId: String
+    val createdAtDiff: Long?
+        get() = diffOrNull(forward.rtp?.createdAt, reverse.rtp?.createdAt)
+
+    val terminatedAtDiff: Long?
+        get() = diffOrNull(forward.rtp?.terminatedAt, reverse.rtp?.terminatedAt)
+
+    val durationDiff: Long?
+        get() = diffOrNull(forward.rtpDuration, reverse.rtpDuration)
+
+    val duration: Long
+        get() = terminatedAt - createdAt
+
+    val rtprSessions: List<RtprSession>
+        get() = listOfNotNull(forward.rtp, forward.rtcp, reverse.rtp, reverse.rtcp)
 
     fun add(session: RtprSession) {
         when (session.report.source) {
@@ -52,8 +73,16 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
         if (dstAddr.host == null) updateHost(dstAddr, session)
     }
 
+    private fun diffOrNull(a: Long?, b: Long?): Long? {
+        if (a == null || b == null) {
+            return null
+        }
+
+        return abs(a - b)
+    }
+
     private fun addRtpSession(session: RtprSession) {
-        if (session.srcAddr.sameAddrPort(srcAddr) || session.dstAddr.sameAddrPort(dstAddr)) {
+        if (session.srcAddr == srcAddr || session.dstAddr == dstAddr) {
             forward.addRtp(session)
         } else {
             reverse.addRtp(session)
@@ -61,7 +90,7 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
     }
 
     private fun addRtcpSession(session: RtprSession) {
-        if (session.dstAddr.sameAddrPort(srcAddr) || session.srcAddr.sameAddrPort(dstAddr)) {
+        if (session.dstAddr == srcAddr || session.srcAddr == dstAddr) {
             forward.addRtcp(session)
         } else {
             reverse.addRtcp(session)
@@ -70,16 +99,12 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
 
     private fun updateHost(addr: Address, session: RtprSession) {
         session.srcAddr
-            .takeIf { it.sameAddrPort(addr) && it.host != null }
+            .takeIf { it == addr && it.host != null }
             ?.let { addr.host = it.host }
 
         session.dstAddr
-            .takeIf { it.sameAddrPort(addr) && it.host != null }
+            .takeIf { it == addr && it.host != null }
             ?.let { addr.host = it.host }
-    }
-
-    private fun Address.sameAddrPort(other: Address): Boolean {
-        return this.addr == other.addr && this.port == other.port
     }
 
     class MediaStream {
@@ -92,6 +117,13 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
 
         val badReportCount: Int
             get() = (rtp?.badReportCount ?: 0)
+
+        val codecName: String?
+            get() = (rtp?.report?.codecName)
+                ?: (rtcp?.report?.codecName)
+
+        val rtpDuration: Long?
+            get() = rtp?.report?.duration?.toLong()
 
         fun addRtp(session: RtprSession) {
             if (rtp == null) {
@@ -109,8 +141,8 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
             }
         }
 
-        fun isEmpty(): Boolean {
-            return rtp == null || rtcp == null
+        fun hasRtp(): Boolean {
+            return rtp == null
         }
     }
 }

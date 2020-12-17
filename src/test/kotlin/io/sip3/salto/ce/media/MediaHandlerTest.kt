@@ -16,6 +16,8 @@
 
 package io.sip3.salto.ce.media
 
+import io.sip3.commons.domain.Codec
+import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localRequest
@@ -37,11 +39,8 @@ class MediaHandlerTest : VertxTest() {
         // Periodic RTP report with RTP source
         val RTPR = RtpReportPayload().apply {
             source = RtpReportPayload.SOURCE_RTP
-            cumulative = true
-            payloadType = 1
+            payloadType = 8
             ssrc = 2
-            callId = "some@call.id"
-            codecName = "PCMA"
 
             expectedPacketCount = 3
             receivedPacketCount = 4
@@ -76,6 +75,22 @@ class MediaHandlerTest : VertxTest() {
             }
             payload = RTPR.encode().array()
         }
+
+        val SDP_SESSION = SdpSession().apply {
+            timestamp = System.currentTimeMillis()
+            address = "10.10.10.10"
+            rtpPort = 10500
+            rtcpPort = 10501
+            callId = "some@call.id"
+            codecs = listOf(Codec().apply {
+                name = "PCMA"
+                payloadTypes = listOf(8)
+                bpl = 0.9F
+                ie = 4.3F
+                clockRate = 8000
+            })
+        }
+
     }
 
     @Test
@@ -88,6 +103,7 @@ class MediaHandlerTest : VertxTest() {
                 val session = RtprSession(PACKET_1).apply {
                     add(RTPR)
                 }
+                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
                 vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
             },
             assert = {
@@ -104,7 +120,7 @@ class MediaHandlerTest : VertxTest() {
                         assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
                         assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
 
-                        assertEquals(RTPR.createdAt, document.getLong("created_at"))
+                        assertEquals(RTPR.startedAt, document.getLong("created_at"))
                         assertEquals(RTPR.startedAt, document.getLong("started_at"))
 
                         assertEquals(RTPR.callId, document.getString("call_id"))

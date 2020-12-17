@@ -59,13 +59,14 @@ open class RtprHandler : AbstractVerticle() {
         const val REJECTED_PACKETS = "_rejected-packets"
 
         const val DURATION = "_duration"
+
+        const val UNDEFINED = "_undefined"
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var cumulativeMetrics = true
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
-    private var durationTimeout: Long = 3600000
     private var rFactorThreshold: Float = 85F
 
     private var instances: Int = 1
@@ -89,9 +90,7 @@ open class RtprHandler : AbstractVerticle() {
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
             }
-            config.getLong("duration-timeout")?.let {
-                durationTimeout = it
-            }
+
             config.getFloat("r-factor-threshold")?.let {
                 rFactorThreshold = it
             }
@@ -166,17 +165,18 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
-        if (report.callId == null) {
-            updateWithSdp(packet, report)
-        }
-
         val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, report.ssrc)
         val session = if (report.source == RtpReportPayload.SOURCE_RTP) {
-            rtp.getOrPut(sessionId) { RtprSession(packet, rFactorThreshold) }
+            rtp.getOrPut(sessionId) { createRtprSession(packet) }
         } else {
-            rtcp.getOrPut(sessionId) { RtprSession(packet, rFactorThreshold) }
+            rtcp.getOrPut(sessionId) { createRtprSession(packet) }
+        }
+
+        if (report.callId == null) {
+            session.sdp?.let { updateWithSdp(report, it) }
         }
         session.add(report)
+        sendKeepAlive(session)
 
         val prefix = when (report.source) {
             RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
@@ -190,49 +190,58 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    private fun updateWithSdp(packet: Packet, report: RtpReportPayload) {
-        (sdp[sdpSessionId(packet.srcAddr)] ?: sdp[sdpSessionId(packet.dstAddr)])?.let { sdpSession ->
-            report.callId = sdpSession.callId
-
-            if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
-                report.duration = report.expectedPacketCount * sdpSession.ptime
-            }
-
-            val codec = sdpSession.codec(report.payloadType.toInt()) ?: sdpSession.codecs.first()
-            report.codecName = codec.name
-
-            // Raw rFactor value
-            val ppl = report.fractionLost * 100
-            val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
-
-            report.rFactor = (R0 - ieEff)
-
-            // MoS
-            report.mos = computeMos(report.rFactor)
-        }
+    private fun createRtprSession(packet: Packet): RtprSession {
+        val session = RtprSession(packet, rFactorThreshold)
+        (sdp[sdpSessionId(packet.srcAddr)] ?: sdp[sdpSessionId(packet.dstAddr)])?.let { session.sdp = it }
+        return session
     }
 
     private fun sdpSessionId(address: Address): Long {
         return sdpSessionId(address.addr, address.port)
     }
 
+    private fun updateWithSdp(report: RtpReportPayload, sdpSession: SdpSession) {
+        report.callId = sdpSession.callId
+
+        if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
+            report.duration = report.expectedPacketCount * sdpSession.ptime
+        }
+
+        val codec = sdpSession.codec(report.payloadType.toInt()) ?: sdpSession.codecs.first()
+        report.codecName = codec.name
+
+        // Raw rFactor value
+        val ppl = report.fractionLost * 100
+        val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
+
+        report.rFactor = (R0 - ieEff)
+
+        // MoS
+        report.mos = computeMos(report.rFactor)
+    }
+
+    private fun sendKeepAlive(session: RtprSession) {
+        session.sdp?.callId?.let { callId ->
+            vertx.eventBus().send(RoutesCE.media + "_keep-alive", Pair(callId, session.dstAddr.compositeKey(session.srcAddr)))
+        }
+    }
+
     private fun terminateExpiredSessions() {
         val now = System.currentTimeMillis()
-        val expiredCallIds = mutableSetOf<String>()
 
-        rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
+        rtp.filterValues { it.terminatedAt + aggregationTimeout < now }
             .forEach { (sessionId, session) ->
                 terminateRtprSession(session)
-                rtp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
+                rtp.remove(sessionId)
             }
 
-        rtcp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
+        rtcp.filterValues { it.terminatedAt + aggregationTimeout < now }
             .forEach { (sessionId, session) ->
                 terminateRtprSession(session)
-                rtcp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
+                rtcp.remove(sessionId)
             }
 
-        sdp.filterValues { expiredCallIds.contains(it.callId) || it.timestamp + durationTimeout < now }
+        sdp.filterValues { it.timestamp + aggregationTimeout < now }
             .forEach { (key, _) -> sdp.remove(key) }
     }
 
@@ -253,20 +262,23 @@ open class RtprHandler : AbstractVerticle() {
         val attributes = mutableMapOf<String, Any>().apply {
             src.host?.let { put("src_host", it) }
             dst.host?.let { put("dst_host", it) }
-            put("codec", report.codecName ?: report.payloadType)
+            report.codecName?.let { put("codec", it) }
         }
 
         report.apply {
             Metrics.summary(prefix + EXPECTED_PACKETS, attributes).record(expectedPacketCount.toDouble())
             Metrics.summary(prefix + LOST_PACKETS, attributes).record(lostPacketCount.toDouble())
             Metrics.summary(prefix + REJECTED_PACKETS, attributes).record(rejectedPacketCount.toDouble())
+            if (callId != null && codecName != null) {
+                Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
 
-            Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
+                Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
+                Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
 
-            Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
-            Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
-
-            Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
+                Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
+            } else {
+                Metrics.counter(prefix + UNDEFINED, attributes).increment()
+            }
         }
     }
 
