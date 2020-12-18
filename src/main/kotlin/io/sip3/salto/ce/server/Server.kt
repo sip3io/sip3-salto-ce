@@ -80,7 +80,7 @@ class Server : AbstractVerticle() {
                 try {
                     onRawPacket(sender, buffer)
                 } catch (e: Exception) {
-                    logger.error(e) { "Server 'onPacket()' failed." }
+                    logger.error(e) { "Server 'onRawPacket()' failed." }
                 }
             }
             .listen(uri.port, uri.host) { asr ->
@@ -116,14 +116,14 @@ class Server : AbstractVerticle() {
                     try {
                         onRawPacket(sender, buffer)
                     } catch (e: Exception) {
-                        logger.error(e) { "Server 'onPacket()' failed." }
+                        logger.error(e) { "Server 'onRawPacket()' failed." }
                     }
                 }
             }
             .listen(uri.port, uri.host) { asr ->
                 if (asr.failed()) {
                     asr.cause().let { e ->
-                        logger.error(e) { "UDP connection failed. URI: $uri" }
+                        logger.error(e) { "TCP connection failed. URI: $uri" }
                         throw e
                     }
                 }
