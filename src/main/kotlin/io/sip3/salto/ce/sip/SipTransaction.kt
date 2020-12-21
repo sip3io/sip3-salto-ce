@@ -45,6 +45,7 @@ class SipTransaction {
 
     var createdAt: Long = 0
     var originatedAt: Long? = null
+    var establishedAt: Long? = null
     var tryingAt: Long? = null
     var ringingAt: Long? = null
     var terminatedAt: Long? = null
@@ -114,6 +115,10 @@ class SipTransaction {
                     callId = message.callId()!!
                     callee = message.toUserOrNumber()!!
                     caller = message.fromUserOrNumber()!!
+                }
+
+                if (establishedAt == null) {
+                    establishedAt = packet.createdAt
                 }
 
                 val statusCode = message.statusCode
