@@ -64,6 +64,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 2000
     private var transactionExclusions = emptyList<String>()
+    private var saveSipMessagePayload = true
 
     private var recordCallUsersAttributes = false
     private var instances = 1
@@ -89,6 +90,9 @@ open class SipTransactionHandler : AbstractVerticle() {
             }
             config.getJsonArray("transaction-exclusions")?.let {
                 transactionExclusions = it.map(Any::toString)
+            }
+            config.getBoolean("save-sip-message-payload")?.let {
+                saveSipMessagePayload = it
             }
         }
         config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
@@ -121,7 +125,7 @@ open class SipTransactionHandler : AbstractVerticle() {
         }
 
         val transaction = transactions.getOrPut(message.transactionId()) { SipTransaction() }
-        transaction.addMessage(packet, message, extend = message.cseqMethod() == "INVITE")
+        transaction.addMessage(packet, message, extend = (saveSipMessagePayload && message.cseqMethod() == "INVITE"))
 
         // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.response?.hasSdp() == true) {
