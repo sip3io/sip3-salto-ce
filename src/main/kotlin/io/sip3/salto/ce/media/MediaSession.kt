@@ -21,17 +21,15 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.rtpr.RtprSession
 import kotlin.math.abs
 
-class MediaSession(val srcAddr: Address, val dstAddr: Address) {
+class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: String) {
 
-    var createdAt: Long = 0L
+    var createdAt: Long = System.currentTimeMillis()
     var terminatedAt: Long = 0L
 
     var aliveAt: Long = System.currentTimeMillis()
 
     val forward = MediaStream()
     val reverse = MediaStream()
-
-    lateinit var callId: String
 
     val codecName: String?
         get() = forward.codecName ?: reverse.codecName
@@ -57,9 +55,6 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
     val duration: Long
         get() = terminatedAt - createdAt
 
-    val rtprSessions: List<RtprSession>
-        get() = listOfNotNull(forward.rtp, forward.rtcp, reverse.rtp, reverse.rtcp)
-
     fun add(session: RtprSession) {
         when (session.report.source) {
             RtpReportPayload.SOURCE_RTP -> addRtpSession(session)
@@ -71,6 +66,10 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
 
         if (srcAddr.host == null) updateHost(srcAddr, session)
         if (dstAddr.host == null) updateHost(dstAddr, session)
+    }
+
+    fun hasMedia(): Boolean {
+        return forward.hasMedia() || reverse.hasMedia()
     }
 
     private fun diffOrNull(a: Long?, b: Long?): Long? {
@@ -143,6 +142,10 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address) {
 
         fun hasRtp(): Boolean {
             return rtp == null
+        }
+
+        fun hasMedia(): Boolean {
+            return rtp != null || rtcp != null
         }
     }
 }

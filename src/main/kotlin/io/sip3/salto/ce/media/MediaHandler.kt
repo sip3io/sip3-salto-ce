@@ -123,8 +123,10 @@ open class MediaHandler : AbstractVerticle() {
     }
 
     open fun terminateMediaSession(session: MediaSession) {
-        writeToDatabase("media_call_index", session)
-        calculateMetrics(session)
+        if (session.hasMedia()) {
+            writeToDatabase("media_call_index", session)
+            calculateMetrics(session)
+        }
     }
 
     open fun calculateMetrics(session: MediaSession) {
@@ -162,7 +164,7 @@ open class MediaHandler : AbstractVerticle() {
             port = response.rtpPort
         }
 
-        media.getOrPut(request.callId) { mutableMapOf() }.putIfAbsent(dstAddr.compositeKey(srcAddr), MediaSession(srcAddr, dstAddr))
+        media.getOrPut(request.callId) { mutableMapOf() }.putIfAbsent(dstAddr.compositeKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
     }
 
     // TODO: Update after full migration to MediaSession
@@ -179,7 +181,7 @@ open class MediaHandler : AbstractVerticle() {
 
         if (report.source == RtpReportPayload.SOURCE_RTP && report.callId != null) {
             val mediaSession = media.getOrPut(report.callId!!) { mutableMapOf() }
-                .getOrPut(session.dstAddr.compositeKey(session.srcAddr)) { MediaSession(session.srcAddr, session.dstAddr) }
+                .getOrPut(session.dstAddr.compositeKey(session.srcAddr)) { MediaSession(session.srcAddr, session.dstAddr, report.callId!!) }
             mediaSession.add(session)
         }
     }
@@ -211,6 +213,7 @@ open class MediaHandler : AbstractVerticle() {
         val operation = JsonObject().apply {
             put("document", toJsonObject(session).apply {
                 put("started_at", session.report.startedAt)
+                put("call_id", session.report.callId)
             })
         }
 

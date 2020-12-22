@@ -241,7 +241,7 @@ open class RtcpHandler : AbstractVerticle() {
         val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, senderReport.senderSsrc)
         var isNewSession = false
 
-        val session = sessions.computeIfAbsent(sessionId) {
+        val session = sessions.getOrPut(sessionId) {
             isNewSession = true
             RtcpSession().apply {
                 createdAt = packet.timestamp
@@ -288,9 +288,10 @@ open class RtcpHandler : AbstractVerticle() {
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                 }
+
+                session.previousReport = report
             }
 
-            session.previousReport = report
             vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
         }
 

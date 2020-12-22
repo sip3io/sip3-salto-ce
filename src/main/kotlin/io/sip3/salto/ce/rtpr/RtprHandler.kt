@@ -222,7 +222,7 @@ open class RtprHandler : AbstractVerticle() {
 
     private fun sendKeepAlive(session: RtprSession) {
         session.sdp?.callId?.let { callId ->
-            vertx.eventBus().send(RoutesCE.media + "_keep-alive", Pair(callId, session.dstAddr.compositeKey(session.srcAddr)))
+            vertx.eventBus().localRequest<Any>(RoutesCE.media + "_keep-alive", Pair(callId, session.dstAddr.compositeKey(session.srcAddr)))
         }
     }
 
