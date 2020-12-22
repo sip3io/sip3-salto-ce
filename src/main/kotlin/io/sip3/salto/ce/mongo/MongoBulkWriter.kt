@@ -32,7 +32,7 @@ import mu.KotlinLogging
  */
 @Instance
 @ConditionalOnProperty("/mongo")
-class MongoBulkWriter : AbstractVerticle() {
+open class MongoBulkWriter : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
@@ -60,7 +60,7 @@ class MongoBulkWriter : AbstractVerticle() {
                 val (collection, operation) = bulkOperation.body()
                 handle(collection, operation)
             } catch (e: Exception) {
-                logger.error("MongoBulkWriter 'handle()' failed.", e)
+                logger.error(e) { "MongoBulkWriter 'handle()' failed." }
             }
         }
     }
@@ -69,8 +69,7 @@ class MongoBulkWriter : AbstractVerticle() {
         flushToDatabase()
     }
 
-    private fun handle(collection: String, operation: JsonObject) {
-        val bulkOperations = operations.computeIfAbsent(collection) { mutableListOf() }
+    open fun handle(collection: String, operation: JsonObject) {
         operation.apply {
             if (!containsKey("type")) {
                 put("type", "INSERT")
@@ -82,6 +81,7 @@ class MongoBulkWriter : AbstractVerticle() {
                 put("upsert", false)
             }
         }
+        val bulkOperations = operations.getOrPut(collection) { mutableListOf() }
         bulkOperations.add(BulkOperation(operation))
         size++
         if (size >= bulkSize) {
@@ -93,7 +93,7 @@ class MongoBulkWriter : AbstractVerticle() {
         operations.forEach { (collection, bulkOperations) ->
             client.bulkWriteWithOptions(collection, bulkOperations, bulkWriteOptions) { asr ->
                 if (asr.failed()) {
-                    logger.error("MongoClient 'bulkWriteWithOptions()' failed.", asr.cause())
+                    logger.error(asr.cause()) { "MongoClient 'bulkWriteWithOptions()' failed." }
                 }
             }
         }
