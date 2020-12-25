@@ -29,8 +29,7 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
-import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -98,8 +97,8 @@ open class RtcpHandler : AbstractVerticle() {
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
-            val index = vertx.sharedData().getLocalCounterAwait(RoutesCE.rtcp)
-            vertx.eventBus().localConsumer<Pair<Packet, SenderReport>>(RoutesCE.rtcp + "_${index.getAndIncrementAwait()}") { event ->
+            val index = vertx.sharedData().getLocalCounter(RoutesCE.rtcp).await()
+            vertx.eventBus().localConsumer<Pair<Packet, SenderReport>>(RoutesCE.rtcp + "_${index.andIncrement.await()}") { event ->
                 val (packet, senderReport) = event.body()
                 handleSenderReport(packet, senderReport)
             }

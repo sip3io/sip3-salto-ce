@@ -25,8 +25,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
-import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -106,8 +105,8 @@ open class SipRegisterHandler : AbstractVerticle() {
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
-            val index = vertx.sharedData().getLocalCounterAwait(PREFIX)
-            vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.getAndIncrementAwait()}") { event ->
+            val index = vertx.sharedData().getLocalCounter(PREFIX).await()
+            vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.andIncrement.await()}") { event ->
                 try {
                     val transaction = event.body()
                     handle(transaction)

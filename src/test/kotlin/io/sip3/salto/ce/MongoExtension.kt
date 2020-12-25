@@ -37,7 +37,7 @@ class MongoExtension : BeforeAllCallback, AfterAllCallback {
     private lateinit var mongo: MongodExecutable
 
     override fun beforeAll(context: ExtensionContext?) {
-        val config = MongodConfig.builder().version(Version.V4_0_2)
+        val config = MongodConfig.builder().version(Version.V4_0_12)
             .net(Net(HOST, PORT, false))
             .build()
 

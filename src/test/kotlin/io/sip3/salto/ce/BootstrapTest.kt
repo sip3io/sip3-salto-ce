@@ -28,7 +28,7 @@ class BootstrapTest : VertxTest() {
 
     companion object {
 
-        const val UDF_LOCATION = "src/test/resources/udf"
+        const val UDF_LOCATION = "src/test/resources/udf/BootstrapTest"
         const val CODEC_LOCATION = "src/test/resources/codecs.yml"
     }
 

@@ -15,6 +15,10 @@
         <version>2020.3.2-SNAPSHOT</version>
     </parent>
 
+    <properties>
+        <vertx-js.version>4.0.0-milestone4</vertx-js.version>
+    </properties>
+
     <dependencies>
         <!-- SIP3 -->
         <dependency>
@@ -35,6 +39,7 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-lang-js</artifactId>
+            <version>${vertx-js.version}</version>
         </dependency>
 
         <!-- Mongo -->

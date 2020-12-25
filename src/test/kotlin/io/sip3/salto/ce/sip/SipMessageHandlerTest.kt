@@ -36,8 +36,8 @@ class SipMessageHandlerTest : VertxTest() {
 
     companion object {
 
-        const val UDF_GROOVY = "src/test/resources/udf/SipMessageHandlerTest.groovy"
-        const val UDF_JS = "src/test/resources/udf/SipMessageHandlerTest.js"
+        const val UDF_GROOVY = "src/test/resources/udf/SipMessageHandlerTest/SipMessageHandlerTest.groovy"
+        const val UDF_JS = "src/test/resources/udf/SipMessageHandlerTest/SipMessageHandlerTest.js"
 
         val PACKET_1 = Packet().apply {
             timestamp = Timestamp(System.currentTimeMillis())

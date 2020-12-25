@@ -27,7 +27,7 @@ import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.core.json.get
-import io.vertx.kotlin.ext.mongo.saveAwait
+import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -38,8 +38,8 @@ class RouterTest : VertxTest() {
 
     companion object {
 
-        const val UDF_GROOVY = "src/test/resources/udf/RouterTest.groovy"
-        const val UDF_JS = "src/test/resources/udf/RouterTest.js"
+        const val UDF_GROOVY = "src/test/resources/udf/RouterTest/RouterTest.groovy"
+        const val UDF_JS = "src/test/resources/udf/RouterTest/RouterTest.js"
     }
 
     @Test
@@ -136,7 +136,7 @@ class RouterTest : VertxTest() {
                     put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
                     put("db_name", "sip3")
                 })
-                mongo.saveAwait("hosts", host)
+                mongo.save("hosts", host).await()
 
                 vertx.deployTestVerticle(Router::class, JsonObject().apply {
                     put("mongo", JsonObject().apply {
@@ -194,7 +194,7 @@ class RouterTest : VertxTest() {
                     put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
                     put("db_name", "sip3")
                 })
-                mongo.saveAwait("hosts", host)
+                mongo.save("hosts", host).await()
 
                 vertx.deployTestVerticle(Router::class, JsonObject().apply {
                     put("mongo", JsonObject().apply {

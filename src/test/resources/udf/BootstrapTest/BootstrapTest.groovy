@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package udf
+package udf.BootstrapTest
 
 vertx.eventBus().localConsumer("groovy", { event ->
     vertx.eventBus().send("kotlin", event.body())

@@ -32,8 +32,7 @@ import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
-import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -132,8 +131,8 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
-            val index = vertx.sharedData().getLocalCounterAwait(RoutesCE.rtpr)
-            vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_${index.getAndIncrementAwait()}") { event ->
+            val index = vertx.sharedData().getLocalCounter(RoutesCE.rtpr).await()
+            vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_${index.andIncrement.await()}") { event ->
                 try {
                     val (packet, report) = event.body()
                     handle(packet, report)

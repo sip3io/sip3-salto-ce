@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-package udf
+package udf.SipMessageHandlerTest
 
-vertx.eventBus().localConsumer("packet_udf", { event ->
+vertx.eventBus().localConsumer("sip_message_udf", { event ->
     def packet = event.body()
 
-    if (packet['sender_host'] == 'sip3-captain') {
-        event.reply(true)
-    } else {
-        event.reply(false)
-    }
+    def attributes = packet['attributes']
+    attributes['string'] = 'string'
+    attributes['boolean'] = true
+    attributes['user-agent'] = packet['payload']['user-agent']
+
+    event.reply(true)
 })
