@@ -1,5 +1,5 @@
 codecs:
-  - name: PCMA
+  - name: PcmA
     payload_types: [ 8 ]
     clock_rate: 8000
     ie: 0
