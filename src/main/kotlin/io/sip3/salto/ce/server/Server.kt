@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.server
 
 import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
@@ -34,6 +35,7 @@ import java.net.URI
  * Retrieves SIP3 and HEP3 packets
  */
 @Instance(singleton = true)
+@ConditionalOnProperty("/server")
 class Server : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
