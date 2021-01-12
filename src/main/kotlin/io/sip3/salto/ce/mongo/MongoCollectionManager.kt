@@ -20,10 +20,10 @@ import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.setPeriodic
+import io.sip3.salto.ce.MongoClient
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
@@ -47,7 +47,7 @@ class MongoCollectionManager : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
-    private lateinit var client: MongoClient
+    private lateinit var client: io.vertx.ext.mongo.MongoClient
     private var updatePeriod: Long = 3600000
     private var collections: JsonArray = JsonArray()
 
@@ -57,10 +57,7 @@ class MongoCollectionManager : AbstractVerticle() {
         }
 
         config().getJsonObject("mongo").let { config ->
-            client = MongoClient.createShared(vertx, JsonObject().apply {
-                put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
-                put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
-            })
+            client = MongoClient.createShared(vertx, config)
             config.getLong("update-period")?.let { updatePeriod = it }
             config.getJsonArray("collections")?.let { collections = it }
         }
