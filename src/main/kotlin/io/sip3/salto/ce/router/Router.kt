@@ -21,13 +21,13 @@ import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.Attributes
+import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.mongo.MongoClient
 import mu.KotlinLogging
 import org.apache.commons.net.util.SubnetUtils
 
@@ -39,7 +39,7 @@ open class Router : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private var client: MongoClient? = null
+    private var client: io.vertx.ext.mongo.MongoClient? = null
     private var updatePeriod: Long = 0
     private var recordIpAddressesAttributes = false
 
@@ -51,10 +51,7 @@ open class Router : AbstractVerticle() {
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
-            client = MongoClient.createShared(vertx, JsonObject().apply {
-                put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
-                put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
-            })
+            client = MongoClient.createShared(vertx, config)
             config.getLong("update-period")?.let { updatePeriod = it }
         }
         config().getJsonObject("attributes")?.getBoolean("record-ip-addresses")?.let {

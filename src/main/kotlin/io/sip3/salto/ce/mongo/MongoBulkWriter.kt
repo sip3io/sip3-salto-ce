@@ -18,12 +18,12 @@ package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.BulkOperation
 import io.vertx.ext.mongo.BulkWriteOptions
-import io.vertx.ext.mongo.MongoClient
 import io.vertx.ext.mongo.WriteOption
 import mu.KotlinLogging
 
@@ -36,7 +36,7 @@ open class MongoBulkWriter : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private lateinit var client: MongoClient
+    private lateinit var client: io.vertx.ext.mongo.MongoClient
     private var bulkSize = 0
     private val bulkWriteOptions = BulkWriteOptions(false)
 
@@ -45,10 +45,7 @@ open class MongoBulkWriter : AbstractVerticle() {
 
     override fun start() {
         config().getJsonObject("mongo").let { config ->
-            client = MongoClient.createShared(vertx, JsonObject().apply {
-                put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
-                put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
-            })
+            client = MongoClient.createShared(vertx, config)
             bulkSize = config.getInteger("bulk-size")
             config.getInteger("write-option")?.let { writeOption ->
                 bulkWriteOptions.writeOption = WriteOption.values()[writeOption]
