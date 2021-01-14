@@ -100,7 +100,11 @@ open class RtcpHandler : AbstractVerticle() {
             val index = vertx.sharedData().getLocalCounter(RoutesCE.rtcp).await()
             vertx.eventBus().localConsumer<Pair<Packet, SenderReport>>(RoutesCE.rtcp + "_${index.andIncrement.await()}") { event ->
                 val (packet, senderReport) = event.body()
-                handleSenderReport(packet, senderReport)
+                try {
+                    handleSenderReport(packet, senderReport)
+                } catch (e: Exception) {
+                    logger.error(e) { "RtcpHandler 'handleSenderReport()' failed. Sender report: ${JsonObject.mapFrom(senderReport)}" }
+                }
             }
         }
     }
@@ -238,10 +242,8 @@ open class RtcpHandler : AbstractVerticle() {
 
     private fun handleSenderReport(packet: Packet, senderReport: SenderReport) {
         val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, senderReport.senderSsrc)
-        var isNewSession = false
 
         val session = sessions.computeIfAbsent(sessionId) {
-            isNewSession = true
             RtcpSession().apply {
                 createdAt = packet.timestamp
                 dstAddr = packet.dstAddr
@@ -271,7 +273,7 @@ open class RtcpHandler : AbstractVerticle() {
                 minJitter = session.lastJitter
                 maxJitter = session.lastJitter
 
-                if (isNewSession) {
+                if (session.previousReport == null) {
                     lostPacketCount = report.cumulativePacketLost.toInt()
 
                     val packetCount = senderReport.senderPacketCount.toInt()
@@ -280,9 +282,9 @@ open class RtcpHandler : AbstractVerticle() {
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                 } else {
-                    lostPacketCount = (report.cumulativePacketLost - session.previousReport.cumulativePacketLost).toInt()
+                    lostPacketCount = (report.cumulativePacketLost - session.previousReport!!.cumulativePacketLost).toInt()
 
-                    expectedPacketCount = (report.extendedSeqNumber - session.previousReport.extendedSeqNumber).toInt()
+                    expectedPacketCount = (report.extendedSeqNumber - session.previousReport!!.extendedSeqNumber).toInt()
                     receivedPacketCount = expectedPacketCount - lostPacketCount
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
@@ -306,7 +308,7 @@ open class RtcpHandler : AbstractVerticle() {
         // Jitter
         var lastJitter = 0F
 
-        lateinit var previousReport: RtcpReportBlock
+        var previousReport: RtcpReportBlock? = null
         var lastPacketTimestamp: Long = 0
     }
 
