@@ -394,6 +394,8 @@ open class SipCallHandler : AbstractVerticle() {
                     put("dst_addr", dst.addr)
                     put("dst_port", dst.port)
                     put("call_id", session.callId)
+                    put("caller", session.attributes.remove(Attributes.caller) ?: session.caller)
+                    put("callee", session.attributes.remove(Attributes.callee) ?: session.callee)
                 }
 
                 if (upsert) {
@@ -407,9 +409,6 @@ open class SipCallHandler : AbstractVerticle() {
 
                     session.srcAddr.host?.let { put("src_host", it) }
                     session.dstAddr.host?.let { put("dst_host", it) }
-
-                    put("caller", session.caller)
-                    put("callee", session.callee)
 
                     session.duration?.let { put("duration", it) }
                     session.setupTime?.let { put("setup_time", it) }
