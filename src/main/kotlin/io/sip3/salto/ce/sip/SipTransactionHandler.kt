@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
@@ -58,6 +59,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 1000
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
@@ -75,6 +77,9 @@ open class SipTransactionHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("transaction")?.let { config ->
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -101,6 +106,9 @@ open class SipTransactionHandler : AbstractVerticle() {
             instances = it
         }
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            transactions = MutableMapUtil.mutableMapOf(transactions)
+        }
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredTransactions()
         }

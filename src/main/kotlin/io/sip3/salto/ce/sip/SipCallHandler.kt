@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
@@ -68,6 +69,7 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 1000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 2000
@@ -85,6 +87,9 @@ open class SipCallHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("call")?.let { config ->
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -110,6 +115,9 @@ open class SipCallHandler : AbstractVerticle() {
 
         udfExecutor = UdfExecutor(vertx)
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            activeSessions = MutableMapUtil.mutableMapOf(activeSessions)
+        }
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredCallSessions()
         }
