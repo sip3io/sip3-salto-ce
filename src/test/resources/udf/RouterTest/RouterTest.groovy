@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-vertx.eventBus().localConsumer("sip_message_udf", function (event) {
-    var packet = event.body();
+package udf.RouterTest
 
-    var attributes = packet['attributes'];
-    attributes['string'] = 'string';
-    attributes['boolean'] = true;
+vertx.eventBus().localConsumer("packet_udf", { event ->
+    def packet = event.body()
 
-    event.reply(true);
-});
+    if (packet['sender_host'] == 'sip3-captain') {
+        event.reply(true)
+    } else {
+        event.reply(false)
+    }
+})

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ class BootstrapTest : VertxTest() {
 
     companion object {
 
-        const val UDF_LOCATION = "src/test/resources/udf"
+        const val UDF_LOCATION = "src/test/resources/udf/BootstrapTest"
         const val CODEC_LOCATION = "src/test/resources/codecs.yml"
     }
 
@@ -111,7 +111,7 @@ class BootstrapTest : VertxTest() {
                         assertEquals(1, codecs.size())
 
                         val codec = (codecs.first() as JsonObject).mapTo(Codec::class.java)
-                        assertEquals("PCMA", codec.name)
+                        assertEquals("PcmA", codec.name)
                         assertEquals(0x08, codec.payloadTypes.first())
                         assertEquals(8000, codec.clockRate)
                         assertEquals(0.0F, codec.ie)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ class SdpHandler : AbstractVerticle() {
             codecObject as JsonObject
 
             val codec = Codec().apply {
-                name = codecObject.getString("name")
+                name = codecObject.getString("name").toUpperCase()
                 payloadTypes = codecObject.getJsonArray("payload_types")
                     .flatMap { payloadType ->
                         when (payloadType) {
@@ -135,7 +135,7 @@ class SdpHandler : AbstractVerticle() {
             // Define Codec by name
             val payload = response?.getFormat(payloadType) ?: request?.getFormat(payloadType)
             if (payload != null) {
-                codec = codecs[payload.codec]
+                codec = codecs[payload.codec.toUpperCase()]
             }
 
             // Define Codec by Payload Type

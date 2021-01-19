@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -537,10 +537,10 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals(ANSWERED_PACKET_1.srcAddr.port, setOnInsert.getInteger("src_port"))
                         assertEquals(ANSWERED_PACKET_1.dstAddr.addr, setOnInsert.getString("dst_addr"))
                         assertEquals(ANSWERED_PACKET_1.dstAddr.port, setOnInsert.getInteger("dst_port"))
+                        assertEquals("4801370F02092417", setOnInsert.getString("caller"))
+                        assertEquals("558552290881", setOnInsert.getString("callee"))
 
                         val set = document.getJsonObject("\$set")
-                        assertEquals("4801370F02092417", set.getString("caller"))
-                        assertEquals("558552290881", set.getString("callee"))
                         assertEquals("answered", set.getString("state"))
                         set.getLong("terminated_at")?.let { terminatedAt ->
                             assertEquals(NOW + 2 + 23 + 128 + 221 + 1, terminatedAt)

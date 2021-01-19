@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,8 +32,7 @@ import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
-import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -135,8 +134,8 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
-            val index = vertx.sharedData().getLocalCounterAwait(RoutesCE.rtpr)
-            vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_${index.getAndIncrementAwait()}") { event ->
+            val index = vertx.sharedData().getLocalCounter(RoutesCE.rtpr).await()
+            vertx.eventBus().localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_${index.andIncrement.await()}") { event ->
                 try {
                     val (packet, report) = event.body()
                     handle(packet, report)
@@ -207,17 +206,18 @@ open class RtprHandler : AbstractVerticle() {
             report.duration = report.expectedPacketCount * sdpSession.ptime
         }
 
-        val codec = sdpSession.codec(report.payloadType.toInt()) ?: sdpSession.codecs.first()
-        report.codecName = codec.name
+        sdpSession.codec(report.payloadType.toInt())?.let { codec ->
+            report.codecName = codec.name
 
-        // Raw rFactor value
-        val ppl = report.fractionLost * 100
-        val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
+            // Raw rFactor value
+            val ppl = report.fractionLost * 100
+            val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
 
-        report.rFactor = (R0 - ieEff)
+            report.rFactor = (R0 - ieEff)
 
-        // MoS
-        report.mos = computeMos(report.rFactor)
+            // MoS
+            report.mos = computeMos(report.rFactor)
+        }
     }
 
     private fun sendKeepAlive(session: RtprSession) {

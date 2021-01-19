@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
@@ -29,8 +30,7 @@ import io.sip3.salto.ce.util.hasSdp
 import io.sip3.salto.ce.util.transactionId
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
-import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -59,6 +59,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 1000
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
@@ -76,6 +77,9 @@ open class SipTransactionHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("transaction")?.let { config ->
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -102,13 +106,16 @@ open class SipTransactionHandler : AbstractVerticle() {
             instances = it
         }
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            transactions = MutableMapUtil.mutableMapOf(transactions)
+        }
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredTransactions()
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
-            val index = vertx.sharedData().getLocalCounterAwait(PREFIX)
-            vertx.eventBus().localConsumer<Pair<Packet, SIPMessage>>(PREFIX + "_${index.getAndIncrementAwait()}") { event ->
+            val index = vertx.sharedData().getLocalCounter(PREFIX).await()
+            vertx.eventBus().localConsumer<Pair<Packet, SIPMessage>>(PREFIX + "_${index.andIncrement.await()}") { event ->
                 try {
                     val (packet, message) = event.body()
                     handle(packet, message)

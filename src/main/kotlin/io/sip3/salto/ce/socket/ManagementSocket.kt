@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ package io.sip3.salto.ce.socket
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.json.JsonObject
 import io.vertx.core.net.SocketAddress
-import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.ext.mongo.updateOptionsOf
 import mu.KotlinLogging
 import java.net.URI
@@ -44,7 +44,7 @@ class ManagementSocket : AbstractVerticle() {
         const val TYPE_REGISTER = "register"
     }
 
-    private var client: MongoClient? = null
+    private var client: io.vertx.ext.mongo.MongoClient? = null
 
     private lateinit var uri: URI
     private var expirationDelay: Long = 60000
@@ -56,10 +56,7 @@ class ManagementSocket : AbstractVerticle() {
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
-            client = MongoClient.createShared(vertx, JsonObject().apply {
-                put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
-                put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
-            })
+            client = MongoClient.createShared(vertx, config)
         }
 
         config().getJsonObject("management").let { config ->

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.datagram.sendAwait
-import io.vertx.kotlin.core.net.connectAwait
+import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -49,7 +48,7 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createDatagramSocket().sendAwait(MESSAGE_1, port, "127.0.0.1")
+                vertx.createDatagramSocket().send(MESSAGE_1, port, "127.0.0.1").await()
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
@@ -76,7 +75,7 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createNetClient().connectAwait(port, "127.0.0.1").write(MESSAGE_2)
+                vertx.createNetClient().connect(port, "127.0.0.1").await().write(MESSAGE_2)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
@@ -103,7 +102,7 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createNetClient().connectAwait(port, "127.0.0.1").write(Buffer.buffer(MESSAGE_3))
+                vertx.createNetClient().connect(port, "127.0.0.1").await().write(Buffer.buffer(MESSAGE_3))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->

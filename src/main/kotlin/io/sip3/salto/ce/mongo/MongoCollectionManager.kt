@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,12 @@ import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.setPeriodic
+import io.sip3.salto.ce.MongoClient
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.mongo.MongoClient
+import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
-import io.vertx.kotlin.ext.mongo.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
@@ -47,7 +47,7 @@ class MongoCollectionManager : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
-    private lateinit var client: MongoClient
+    private lateinit var client: io.vertx.ext.mongo.MongoClient
     private var updatePeriod: Long = 3600000
     private var collections: JsonArray = JsonArray()
 
@@ -57,10 +57,7 @@ class MongoCollectionManager : AbstractVerticle() {
         }
 
         config().getJsonObject("mongo").let { config ->
-            client = MongoClient.createShared(vertx, JsonObject().apply {
-                put("connection_string", config.getString("uri") ?: throw IllegalArgumentException("mongo.uri"))
-                put("db_name", config.getString("db") ?: throw IllegalArgumentException("mongo.db"))
-            })
+            client = MongoClient.createShared(vertx, config)
             config.getLong("update-period")?.let { updatePeriod = it }
             config.getJsonArray("collections")?.let { collections = it }
         }
@@ -84,33 +81,33 @@ class MongoCollectionManager : AbstractVerticle() {
                     name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis() + updatePeriod)}"
                     createCollectionIfNeeded(name, collection.getJsonObject("indexes"))
                 } catch (e: Exception) {
-                    logger.error(e) { "MongoCollectionManager 'manageCollectionsAwait()' failed." }
+                    logger.error(e) { "MongoCollectionManager 'manageCollections()' failed." }
                 }
             }
         }
     }
 
     private suspend fun dropOldCollectionsByPrefix(collection: JsonObject) {
-        client.getCollectionsAwait()
+        client.collections.await()
             .filter { name -> name.startsWith(collection.getString("prefix")) }
             .sortedDescending()
             .drop(collection.getInteger("max-collections") ?: DEFAULT_MAX_COLLECTIONS)
-            .forEach { name -> client.dropCollectionAwait(name) }
+            .forEach { name -> client.dropCollection(name).await() }
     }
 
     private suspend fun createCollectionIfNeeded(name: String, indexes: JsonObject? = null) {
         // Create collection
-        if (!client.getCollectionsAwait().contains(name)) {
+        if (!client.collections.await().contains(name)) {
             try {
-                client.createCollectionAwait(name)
+                client.createCollection(name).await()
             } catch (e: Exception) {
-                logger.debug(e) { "MongoClient 'createCollectionAwait()' failed." }
+                logger.debug(e) { "MongoClient 'createCollection()' failed." }
             }
         }
 
         // Create collection indexes
         if (indexes != null) {
-            val indexCount = client.listIndexesAwait(name).count()
+            val indexCount = client.listIndexes(name).await().count()
             if (indexCount <= 1) {
                 createIndexes(name, indexes)
             }
@@ -120,16 +117,16 @@ class MongoCollectionManager : AbstractVerticle() {
     private suspend fun createIndexes(name: String, indexes: JsonObject) {
         // Create ascending indexes if needed
         indexes.getJsonArray("ascending")?.forEach { index ->
-            client.createIndexAwait(name, JsonObject().apply {
+            client.createIndex(name, JsonObject().apply {
                 put(index as String, 1)
-            })
+            }).await()
         }
 
         // Create hashed indexes if needed
         indexes.getJsonArray("hashed")?.forEach { index ->
-            client.createIndexAwait(name, JsonObject().apply {
+            client.createIndex(name, JsonObject().apply {
                 put(index as String, "hashed")
-            })
+            }).await()
         }
     }
 }

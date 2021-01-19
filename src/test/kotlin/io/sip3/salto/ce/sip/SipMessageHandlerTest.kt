@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,8 +36,8 @@ class SipMessageHandlerTest : VertxTest() {
 
     companion object {
 
-        const val UDF_GROOVY = "src/test/resources/udf/SipMessageHandlerTest.groovy"
-        const val UDF_JS = "src/test/resources/udf/SipMessageHandlerTest.js"
+        const val UDF_GROOVY = "src/test/resources/udf/SipMessageHandlerTest/SipMessageHandlerTest.groovy"
+        const val UDF_JS = "src/test/resources/udf/SipMessageHandlerTest/SipMessageHandlerTest.js"
 
         val PACKET_1 = Packet().apply {
             timestamp = Timestamp(System.currentTimeMillis())

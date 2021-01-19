@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,7 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
-import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -98,10 +97,14 @@ open class RtcpHandler : AbstractVerticle() {
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
-            val index = vertx.sharedData().getLocalCounterAwait(RoutesCE.rtcp)
-            vertx.eventBus().localConsumer<Pair<Packet, SenderReport>>(RoutesCE.rtcp + "_${index.getAndIncrementAwait()}") { event ->
+            val index = vertx.sharedData().getLocalCounter(RoutesCE.rtcp).await()
+            vertx.eventBus().localConsumer<Pair<Packet, SenderReport>>(RoutesCE.rtcp + "_${index.andIncrement.await()}") { event ->
                 val (packet, senderReport) = event.body()
-                handleSenderReport(packet, senderReport)
+                try {
+                    handleSenderReport(packet, senderReport)
+                } catch (e: Exception) {
+                    logger.error(e) { "RtcpHandler 'handleSenderReport()' failed. Sender report: ${JsonObject.mapFrom(senderReport)}" }
+                }
             }
         }
     }
@@ -239,10 +242,8 @@ open class RtcpHandler : AbstractVerticle() {
 
     private fun handleSenderReport(packet: Packet, senderReport: SenderReport) {
         val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, senderReport.senderSsrc)
-        var isNewSession = false
 
-        val session = sessions.getOrPut(sessionId) {
-            isNewSession = true
+        val session = sessions.computeIfAbsent(sessionId) {
             RtcpSession().apply {
                 createdAt = packet.timestamp
                 dstAddr = packet.dstAddr
@@ -272,7 +273,7 @@ open class RtcpHandler : AbstractVerticle() {
                 minJitter = session.lastJitter
                 maxJitter = session.lastJitter
 
-                if (isNewSession) {
+                if (session.previousReport == null) {
                     lostPacketCount = report.cumulativePacketLost.toInt()
 
                     val packetCount = senderReport.senderPacketCount.toInt()
@@ -281,17 +282,16 @@ open class RtcpHandler : AbstractVerticle() {
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                 } else {
-                    lostPacketCount = (report.cumulativePacketLost - session.previousReport.cumulativePacketLost).toInt()
+                    lostPacketCount = (report.cumulativePacketLost - session.previousReport!!.cumulativePacketLost).toInt()
 
-                    expectedPacketCount = (report.extendedSeqNumber - session.previousReport.extendedSeqNumber).toInt()
+                    expectedPacketCount = (report.extendedSeqNumber - session.previousReport!!.extendedSeqNumber).toInt()
                     receivedPacketCount = expectedPacketCount - lostPacketCount
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                 }
-
-                session.previousReport = report
             }
 
+            session.previousReport = report
             vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
         }
 
@@ -308,7 +308,7 @@ open class RtcpHandler : AbstractVerticle() {
         // Jitter
         var lastJitter = 0F
 
-        lateinit var previousReport: RtcpReportBlock
+        var previousReport: RtcpReportBlock? = null
         var lastPacketTimestamp: Long = 0
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
@@ -25,8 +26,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.shareddata.getAndIncrementAwait
-import io.vertx.kotlin.core.shareddata.getLocalCounterAwait
+import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -61,6 +61,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 1000
     private var aggregationTimeout: Long = 10000
     private var updatePeriod: Long = 60000
@@ -76,6 +77,9 @@ open class SipRegisterHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("register")?.let { config ->
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -96,6 +100,10 @@ open class SipRegisterHandler : AbstractVerticle() {
             recordCallUsersAttributes = it
         }
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            activeRegistrations = MutableMapUtil.mutableMapOf(activeRegistrations)
+            activeSessions = MutableMapUtil.mutableMapOf(activeSessions)
+        }
         vertx.setPeriodic(expirationDelay) {
             try {
                 terminateExpiredRegistrations()
@@ -106,8 +114,8 @@ open class SipRegisterHandler : AbstractVerticle() {
         }
 
         GlobalScope.launch(vertx.dispatcher()) {
-            val index = vertx.sharedData().getLocalCounterAwait(PREFIX)
-            vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.getAndIncrementAwait()}") { event ->
+            val index = vertx.sharedData().getLocalCounter(PREFIX).await()
+            vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.andIncrement.await()}") { event ->
                 try {
                     val transaction = event.body()
                     handle(transaction)

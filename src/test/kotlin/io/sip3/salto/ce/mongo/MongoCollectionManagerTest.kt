@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import io.sip3.salto.ce.MongoExtension
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
-import io.vertx.kotlin.ext.mongo.createCollectionAwait
+import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -111,7 +111,7 @@ class MongoCollectionManagerTest : VertxTest() {
                     put("db_name", "sip3")
                 })
 
-                mongo.createCollectionAwait(collection)
+                mongo.createCollection(collection).await()
 
                 vertx.setPeriodic(500, 100) {
                     mongo.listIndexes(collection) { asr ->
