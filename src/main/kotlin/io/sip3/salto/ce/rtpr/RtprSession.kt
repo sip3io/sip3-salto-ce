@@ -31,6 +31,12 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     lateinit var report: RtpReportPayload
 
     var sdp: SdpSession? = null
+    val codecNames = mutableSetOf<String>()
+
+    val mos: Float?
+        get() = report.mos.takeIf { it != 1F }
+    val rFactor: Float?
+        get() = report.rFactor.takeIf { it != 0F }
 
     var reportCount = 0
     var badReportCount = 0
@@ -60,6 +66,8 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
             if (codecName == null) {
                 payload.codecName?.let { codecName = it }
             }
+
+            codecNames.add(payload.codecName ?: "UNDEFINED($payloadType)")
 
             if (callId == null) {
                 payload.callId?.let { callId = it }

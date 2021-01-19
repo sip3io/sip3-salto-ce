@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,23 +19,41 @@ package io.sip3.salto.ce.media
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.rtpr.RtprSession
-import kotlin.math.abs
+import kotlin.math.min
 
 class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: String) {
 
     var createdAt: Long = System.currentTimeMillis()
     var terminatedAt: Long = 0L
-
-    var aliveAt: Long = System.currentTimeMillis()
+    var updatedAt: Long = System.currentTimeMillis()
 
     val forward = MediaStream()
     val reverse = MediaStream()
 
-    val codecName: String?
-        get() = forward.codecName ?: reverse.codecName
+    val codecNames: Set<String>
+        get() = mutableSetOf<String>().apply {
+            addAll(forward.codecNames)
+            addAll(reverse.codecNames)
+        }
 
     val isOneWay: Boolean
         get() = forward.hasRtp() xor reverse.hasRtp()
+    val hasUndefinedCodec: Boolean
+        get() = codecNames.any { it.contains("UNDEFINED") }
+
+    val mos: Double
+        get() = if (forward.mos == null) {
+            reverse.mos ?: 1F
+        } else {
+            reverse.mos?.let { min(forward.mos!!, it) } ?: forward.mos!!
+        }.toDouble()
+
+    val rFactor: Double
+        get() = if (forward.rFactor == null) {
+            reverse.rFactor ?: 1F
+        } else {
+            reverse.rFactor?.let { min(forward.rFactor!!, it) } ?: forward.rFactor!!
+        }.toDouble()
 
     val reportCount: Int
         get() = forward.reportCount + reverse.reportCount
@@ -43,14 +61,12 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
     val badReportCount: Int
         get() = forward.badReportCount + reverse.badReportCount
 
-    val createdAtDiff: Long?
-        get() = diffOrNull(forward.rtp?.createdAt, reverse.rtp?.createdAt)
-
-    val terminatedAtDiff: Long?
-        get() = diffOrNull(forward.rtp?.terminatedAt, reverse.rtp?.terminatedAt)
-
-    val durationDiff: Long?
-        get() = diffOrNull(forward.rtpDuration, reverse.rtpDuration)
+    val badReportFraction: Double
+        get() = if (reportCount > 0) {
+            badReportCount / reportCount.toDouble()
+        } else {
+            1.0
+        }
 
     val duration: Long
         get() = terminatedAt - createdAt
@@ -70,14 +86,6 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
 
     fun hasMedia(): Boolean {
         return forward.hasMedia() || reverse.hasMedia()
-    }
-
-    private fun diffOrNull(a: Long?, b: Long?): Long? {
-        if (a == null || b == null) {
-            return null
-        }
-
-        return abs(a - b)
     }
 
     private fun addRtpSession(session: RtprSession) {
@@ -112,17 +120,21 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
         var rtcp: RtprSession? = null
 
         val reportCount: Int
-            get() = (rtp?.reportCount ?: 0)
+            get() = rtp?.reportCount ?: rtcp?.reportCount ?: 0
 
         val badReportCount: Int
-            get() = (rtp?.badReportCount ?: 0)
+            get() = rtp?.badReportCount ?: rtcp?.reportCount ?: 0
 
-        val codecName: String?
-            get() = (rtp?.report?.codecName)
-                ?: (rtcp?.report?.codecName)
+        val codecNames: Set<String>
+            get() = mutableSetOf<String>().apply {
+                rtp?.let { addAll(it.codecNames) }
+                rtcp?.let { addAll(it.codecNames) }
+            }
 
-        val rtpDuration: Long?
-            get() = rtp?.report?.duration?.toLong()
+        val mos: Float?
+            get() = rtp?.mos ?: rtcp?.mos
+        val rFactor: Float?
+            get() = rtp?.rFactor ?: rtcp?.rFactor
 
         fun addRtp(session: RtprSession) {
             if (rtp == null) {

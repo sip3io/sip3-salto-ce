@@ -17,7 +17,6 @@
 package io.sip3.salto.ce.media
 
 import io.sip3.commons.domain.SdpSession
-import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
@@ -43,14 +42,15 @@ open class MediaHandler : AbstractVerticle() {
     companion object {
 
         const val PREFIX = "media"
-        
+
         const val REPORTS = PREFIX + "_reports"
         const val BAD_REPORTS = PREFIX + "_bad-reports"
+        const val BAD_REPORTS_FRACTION = PREFIX + "_bad-reports-fraction"
+
         const val DURATION = PREFIX + "_duration"
 
-        const val CREATED_DIFF = PREFIX + "_created-diff"
-        const val TERMINATED_DIFF = PREFIX + "_terminated-diff"
-        const val DURATION_DIFF = PREFIX + "_duration-diff"
+        const val MOS = PREFIX + "_mos"
+        const val R_FACTOR = PREFIX + "_r_factor"
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
@@ -111,7 +111,7 @@ open class MediaHandler : AbstractVerticle() {
 
         media.filterValues { sessions ->
             sessions.filterValues { session ->
-                session.aliveAt + aggregationTimeout < now
+                session.updatedAt + aggregationTimeout < now
             }.forEach { (sid, session) ->
                 sessions.remove(sid)
                 terminateMediaSession(session)
@@ -124,6 +124,7 @@ open class MediaHandler : AbstractVerticle() {
 
     open fun terminateMediaSession(session: MediaSession) {
         if (session.hasMedia()) {
+            writeAttributes(session)
             writeToDatabase("media_call_index", session)
             calculateMetrics(session)
         }
@@ -134,16 +135,17 @@ open class MediaHandler : AbstractVerticle() {
             val attributes = mutableMapOf<String, Any>().apply {
                 srcAddr.host?.let { put("src_host", it) }
                 dstAddr.host?.let { put("dst_host", it) }
-                codecName?.let { put("codec_name", it) }
+                codecNames.firstOrNull()?.let { put("codec_name", it) }
             }
 
             Metrics.summary(REPORTS, attributes).record(reportCount.toDouble())
             Metrics.summary(BAD_REPORTS, attributes).record(badReportCount.toDouble())
+            Metrics.summary(BAD_REPORTS_FRACTION, attributes).record(badReportFraction)
+
             Metrics.timer(DURATION, attributes).record(duration, TimeUnit.MILLISECONDS)
 
-            createdAtDiff?.let { Metrics.summary(CREATED_DIFF, attributes).record(it.toDouble()) }
-            terminatedAtDiff?.let { Metrics.summary(TERMINATED_DIFF, attributes).record(it.toDouble()) }
-            durationDiff?.let { Metrics.summary(DURATION_DIFF, attributes).record(it.toDouble()) }
+            Metrics.summary(MOS, attributes).record(session.mos)
+            Metrics.summary(R_FACTOR, attributes).record(session.rFactor)
         }
     }
 
@@ -167,57 +169,29 @@ open class MediaHandler : AbstractVerticle() {
         media.getOrPut(request.callId) { mutableMapOf() }.putIfAbsent(dstAddr.compositeKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
     }
 
-    // TODO: Update after full migration to MediaSession
     open fun handle(session: RtprSession) {
-        val report = session.report
-        writeAttributes(report)
-
-        val prefix = when (report.source) {
-            RtpReportPayload.SOURCE_RTP -> "rtpr_rtp_index"
-            RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp_index"
-            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
-        }
-        writeToDatabase(prefix, session)
-
-        if (report.source == RtpReportPayload.SOURCE_RTP && report.callId != null) {
-            val mediaSession = media.getOrPut(report.callId!!) { mutableMapOf() }
-                .getOrPut(session.dstAddr.compositeKey(session.srcAddr)) { MediaSession(session.srcAddr, session.dstAddr, report.callId!!) }
+        session.report.callId?.let { callId ->
+            val mediaSession = media.getOrPut(callId) { mutableMapOf() }
+                .getOrPut(session.dstAddr.compositeKey(session.srcAddr)) { MediaSession(session.srcAddr, session.dstAddr, callId) }
             mediaSession.add(session)
         }
     }
 
-    private fun handleKeepAlive(callId: String, compositeKey: String) {
+    open fun handleKeepAlive(callId: String, compositeKey: String) {
         media.get(callId)?.get(compositeKey)?.apply {
-            aliveAt = System.currentTimeMillis()
+            updatedAt = System.currentTimeMillis()
         }
     }
 
-    open fun writeAttributes(report: RtpReportPayload) {
+    open fun writeAttributes(session: MediaSession) {
         val attributes = mutableMapOf<String, Any>().apply {
-            put(Attributes.mos, report.mos)
-            put(Attributes.r_factor, report.rFactor)
+            put(Attributes.mos, session.mos)
+            put(Attributes.r_factor, session.rFactor)
+            put(Attributes.one_way, session.isOneWay)
+            put(Attributes.undefined_codec, session.hasUndefinedCodec)
         }
 
-        val prefix = when (report.source) {
-            RtpReportPayload.SOURCE_RTP -> "rtp"
-            RtpReportPayload.SOURCE_RTCP -> "rtcp"
-            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
-        }
-        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(prefix, attributes))
-    }
-
-    @Deprecated("Remove it after successful media session tests")
-    open fun writeToDatabase(prefix: String, session: RtprSession) {
-        val collection = prefix + "_" + timeSuffix.format(session.createdAt)
-
-        val operation = JsonObject().apply {
-            put("document", toJsonObject(session).apply {
-                put("started_at", session.report.startedAt)
-                put("call_id", session.report.callId)
-            })
-        }
-
-        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("media", attributes))
     }
 
     open fun writeToDatabase(prefix: String, session: MediaSession) {
@@ -239,12 +213,16 @@ open class MediaHandler : AbstractVerticle() {
                 dst.host?.let { put("dst_host", it) }
 
                 put("call_id", session.callId)
-                session.codecName?.let { put("codec_name", it) }
+                put("codec_names", session.codecNames)
                 put("duration", session.duration)
 
                 put("report_count", session.reportCount)
                 put("bad_report_count", session.badReportCount)
                 put("one_way", session.isOneWay)
+                put("undefined_codec", session.hasUndefinedCodec)
+
+                put("mos", session.mos)
+                put("r_factor", session.rFactor)
 
                 session.forward.rtp?.let { put("forward_rtp", toJsonObject(it))}
                 session.forward.rtcp?.let { put("forward_rtcp", toJsonObject(it))}
@@ -274,6 +252,7 @@ open class MediaHandler : AbstractVerticle() {
             dst.host?.let { put("dst_host", it) }
 
             put("payload_type", report.payloadType.toInt())
+            put("codec_name", report.codecName)
             put("ssrc", report.ssrc)
             put("duration", report.duration)
 
