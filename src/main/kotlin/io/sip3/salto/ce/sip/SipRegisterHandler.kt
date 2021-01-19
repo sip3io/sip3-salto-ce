@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localRequest
@@ -60,6 +61,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 1000
     private var aggregationTimeout: Long = 10000
     private var updatePeriod: Long = 60000
@@ -75,6 +77,9 @@ open class SipRegisterHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("register")?.let { config ->
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -95,6 +100,10 @@ open class SipRegisterHandler : AbstractVerticle() {
             recordCallUsersAttributes = it
         }
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            activeRegistrations = MutableMapUtil.mutableMapOf(activeRegistrations)
+            activeSessions = MutableMapUtil.mutableMapOf(activeSessions)
+        }
         vertx.setPeriodic(expirationDelay) {
             try {
                 terminateExpiredRegistrations()

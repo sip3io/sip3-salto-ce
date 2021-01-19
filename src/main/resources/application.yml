@@ -33,6 +33,7 @@ server:
 #    x-correlation-header: X-Call-ID
 #    extension-headers: [User-Agent, Reason, Diversion]
 #  transaction:
+#    trim-to-size-delay: 3600000
 #    expiration-delay: 1000
 #    response-timeout: 3000
 #    aggregation-timeout: 60000
@@ -40,6 +41,7 @@ server:
 #    transaction-exclusions: [exclude-me]
 #    save-sip-message-payload: true
 #  call:
+#    trim-to-size-delay: 3600000
 #    expiration-delay: 1000
 #    aggregation-timeout: 60000
 #    termination-timeout: 2000
@@ -47,6 +49,7 @@ server:
 #    duration-distributions: [10s, 30s, 1m, 5m, 1h]
 #    transaction-exclusions: [exclude-me]
 #  register:
+#    trim-to-size-delay: 3600000
 #    expiration-delay: 1000
 #    aggregation-timeout: 10000
 #    update-period: 60000
