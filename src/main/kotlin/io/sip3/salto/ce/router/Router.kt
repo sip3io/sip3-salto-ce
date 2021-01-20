@@ -19,7 +19,7 @@ package io.sip3.salto.ce.router
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
@@ -128,7 +128,7 @@ open class Router : AbstractVerticle() {
         if (route != null) {
             packetsRouted.increment()
             writeAttributes(packet)
-            vertx.eventBus().localRequest<Any>(route, packet)
+            vertx.eventBus().localSend(route, packet)
         }
     }
 
@@ -143,7 +143,7 @@ open class Router : AbstractVerticle() {
             dst.host?.let { put(Attributes.dst_host, it) }
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("ip", attributes))
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair("ip", attributes))
     }
 
     open fun updateHostMap() {

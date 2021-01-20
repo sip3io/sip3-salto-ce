@@ -21,7 +21,7 @@ import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Packet
@@ -136,7 +136,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
         // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.request?.hasSdp() == true && transaction.response?.hasSdp() == true) {
-            vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+            vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
         }
     }
 
@@ -165,7 +165,7 @@ open class SipTransactionHandler : AbstractVerticle() {
             RoutesCE.sip + "_call", RoutesCE.sip + "_register" -> {
                 val index = transaction.callId.hashCode()
                 val route = prefix + "_${abs(index % instances)}"
-                vertx.eventBus().localRequest<Any>(route, transaction)
+                vertx.eventBus().localSend(route, transaction)
             }
             else -> {
                 writeAttributes(transaction)
@@ -213,7 +213,7 @@ open class SipTransactionHandler : AbstractVerticle() {
                 put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
             }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair("sip", attributes))
 
     }
 
@@ -245,6 +245,6 @@ open class SipTransactionHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, document))
+        vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, document))
     }
 }

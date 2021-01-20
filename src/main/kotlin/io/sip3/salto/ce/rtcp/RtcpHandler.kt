@@ -23,7 +23,7 @@ import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.util.MediaUtil.rtpSessionId
 import io.sip3.commons.util.remainingCapacity
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -237,7 +237,7 @@ open class RtcpHandler : AbstractVerticle() {
 
     private fun onSenderReport(packet: Packet, senderReport: SenderReport) {
         val index = (packet.srcAddr.port * packet.dstAddr.port).hashCode() % instances
-        vertx.eventBus().localRequest<Any>(RoutesCE.rtcp + "_${index}", Pair(packet, senderReport))
+        vertx.eventBus().localSend(RoutesCE.rtcp + "_${index}", Pair(packet, senderReport))
     }
 
     private fun handleSenderReport(packet: Packet, senderReport: SenderReport) {
@@ -292,7 +292,7 @@ open class RtcpHandler : AbstractVerticle() {
             }
 
             session.previousReport = report
-            vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
+            vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
         }
 
         session.lastPacketTimestamp = packet.timestamp.time

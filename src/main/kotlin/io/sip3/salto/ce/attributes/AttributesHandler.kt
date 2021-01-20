@@ -19,7 +19,7 @@ package io.sip3.salto.ce.attributes
 import io.sip3.commons.domain.Attribute
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -128,6 +128,6 @@ open class AttributesHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+        vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 }

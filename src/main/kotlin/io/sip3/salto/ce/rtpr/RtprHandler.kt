@@ -24,7 +24,7 @@ import io.sip3.commons.util.MediaUtil.rtpSessionId
 import io.sip3.commons.util.MediaUtil.sdpSessionId
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -160,7 +160,7 @@ open class RtprHandler : AbstractVerticle() {
 
     open fun route(packet: Packet, report: RtpReportPayload) {
         val index = (packet.srcAddr.port + packet.dstAddr.port).hashCode() % instances
-        vertx.eventBus().localRequest<Any>(RoutesCE.rtpr + "_${index}", Pair(packet, report))
+        vertx.eventBus().localSend(RoutesCE.rtpr + "_${index}", Pair(packet, report))
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
@@ -246,7 +246,7 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     private fun terminateRtprSession(session: RtprSession) {
-        vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+        vertx.eventBus().localSend(RoutesCE.media, session)
 
         if (cumulativeMetrics) {
             val prefix = when (session.report.source) {
@@ -326,6 +326,6 @@ open class RtprHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+        vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 }

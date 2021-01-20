@@ -20,7 +20,7 @@ import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
@@ -191,7 +191,7 @@ open class MediaHandler : AbstractVerticle() {
             put(Attributes.undefined_codec, session.hasUndefinedCodec)
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("media", attributes))
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair("media", attributes))
     }
 
     open fun writeToDatabase(prefix: String, session: MediaSession) {
@@ -231,7 +231,7 @@ open class MediaHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+        vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
     // TODO: Exclude useless props
