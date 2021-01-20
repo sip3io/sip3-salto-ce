@@ -103,7 +103,7 @@ class MediaHandlerTest : VertxTest() {
                 val session = RtprSession(PACKET_1).apply {
                     add(RTPR)
                 }
-                vertx.eventBus().localSend(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
+                vertx.eventBus().localSend(RoutesCE.sdp + "_info", Pair(SDP_SESSION, SDP_SESSION))
                 vertx.eventBus().localSend(RoutesCE.media, session)
             },
             assert = {

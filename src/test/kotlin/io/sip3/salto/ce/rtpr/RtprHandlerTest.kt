@@ -218,7 +218,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION, SDP_SESSION))
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_2, RTPR_2))
             },
             assert = {
@@ -334,7 +334,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION, SDP_SESSION))
                 vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_2)
             },
             assert = {

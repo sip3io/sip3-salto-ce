@@ -114,9 +114,9 @@ open class RtprHandler : AbstractVerticle() {
             terminateExpiredSessions()
         }
 
-        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+        vertx.eventBus().localConsumer<Pair<SdpSession,SdpSession>>(RoutesCE.sdp + "_info") { event ->
             val sdpSessions = event.body()
-            sdpSessions.forEach { sdpSession ->
+            sdpSessions.toList().forEach { sdpSession ->
                 sdp[sdpSession.rtpId] = sdpSession
 
                 // Put same `sdpSession` with Id for RTCP port if different

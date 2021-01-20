@@ -386,12 +386,9 @@ class SdpHandlerTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
             },
             assert = {
-                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
                     context.verify {
-                        val sessions = event.body()
-                        assertEquals(2, sessions.size)
-                        val session1 = sessions[0]
-                        val session2 = sessions[1]
+                        val (session1, session2) = event.body()
 
                         assertNotEquals(session1.rtpId, session2.rtpId)
                         assertEquals(session1.callId, session2.callId)
@@ -426,26 +423,13 @@ class SdpHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
+                vertx.setTimer(2000L) {
+                    context.completeNow()
+                }
             },
             assert = {
-                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                    context.verify {
-                        val sessions = event.body()
-                        assertEquals(1, sessions.size)
-                        val session = sessions.first()
-
-                        assertEquals(transaction.callId, session.callId)
-
-                        session.codecs.first().apply {
-                            assertEquals(CODEC.name, name)
-                            assertEquals(CODEC.clockRate, clockRate)
-                            assertEquals(CODEC.payloadTypes, payloadTypes)
-                            assertEquals(CODEC.ie, ie)
-                            assertEquals(CODEC.bpl, bpl)
-                        }
-
-                        context.completeNow()
-                    }
+                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") {
+                    context.failNow(IllegalStateException("No sdp_info expected"))
                 }
             }
         )
@@ -463,26 +447,13 @@ class SdpHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
+                vertx.setTimer(2000L) {
+                    context.completeNow()
+                }
             },
             assert = {
-                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                    context.verify {
-                        val sessions = event.body()
-                        assertEquals(1, sessions.size)
-                        val session = sessions.first()
-
-                        assertEquals(transaction.callId, session.callId)
-
-                        session.codecs.first().apply {
-                            assertEquals(CODEC.name, name)
-                            assertEquals(CODEC.clockRate, clockRate)
-                            assertEquals(CODEC.payloadTypes, payloadTypes)
-                            assertEquals(CODEC.ie, ie)
-                            assertEquals(CODEC.bpl, bpl)
-                        }
-
-                        context.completeNow()
-                    }
+                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") {
+                    context.failNow(IllegalStateException("No sdp_info expected"))
                 }
             }
         )
@@ -505,7 +476,7 @@ class SdpHandlerTest : VertxTest() {
                 }
             },
             assert = {
-                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") {
+                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") {
                     context.failNow(IllegalStateException("No sdp_info expected"))
                 }
             }
@@ -527,12 +498,9 @@ class SdpHandlerTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
             },
             assert = {
-                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
                     context.verify {
-                        val sessions = event.body()
-                        assertEquals(2, sessions.size)
-                        val session1 = sessions[0]
-                        val session2 = sessions[1]
+                        val (session1, session2) = event.body()
 
                         assertNotEquals(session1.rtpId, session2.rtpId)
                         assertEquals(session1.callId, session2.callId)
@@ -570,9 +538,8 @@ class SdpHandlerTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
             },
             assert = {
-                vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                    val sessions = event.body()
-                    val session = sessions.first()
+                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                    val (session, _) = event.body()
 
                     context.verify {
                         assertEquals(transaction.callId, session.callId)

@@ -83,7 +83,7 @@ open class MediaHandler : AbstractVerticle() {
             terminateExpiredMediaSessions()
         }
 
-        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+        vertx.eventBus().localConsumer<Pair<SdpSession,SdpSession>>(RoutesCE.sdp + "_info") { event ->
             try {
                 val sessions = event.body()
                 handleSdp(sessions)
@@ -151,18 +151,13 @@ open class MediaHandler : AbstractVerticle() {
         }
     }
 
-    open fun handleSdp(sessions: List<SdpSession>) {
-        if (sessions.size != 2) {
-            throw IllegalStateException("Invalid SdpSession count: ${sessions.size}}")
-        }
+    open fun handleSdp(sessions: Pair<SdpSession, SdpSession>) {
+        val (request, response) = sessions
 
-        val request = sessions[0]
         val srcAddr = Address().apply {
             addr = request.address
             port = request.rtpPort
         }
-
-        val response = sessions[1]
         val dstAddr = Address().apply {
             addr = response.address
             port = response.rtpPort
