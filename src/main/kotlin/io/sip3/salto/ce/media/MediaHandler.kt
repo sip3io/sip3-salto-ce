@@ -18,6 +18,7 @@ package io.sip3.salto.ce.media
 
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
@@ -48,13 +49,11 @@ open class MediaHandler : AbstractVerticle() {
         const val BAD_REPORTS_FRACTION = PREFIX + "_bad-reports-fraction"
 
         const val DURATION = PREFIX + "_duration"
-
-        const val MOS = PREFIX + "_mos"
-        const val R_FACTOR = PREFIX + "_r_factor"
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 4000L
     private var aggregationTimeout: Long = 30000L
 
@@ -66,6 +65,9 @@ open class MediaHandler : AbstractVerticle() {
         }
 
         config().getJsonObject("media")?.let { config ->
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -74,6 +76,9 @@ open class MediaHandler : AbstractVerticle() {
             }
         }
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            media = MutableMapUtil.mutableMapOf(media)
+        }
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredMediaSessions()
         }
@@ -143,9 +148,6 @@ open class MediaHandler : AbstractVerticle() {
             Metrics.summary(BAD_REPORTS_FRACTION, attributes).record(badReportFraction)
 
             Metrics.timer(DURATION, attributes).record(duration, TimeUnit.MILLISECONDS)
-
-            Metrics.summary(MOS, attributes).record(session.mos)
-            Metrics.summary(R_FACTOR, attributes).record(session.rFactor)
         }
     }
 

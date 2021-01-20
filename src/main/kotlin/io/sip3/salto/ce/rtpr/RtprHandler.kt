@@ -22,6 +22,7 @@ import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.MediaUtil.rtpSessionId
 import io.sip3.commons.util.MediaUtil.sdpSessionId
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
@@ -63,16 +64,18 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+
     private var cumulativeMetrics = true
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
     private var rFactorThreshold: Float = 85F
 
     private var instances: Int = 1
 
-    private val sdp = mutableMapOf<Long, SdpSession>()
-    private val rtp = mutableMapOf<Long, RtprSession>()
-    private val rtcp = mutableMapOf<Long, RtprSession>()
+    private var sdp = mutableMapOf<Long, SdpSession>()
+    private var rtp = mutableMapOf<Long, RtprSession>()
+    private var rtcp = mutableMapOf<Long, RtprSession>()
 
     override fun start() {
         config().getString("time-suffix")?.let {
@@ -82,6 +85,9 @@ open class RtprHandler : AbstractVerticle() {
         config().getJsonObject("media")?.getJsonObject("rtp-r")?.let { config ->
             config.getBoolean("cumulative-metrics")?.let {
                 cumulativeMetrics = it
+            }
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
             }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
@@ -99,6 +105,11 @@ open class RtprHandler : AbstractVerticle() {
             instances = it
         }
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            sdp = MutableMapUtil.mutableMapOf(sdp)
+            rtp = MutableMapUtil.mutableMapOf(rtp)
+            rtcp = MutableMapUtil.mutableMapOf(rtcp)
+        }
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredSessions()
         }
@@ -222,7 +233,7 @@ open class RtprHandler : AbstractVerticle() {
 
     private fun sendKeepAlive(session: RtprSession) {
         session.sdp?.callId?.let { callId ->
-            vertx.eventBus().localRequest<Any>(RoutesCE.media + "_keep-alive", Pair(callId, session.dstAddr.compositeKey(session.srcAddr)))
+            vertx.eventBus().localSend(RoutesCE.media + "_keep-alive", Pair(callId, session.dstAddr.compositeKey(session.srcAddr)))
         }
     }
 

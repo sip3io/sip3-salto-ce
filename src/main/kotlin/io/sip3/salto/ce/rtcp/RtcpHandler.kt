@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBufUtil
 import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.util.MediaUtil.rtpSessionId
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.remainingCapacity
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
@@ -51,23 +52,34 @@ open class RtcpHandler : AbstractVerticle() {
         const val MAX_VALID_JITTER = 10000
     }
 
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
 
     private var instances: Int = 1
 
-    private val sessions = mutableMapOf<Long, RtcpSession>()
+    private var sessions = mutableMapOf<Long, RtcpSession>()
 
     override fun start() {
         context.config().getJsonObject("media")?.getJsonObject("rtcp")?.let { config ->
-            config.getLong("expiration-delay")?.let { expirationDelay = it }
-            config.getLong("aggregation-timeout")?.let { aggregationTimeout = it }
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
+            config.getLong("expiration-delay")?.let {
+                expirationDelay = it
+            }
+            config.getLong("aggregation-timeout")?.let {
+                aggregationTimeout = it
+            }
         }
 
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
         }
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            sessions = MutableMapUtil.mutableMapOf(sessions)
+        }
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
             sessions.filterValues { it.lastPacketTimestamp + aggregationTimeout < now }
