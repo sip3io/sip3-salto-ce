@@ -19,7 +19,7 @@ package io.sip3.salto.ce.server
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.AbstractVerticle
@@ -139,14 +139,14 @@ class Server : AbstractVerticle() {
         if (buffer.length() >= 4) {
             // SIP3 and HEP3
             when (buffer.getString(0, 4)) {
-                PROTO_SIP3 -> vertx.eventBus().localRequest<Any>(RoutesCE.sip3, Pair(sender, buffer))
-                PROTO_HEP3 -> vertx.eventBus().localRequest<Any>(RoutesCE.hep3, Pair(sender, buffer))
+                PROTO_SIP3 -> vertx.eventBus().localSend(RoutesCE.sip3, Pair(sender, buffer))
+                PROTO_HEP3 -> vertx.eventBus().localSend(RoutesCE.hep3, Pair(sender, buffer))
             }
 
             // HEP2
             val prefix = buffer.getBytes(0, 3)
             if (prefix.contentEquals(PROTO_HEP2)) {
-                vertx.eventBus().localRequest<Any>(RoutesCE.hep2, Pair(sender, buffer))
+                vertx.eventBus().localSend(RoutesCE.hep2, Pair(sender, buffer))
             }
         }
     }

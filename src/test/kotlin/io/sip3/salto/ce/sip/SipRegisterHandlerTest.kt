@@ -18,7 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
@@ -174,8 +174,8 @@ class SipRegisterHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setTimer(400) {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction401)
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction200)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction401)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction200)
                 }
             },
             assert = {
@@ -231,7 +231,7 @@ class SipRegisterHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setPeriodic(200, 10000) {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_register_0", transaction401)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction401)
                 }
             },
             assert = {

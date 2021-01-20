@@ -19,7 +19,7 @@ package io.sip3.salto.ce.socket
 import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
@@ -140,7 +140,7 @@ class ManagementSocketTest : VertxTest() {
             },
             execute = {
                 socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_info", listOf(sdpSession))
+                    vertx.eventBus().localSend(RoutesCE.sdp + "_info", listOf(sdpSession))
                 }
             },
             assert = {

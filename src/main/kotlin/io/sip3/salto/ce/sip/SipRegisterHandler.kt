@@ -20,7 +20,7 @@ import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
@@ -264,7 +264,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
             }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair("sip", attributes))
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair("sip", attributes))
     }
 
     open fun writeToDatabase(prefix: String, registration: SipRegistration, upsert: Boolean = false) {
@@ -344,7 +344,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+        vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
     private fun excludeRegistrationAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {

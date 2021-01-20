@@ -18,7 +18,7 @@ package io.sip3.salto.ce.media
 
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
@@ -88,7 +88,7 @@ class MediaHandlerTest : VertxTest() {
                 val session = RtprSession(PACKET_1).apply {
                     add(RTPR)
                 }
-                vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+                vertx.eventBus().localSend(RoutesCE.media, session)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -146,7 +146,7 @@ class MediaHandlerTest : VertxTest() {
                 val session = RtprSession(PACKET_1).apply {
                     add(RTPR)
                 }
-                vertx.eventBus().localRequest<Any>(RoutesCE.media, session)
+                vertx.eventBus().localSend(RoutesCE.media, session)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->

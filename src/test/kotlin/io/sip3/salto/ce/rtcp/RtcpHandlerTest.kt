@@ -19,7 +19,7 @@ package io.sip3.salto.ce.rtcp
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -179,7 +179,7 @@ class RtcpHandlerTest : VertxTest() {
                         this.payload = payload
                         timestamp = Timestamp(System.currentTimeMillis())
                     }
-                }.forEach { vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, it) }
+                }.forEach { vertx.eventBus().localSend(RoutesCE.rtcp, it) }
             },
             assert = {
                 var packetCount = 0
@@ -252,7 +252,7 @@ class RtcpHandlerTest : VertxTest() {
                     this.payload = PACKET_4
                     timestamp = Timestamp(System.currentTimeMillis())
                 }
-                vertx.eventBus().localRequest<Any>(RoutesCE.rtcp, packet)
+                vertx.eventBus().localSend(RoutesCE.rtcp, packet)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_rtcp") { event ->

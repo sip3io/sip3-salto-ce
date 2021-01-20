@@ -17,7 +17,7 @@
 package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
@@ -46,7 +46,7 @@ class MongoBulkWriterTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair("test", JsonObject().apply { put("document", document) }))
+                vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair("test", JsonObject().apply { put("document", document) }))
             },
             assert = {
                 val mongo = MongoClient.createShared(vertx, JsonObject().apply {

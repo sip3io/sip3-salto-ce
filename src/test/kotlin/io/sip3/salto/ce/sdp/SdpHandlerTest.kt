@@ -20,7 +20,7 @@ import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -383,7 +383,7 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
             },
             assert = {
                 vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
@@ -425,7 +425,7 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
             },
             assert = {
                 vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
@@ -462,7 +462,7 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
             },
             assert = {
                 vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
@@ -499,7 +499,7 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, JsonObject())
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
                 vertx.setTimer(2000L) {
                     context.completeNow()
                 }
@@ -524,7 +524,7 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
             },
             assert = {
                 vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
@@ -567,7 +567,7 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sdp + "_session", transaction)
+                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
             },
             assert = {
                 vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
