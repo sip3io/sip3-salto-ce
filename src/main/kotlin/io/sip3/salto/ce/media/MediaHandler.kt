@@ -19,7 +19,7 @@ package io.sip3.salto.ce.media
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.rtpr.RtprSession
@@ -76,7 +76,7 @@ open class MediaHandler : AbstractVerticle() {
             RtpReportPayload.SOURCE_RTCP -> "rtcp"
             else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
         }
-        vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(prefix, attributes))
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair(prefix, attributes))
     }
 
     open fun writeToDatabase(prefix: String, session: RtprSession) {
@@ -124,6 +124,6 @@ open class MediaHandler : AbstractVerticle() {
             })
         }
 
-        vertx.eventBus().localRequest<Any>(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+        vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 }

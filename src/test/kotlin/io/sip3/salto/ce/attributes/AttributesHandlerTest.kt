@@ -18,7 +18,7 @@ package io.sip3.salto.ce.attributes
 
 import io.sip3.commons.domain.Attribute
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.*
@@ -34,7 +34,7 @@ class AttributesHandlerTest : VertxTest() {
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to "string")
-                vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_STRING, attributes))
+                vertx.eventBus().localSend(RoutesCE.attributes, Pair(Attribute.TYPE_STRING, attributes))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -64,7 +64,7 @@ class AttributesHandlerTest : VertxTest() {
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to 42)
-                vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_NUMBER, attributes))
+                vertx.eventBus().localSend(RoutesCE.attributes, Pair(Attribute.TYPE_NUMBER, attributes))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -93,7 +93,7 @@ class AttributesHandlerTest : VertxTest() {
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to true)
-                vertx.eventBus().localRequest<Any>(RoutesCE.attributes, Pair(Attribute.TYPE_BOOLEAN, attributes))
+                vertx.eventBus().localSend(RoutesCE.attributes, Pair(Attribute.TYPE_BOOLEAN, attributes))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->

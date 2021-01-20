@@ -20,7 +20,7 @@ import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -275,8 +275,8 @@ class SipTransactionHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setPeriodic(200, 100) {
-                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_1))
-                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_2))
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_1))
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_2))
                 }
             },
             assert = {
@@ -316,8 +316,8 @@ class SipTransactionHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setPeriodic(200, 100) {
-                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_1))
-                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_2))
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_1))
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_MESSAGE_2))
                 }
             },
             assert = {
@@ -358,9 +358,9 @@ class SipTransactionHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setPeriodic(200, 100) {
-                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_1))
-                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_2))
-                    vertx.eventBus().localRequest<Any>(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_3))
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_1))
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_2))
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(FAILED_PACKET_3))
                 }
             },
             assert = {

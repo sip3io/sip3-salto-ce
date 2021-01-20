@@ -19,7 +19,7 @@ package io.sip3.salto.ce.decoder
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -130,7 +130,7 @@ class Decoder : AbstractVerticle() {
             }
 
             packetsDecoded.increment()
-            vertx.eventBus().localRequest<Any>(RoutesCE.router, Pair(sender, packet))
+            vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packet))
 
             offset += packetLength
         }

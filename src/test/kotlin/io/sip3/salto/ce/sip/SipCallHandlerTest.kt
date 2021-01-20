@@ -19,7 +19,7 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -408,7 +408,7 @@ class SipCallHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setPeriodic(200, 100) {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_call_0", transaction)
                 }
             },
             assert = {
@@ -455,7 +455,7 @@ class SipCallHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setPeriodic(200, 200) {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_call_0", transaction)
                 }
             },
             assert = {
@@ -509,8 +509,8 @@ class SipCallHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setPeriodic(200, 100) {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", inviteTransaction)
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", byeTransaction)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_call_0", inviteTransaction)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_call_0", byeTransaction)
                 }
             },
             assert = {
@@ -573,7 +573,7 @@ class SipCallHandlerTest : VertxTest() {
             },
             execute = {
                 vertx.setPeriodic(200, 200) {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip + "_call_0", transaction)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_call_0", transaction)
                 }
             },
             assert = {

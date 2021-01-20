@@ -22,7 +22,7 @@ import io.micrometer.core.instrument.MockClock
 import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -183,7 +183,7 @@ class SipMessageHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipMessageHandler::class)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_1)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -213,7 +213,7 @@ class SipMessageHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipMessageHandler::class)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_1)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
@@ -241,7 +241,7 @@ class SipMessageHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_1)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
@@ -266,7 +266,7 @@ class SipMessageHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipMessageHandler::class)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_2)
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_2)
             },
             assert = {
                 vertx.setPeriodic(200L) {
@@ -297,9 +297,9 @@ class SipMessageHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_3)
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_3)
                 vertx.setPeriodic(1000L) {
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_1)
+                    vertx.eventBus().localSend(RoutesCE.sip, PACKET_1)
                 }
             },
             assert = {
@@ -322,7 +322,7 @@ class SipMessageHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipMessageHandler::class)
             },
             execute = {
-                vertx.eventBus().localRequest<Any>(RoutesCE.sip, PACKET_4)
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_4)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
@@ -358,7 +358,7 @@ class SipMessageHandlerTest : VertxTest() {
                         dstAddr = PACKET_1.dstAddr
                         payload = PACKET_1.payload
                     }
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, packet)
+                    vertx.eventBus().localSend(RoutesCE.sip, packet)
                 }
             },
             assert = {
@@ -397,7 +397,7 @@ class SipMessageHandlerTest : VertxTest() {
                         dstAddr = PACKET_1.dstAddr
                         payload = PACKET_1.payload
                     }
-                    vertx.eventBus().localRequest<Any>(RoutesCE.sip, packet)
+                    vertx.eventBus().localSend(RoutesCE.sip, packet)
                 }
             },
             assert = {
