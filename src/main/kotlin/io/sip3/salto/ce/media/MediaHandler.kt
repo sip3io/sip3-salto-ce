@@ -210,7 +210,7 @@ open class MediaHandler : AbstractVerticle() {
                 dst.host?.let { put("dst_host", it) }
 
                 put("call_id", session.callId)
-                put("codec_names", session.codecNames)
+                put("codec_names", session.codecNames.toList())
                 put("duration", session.duration)
 
                 put("report_count", session.reportCount)
@@ -235,8 +235,8 @@ open class MediaHandler : AbstractVerticle() {
     private fun toJsonObject(session: RtprSession): JsonObject {
         val report = session.report
         return JsonObject().apply {
-            put("created_at", session.createdAt)
-            put("terminated_at", session.terminatedAt)
+            put("created_at", session.report.startedAt)
+            put("terminated_at", session.report.startedAt + session.report.duration)
 
             val src = session.srcAddr
             put("src_addr", src.addr)
