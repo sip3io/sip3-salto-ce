@@ -64,7 +64,7 @@ class RouterTest : VertxTest() {
                     }
                     protocolCode = 3
                 }
-                vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packet))
+                vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet)))
             },
             assert = {
                 vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
@@ -104,7 +104,7 @@ class RouterTest : VertxTest() {
                     }
                     protocolCode = 3
                 }
-                vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packet))
+                vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet)))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
@@ -161,7 +161,7 @@ class RouterTest : VertxTest() {
                     }
                     protocolCode = 3
                 }
-                vertx.setPeriodic(100) { vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packet)) }
+                vertx.setPeriodic(100) { vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet))) }
             },
             assert = {
                 vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
@@ -222,7 +222,7 @@ class RouterTest : VertxTest() {
                     }
                     protocolCode = 3
                 }
-                vertx.setPeriodic(100) { vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packet)) }
+                vertx.setPeriodic(100) { vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet))) }
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
@@ -288,8 +288,8 @@ class RouterTest : VertxTest() {
                 }
                 vertx.setPeriodic(100) {
                     if (vertx.eventBus().endpoints().contains("packet_udf")) {
-                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender1, packet1))
-                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender2, packet2))
+                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender1, listOf(packet1)))
+                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender2, listOf(packet2)))
                     }
                 }
             },
@@ -354,8 +354,8 @@ class RouterTest : VertxTest() {
                 }
                 vertx.setPeriodic(100) {
                     if (vertx.eventBus().endpoints().contains("packet_udf")) {
-                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender1, packet1))
-                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender2, packet2))
+                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender1, listOf(packet1)))
+                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender2, listOf(packet2)))
                     }
                 }
             },
