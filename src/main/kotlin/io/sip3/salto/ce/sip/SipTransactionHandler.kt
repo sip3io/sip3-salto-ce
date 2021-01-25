@@ -177,7 +177,11 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     private fun calculateTransactionMetrics(prefix: String, transaction: SipTransaction) {
         transaction.terminatedAt?.let { terminatedAt ->
-            val attributes = excludeTransactionAttributes(transaction.attributes)
+            val attributes = excludeTransactionAttributes(transaction.attributes).apply {
+                transaction.srcAddr.host?.let { put(Attributes.src_host, it) }
+                transaction.dstAddr.host?.let { put(Attributes.dst_host, it) }
+            }
+
             Metrics.timer(prefix + "_$RESPONSE_DELAY", attributes).record(terminatedAt - transaction.createdAt, TimeUnit.MILLISECONDS)
         }
     }
