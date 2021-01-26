@@ -56,11 +56,37 @@ class Decoder : AbstractVerticle() {
         }
     }
 
-    fun decode(sender: Address, buffer: Buffer) {
+    private fun decode(sender: Address, buffer: Buffer) {
         var offset = HEADER_LENGTH
 
-        val compressed = (buffer.getByte(offset++) == 1.toByte())
+        // Protocol Version
+        val protocolVersion = buffer.getByte(offset++)
 
+        val packets = when (protocolVersion.toInt()) {
+            0 -> decode(buffer = buffer.slice(offset, buffer.length()))
+            1 -> decode(buffer = buffer.slice(offset, buffer.length()), compressedPayload = true)
+            2 -> {
+                val compressed = (buffer.getByte(offset++).toInt() == 1)
+                if (compressed) {
+                    val payload = buffer.slice(offset, buffer.length()).bytes
+                    InflaterInputStream(ByteArrayInputStream(payload)).use { inflater ->
+                        decode(Buffer.buffer(inflater.readBytes()))
+                    }
+                } else {
+                    decode(buffer.slice(offset, buffer.length()))
+                }
+            }
+            else -> throw NotImplementedError("Unknown protocol version. Version: $protocolVersion")
+        }
+
+        packetsDecoded.increment(packets.size.toDouble())
+        vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packets))
+    }
+
+    private fun decode(buffer: Buffer, compressedPayload: Boolean = false): List<Packet> {
+        val packets = mutableListOf<Packet>()
+
+        var offset = 0
         while (offset < buffer.length()) {
             var packetOffset = offset
             // Packet Type
@@ -108,7 +134,7 @@ class Decoder : AbstractVerticle() {
                 packetOffset += length
             }
 
-            if (compressed) {
+            if (compressedPayload) {
                 InflaterInputStream(ByteArrayInputStream(payload)).use {
                     payload = it.readBytes()
                 }
@@ -129,10 +155,11 @@ class Decoder : AbstractVerticle() {
                 this.payload = payload!!
             }
 
-            packetsDecoded.increment()
-            vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packet))
+            packets.add(packet)
 
             offset += packetLength
         }
+
+        return packets
     }
 }

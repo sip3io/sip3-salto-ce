@@ -67,12 +67,14 @@ open class Router : AbstractVerticle() {
 
         udfExecutor = UdfExecutor(vertx)
 
-        vertx.eventBus().localConsumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
-            try {
-                val (sender, packet) = event.body()
-                handle(sender, packet)
-            } catch (e: Exception) {
-                logger.error("Router 'handle()' failed.", e)
+        vertx.eventBus().localConsumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
+            val (sender, packets) = event.body()
+            packets.forEach { packet ->
+                try {
+                    handle(sender, packet)
+                } catch (e: Exception) {
+                    logger.error("Router 'handle()' failed.", e)
+                }
             }
         }
     }
