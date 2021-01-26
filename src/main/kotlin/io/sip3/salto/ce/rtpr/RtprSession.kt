@@ -30,8 +30,10 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     val dstAddr = packet.dstAddr
     lateinit var report: RtpReportPayload
 
-    var sdp: SdpSession? = null
+    var sdp: Pair<SdpSession,SdpSession>? = null
     val codecNames = mutableSetOf<String>()
+    val callId: String?
+        get() = report.callId
 
     val mos: Float?
         get() = report.mos.takeIf { it != 1F }

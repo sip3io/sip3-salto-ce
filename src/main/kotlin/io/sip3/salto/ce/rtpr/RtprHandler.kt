@@ -31,6 +31,7 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
+import io.sip3.salto.ce.util.rtpAddress
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
@@ -73,7 +74,7 @@ open class RtprHandler : AbstractVerticle() {
 
     private var instances: Int = 1
 
-    private var sdp = mutableMapOf<Long, SdpSession>()
+    private var sdp = mutableMapOf<Long, Pair<SdpSession, SdpSession>>()
     private var rtp = mutableMapOf<Long, RtprSession>()
     private var rtcp = mutableMapOf<Long, RtprSession>()
 
@@ -116,14 +117,7 @@ open class RtprHandler : AbstractVerticle() {
 
         vertx.eventBus().localConsumer<Pair<SdpSession,SdpSession>>(RoutesCE.sdp + "_info") { event ->
             val sdpSessions = event.body()
-            sdpSessions.toList().forEach { sdpSession ->
-                sdp[sdpSession.rtpId] = sdpSession
-
-                // Put same `sdpSession` with Id for RTCP port if different
-                if (sdpSession.rtpId != sdpSession.rtcpId) {
-                    sdp[sdpSession.rtcpId] = sdpSession
-                }
-            }
+            handleSdp(sdpSessions)
         }
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr) { event ->
@@ -157,6 +151,18 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
+    private fun handleSdp(sdpSessions: Pair<SdpSession, SdpSession>) {
+        sdpSessions.toList().forEach { sdpSession ->
+            sdp.putIfAbsent(sdpSession.rtpId, sdpSessions)
+            sdp.putIfAbsent(sdpSession.rtcpId, sdpSessions)
+
+            // Put same `sdpSession` with Id for RTCP port if different
+            if (sdpSession.rtpId != sdpSession.rtcpId) {
+                sdp[sdpSession.rtcpId] = sdpSessions
+            }
+        }
+    }
+
     open fun handleRaw(packet: Packet) {
         val report = RtpReportPayload().apply {
             val payload = Unpooled.wrappedBuffer(packet.payload)
@@ -183,7 +189,7 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         if (report.callId == null) {
-            session.sdp?.let { updateWithSdp(report, it) }
+            session.sdp?.first?.let { updateWithSdp(report, it) }
         }
         session.add(report)
         sendKeepAlive(session)
@@ -217,7 +223,13 @@ open class RtprHandler : AbstractVerticle() {
             report.duration = report.expectedPacketCount * sdpSession.ptime
         }
 
-        sdpSession.codec(report.payloadType.toInt())?.let { codec ->
+        val codec = if (report.source == RtpReportPayload.SOURCE_RTCP) {
+            sdpSession.codecs.firstOrNull()
+        } else {
+            sdpSession.codec(report.payloadType.toInt())
+        }
+
+        if (codec != null) {
             report.codecName = codec.name
 
             // Raw rFactor value
@@ -232,8 +244,10 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     private fun sendKeepAlive(session: RtprSession) {
-        session.sdp?.callId?.let { callId ->
-            vertx.eventBus().localSend(RoutesCE.media + "_keep-alive", Pair(callId, session.dstAddr.compositeKey(session.srcAddr)))
+        session.sdp?.let { (request, response) ->
+            val srcAddr = request.rtpAddress()
+            val dstAddr = response.rtpAddress()
+            vertx.eventBus().localSend(RoutesCE.media + "_keep-alive", Pair(request.callId, srcAddr.compositeAddrKey(dstAddr)))
         }
     }
 
@@ -252,7 +266,7 @@ open class RtprHandler : AbstractVerticle() {
                 rtcp.remove(sessionId)
             }
 
-        sdp.filterValues { it.timestamp + aggregationTimeout < now }
+        sdp.filterValues { it.first.timestamp + aggregationTimeout < now }
             .forEach { (key, _) -> sdp.remove(key) }
     }
 

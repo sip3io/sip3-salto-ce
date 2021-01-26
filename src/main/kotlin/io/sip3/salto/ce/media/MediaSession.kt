@@ -82,6 +82,8 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
 
         if (srcAddr.host == null) updateHost(srcAddr, session)
         if (dstAddr.host == null) updateHost(dstAddr, session)
+
+        updatedAt = System.currentTimeMillis()
     }
 
     fun hasMedia(): Boolean {
@@ -97,7 +99,7 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
     }
 
     private fun addRtcpSession(session: RtprSession) {
-        if (session.dstAddr == srcAddr || session.srcAddr == dstAddr) {
+        if (session.dstAddr.addr == srcAddr.addr || session.dstAddr.addr == srcAddr.addr) {
             forward.addRtcp(session)
         } else {
             reverse.addRtcp(session)

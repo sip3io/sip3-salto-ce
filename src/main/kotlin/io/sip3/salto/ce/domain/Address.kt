@@ -26,6 +26,14 @@ class Address {
         host ?: addr
     }
 
+    fun compositeAddrKey(other: Address): String {
+        return if (addr > other.addr) {
+            "$addr:${other.addr}"
+        } else {
+            "${other.addr}:$addr"
+        }
+    }
+
     fun compositeKey(other: Address): String {
         return if (hostOrAddr > other.hostOrAddr) {
             "$hostOrAddr:${other.hostOrAddr}"

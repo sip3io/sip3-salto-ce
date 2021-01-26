@@ -24,8 +24,8 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.rtpr.RtprSession
+import io.sip3.salto.ce.util.rtpAddress
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Handles media sessions
  */
-@Instance
+@Instance(singleton = true)
 open class MediaHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -83,7 +83,7 @@ open class MediaHandler : AbstractVerticle() {
             terminateExpiredMediaSessions()
         }
 
-        vertx.eventBus().localConsumer<Pair<SdpSession,SdpSession>>(RoutesCE.sdp + "_info") { event ->
+        vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
             try {
                 val sessions = event.body()
                 handleSdp(sessions)
@@ -154,28 +154,31 @@ open class MediaHandler : AbstractVerticle() {
     open fun handleSdp(sessions: Pair<SdpSession, SdpSession>) {
         val (request, response) = sessions
 
-        val srcAddr = Address().apply {
-            addr = request.address
-            port = request.rtpPort
-        }
-        val dstAddr = Address().apply {
-            addr = response.address
-            port = response.rtpPort
-        }
+        val srcAddr = request.rtpAddress()
+        val dstAddr = response.rtpAddress()
 
-        media.getOrPut(request.callId) { mutableMapOf() }.putIfAbsent(dstAddr.compositeKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
+        media.getOrPut(request.callId) { mutableMapOf() }
+            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
     }
 
     open fun handle(session: RtprSession) {
-        session.report.callId?.let { callId ->
+        session.sdp?.let { (request, response) ->
+            val callId = request.callId
+            val srcAddr = request.rtpAddress()
+            val dstAddr = response.rtpAddress()
+            val legId = srcAddr.compositeAddrKey(dstAddr)
+
             val mediaSession = media.getOrPut(callId) { mutableMapOf() }
-                .getOrPut(session.dstAddr.compositeKey(session.srcAddr)) { MediaSession(session.srcAddr, session.dstAddr, callId) }
+                .getOrPut(legId) {
+                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${session.report.source}" }
+                    MediaSession(srcAddr, dstAddr, callId)
+                }
             mediaSession.add(session)
         }
     }
 
-    open fun handleKeepAlive(callId: String, compositeKey: String) {
-        media.get(callId)?.get(compositeKey)?.apply {
+    open fun handleKeepAlive(callId: String, legId: String) {
+        media.get(callId)?.get(legId)?.apply {
             updatedAt = System.currentTimeMillis()
         }
     }
@@ -215,16 +218,18 @@ open class MediaHandler : AbstractVerticle() {
 
                 put("report_count", session.reportCount)
                 put("bad_report_count", session.badReportCount)
+                put("bad_report_fraction", session.badReportFraction)
+
                 put("one_way", session.isOneWay)
                 put("undefined_codec", session.hasUndefinedCodec)
 
                 put("mos", session.mos)
                 put("r_factor", session.rFactor)
 
-                session.forward.rtp?.let { put("forward_rtp", toJsonObject(it))}
-                session.forward.rtcp?.let { put("forward_rtcp", toJsonObject(it))}
-                session.reverse.rtp?.let { put("reverse_rtp", toJsonObject(it))}
-                session.reverse.rtcp?.let { put("reverse_rtcp", toJsonObject(it))}
+                session.forward.rtp?.let { put("forward_rtp", toJsonObject(it)) }
+                session.forward.rtcp?.let { put("forward_rtcp", toJsonObject(it)) }
+                session.reverse.rtp?.let { put("reverse_rtp", toJsonObject(it)) }
+                session.reverse.rtcp?.let { put("reverse_rtcp", toJsonObject(it)) }
             })
         }
 
@@ -248,6 +253,7 @@ open class MediaHandler : AbstractVerticle() {
             put("dst_port", dst.port)
             dst.host?.let { put("dst_host", it) }
 
+            put("call_id", session.report.callId)
             put("payload_type", report.payloadType.toInt())
             put("codec_name", report.codecName)
             put("ssrc", report.ssrc)
