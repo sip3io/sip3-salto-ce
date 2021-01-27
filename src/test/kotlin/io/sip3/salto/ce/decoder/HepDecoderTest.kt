@@ -183,9 +183,10 @@ class HepDecoderTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.hep2, Pair(sender, Buffer.buffer(PACKET_1)))
             },
             assert = {
-                vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
-                    val (_, packet) = event.body()
+                vertx.eventBus().consumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
+                    val (_, packets) = event.body()
                     context.verify {
+                        val packet = packets.first()
                         assertEquals(1571254062044, packet.timestamp.time)
                         assertEquals(44000436, packet.timestamp.nanos)
                         val src = packet.srcAddr
@@ -216,9 +217,10 @@ class HepDecoderTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.hep3, Pair(sender, Buffer.buffer(PACKET_2)))
             },
             assert = {
-                vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
-                    val (_, packet) = event.body()
+                vertx.eventBus().consumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
+                    val (_, packets) = event.body()
                     context.verify {
+                        val packet = packets.first()
                         assertEquals("hep3", packet.source)
                         assertEquals(PacketTypes.SIP, packet.protocolCode)
                         assertEquals(1550492760263, packet.timestamp.time)
@@ -249,9 +251,10 @@ class HepDecoderTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.hep3, Pair(sender, Buffer.buffer(PACKET_3)))
             },
             assert = {
-                vertx.eventBus().consumer<Pair<Address, Packet>>(RoutesCE.router) { event ->
-                    val (_, packet) = event.body()
+                vertx.eventBus().consumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
+                    val (_, packets) = event.body()
                     context.verify {
+                        val packet = packets.first()
                         assertEquals(546, packet.payload.size)
                         assertEquals(1602657480066, packet.timestamp.time)
                         assertEquals(66000334, packet.timestamp.nanos)
