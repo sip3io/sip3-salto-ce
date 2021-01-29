@@ -96,7 +96,7 @@ class HepDecoder : AbstractVerticle() {
         }
 
         packetsDecoded.increment()
-        vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packet))
+        vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet)))
     }
 
     fun decodeHep3(sender: Address, buffer: Buffer) {
@@ -152,6 +152,6 @@ class HepDecoder : AbstractVerticle() {
         }
 
         packetsDecoded.increment()
-        vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packet))
+        vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet)))
     }
 }
