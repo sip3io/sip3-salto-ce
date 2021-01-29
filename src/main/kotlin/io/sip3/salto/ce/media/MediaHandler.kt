@@ -28,6 +28,10 @@ import io.sip3.salto.ce.rtpr.RtprSession
 import io.sip3.salto.ce.util.rtpAddress
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.dispatcher
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -35,7 +39,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Handles media sessions
  */
-@Instance(singleton = true)
+@Instance
 open class MediaHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -57,6 +61,8 @@ open class MediaHandler : AbstractVerticle() {
     private var expirationDelay: Long = 4000L
     private var aggregationTimeout: Long = 30000L
 
+    private var instances: Int = 1
+
     private var media = mutableMapOf<String, MutableMap<String, MediaSession>>()
 
     override fun start() {
@@ -76,6 +82,10 @@ open class MediaHandler : AbstractVerticle() {
             }
         }
 
+        config().getJsonObject("vertx")?.getInteger("instances")?.let {
+            instances = it
+        }
+
         vertx.setPeriodic(trimToSizeDelay) {
             media = MutableMapUtil.mutableMapOf(media)
         }
@@ -92,21 +102,24 @@ open class MediaHandler : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media) { event ->
+        vertx.eventBus().localConsumer<Pair<String, String>>(RoutesCE.media + "_keep-alive") { event ->
             try {
-                val session = event.body()
-                handle(session)
+                val (callId, legId) = event.body()
+                handleKeepAlive(callId, legId)
             } catch (e: Exception) {
-                logger.error(e) { "MediaHandler 'handle()' failed." }
+                logger.error(e) { "MediaHandler 'handleKeepAlive()' failed." }
             }
         }
 
-        vertx.eventBus().localConsumer<Pair<String, String>>(RoutesCE.media + "_keep-alive") { event ->
-            try {
-                val (callId, compositeKey) = event.body()
-                handleKeepAlive(callId, compositeKey)
-            } catch (e: Exception) {
-                logger.error(e) { "MediaHandler 'handleKeepAlive()' failed." }
+        GlobalScope.launch(vertx.dispatcher()) {
+            val index = vertx.sharedData().getLocalCounter(RoutesCE.media).await()
+            vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media + "_${index.andIncrement.await()}") { event ->
+                try {
+                    val session = event.body()
+                    handle(session)
+                } catch (e: Exception) {
+                    logger.error(e) { "MediaHandler 'handle()' failed." }
+                }
             }
         }
     }
@@ -161,6 +174,12 @@ open class MediaHandler : AbstractVerticle() {
             .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
     }
 
+    open fun handleKeepAlive(callId: String, legId: String) {
+        media.get(callId)?.get(legId)?.apply {
+            updatedAt = System.currentTimeMillis()
+        }
+    }
+
     open fun handle(session: RtprSession) {
         session.sdp?.let { (request, response) ->
             val callId = request.callId
@@ -174,12 +193,6 @@ open class MediaHandler : AbstractVerticle() {
                     MediaSession(srcAddr, dstAddr, callId)
                 }
             mediaSession.add(session)
-        }
-    }
-
-    open fun handleKeepAlive(callId: String, legId: String) {
-        media.get(callId)?.get(legId)?.apply {
-            updatedAt = System.currentTimeMillis()
         }
     }
 
@@ -236,7 +249,6 @@ open class MediaHandler : AbstractVerticle() {
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
-    // TODO: Exclude useless props
     private fun toJsonObject(session: RtprSession): JsonObject {
         val report = session.report
         return JsonObject().apply {

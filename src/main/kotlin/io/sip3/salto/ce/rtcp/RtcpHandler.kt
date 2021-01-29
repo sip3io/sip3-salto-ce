@@ -280,9 +280,6 @@ open class RtcpHandler : AbstractVerticle() {
                 source = RtpReportPayload.SOURCE_RTCP
                 this.ssrc = report.ssrc
 
-                // TODO: Change default value in sip3-commons
-                payloadType = -1
-
                 lastJitter = session.lastJitter
                 avgJitter = session.lastJitter
                 minJitter = session.lastJitter

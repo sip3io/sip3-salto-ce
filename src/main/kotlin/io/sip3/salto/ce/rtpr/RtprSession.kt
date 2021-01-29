@@ -48,6 +48,7 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
             report = payload
             createdAt = payload.startedAt
             terminatedAt = payload.startedAt + payload.duration
+            report.codecName?.let { codecNames.add(it) }
         } else {
             mergeReport(payload)
         }

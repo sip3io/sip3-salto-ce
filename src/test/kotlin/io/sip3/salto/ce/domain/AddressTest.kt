@@ -39,4 +39,16 @@ class AddressTest {
         assertEquals("Test:29.11.19.88", srcAddr.compositeKey(dstAddr))
         assertEquals("Test:29.11.19.88", dstAddr.compositeKey(srcAddr))
     }
+
+    @Test
+    fun `Check 'compositeAddrKey()' method`() {
+        val srcAddr = Address().apply {
+            addr = "29.11.19.88"
+        }
+        val dstAddr = Address().apply {
+            addr = "23.08.20.15"
+        }
+        assertEquals("29.11.19.88:23.08.20.15", srcAddr.compositeKey(dstAddr))
+        assertEquals("29.11.19.88:23.08.20.15", dstAddr.compositeKey(srcAddr))
+    }
 }

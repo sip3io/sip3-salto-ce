@@ -25,6 +25,7 @@ import io.sip3.commons.util.MediaUtil.sdpSessionId
 import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
@@ -247,7 +248,7 @@ open class RtprHandler : AbstractVerticle() {
         session.sdp?.let { (request, response) ->
             val srcAddr = request.rtpAddress()
             val dstAddr = response.rtpAddress()
-            vertx.eventBus().localSend(RoutesCE.media + "_keep-alive", Pair(request.callId, srcAddr.compositeAddrKey(dstAddr)))
+            vertx.eventBus().localPublish(RoutesCE.media + "_keep-alive", Pair(session.callId, srcAddr.compositeAddrKey(dstAddr)))
         }
     }
 
@@ -271,7 +272,10 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     private fun terminateRtprSession(session: RtprSession) {
-        vertx.eventBus().localSend(RoutesCE.media, session)
+        session.callId?.let { callId ->
+            val index = callId.hashCode() % instances
+            vertx.eventBus().localSend(RoutesCE.media + "_$index", session)
+        }
 
         if (cumulativeMetrics) {
             val prefix = when (session.report.source) {
@@ -294,6 +298,7 @@ open class RtprHandler : AbstractVerticle() {
             Metrics.summary(prefix + EXPECTED_PACKETS, attributes).record(expectedPacketCount.toDouble())
             Metrics.summary(prefix + LOST_PACKETS, attributes).record(lostPacketCount.toDouble())
             Metrics.summary(prefix + REJECTED_PACKETS, attributes).record(rejectedPacketCount.toDouble())
+
             if (callId != null && codecName != null) {
                 Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
 
