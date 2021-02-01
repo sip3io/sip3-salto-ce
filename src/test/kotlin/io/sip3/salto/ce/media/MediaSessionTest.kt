@@ -21,6 +21,7 @@ import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.rtpr.RtprSession
+import io.sip3.salto.ce.util.rtcpAddress
 import io.sip3.salto.ce.util.rtpAddress
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -185,9 +186,19 @@ class MediaSessionTest {
             dstAddr = SDP_SESSION_2.rtpAddress()
         }
 
+        val PACKET_1_RTCP = Packet().apply {
+            srcAddr = SDP_SESSION_1.rtcpAddress()
+            dstAddr = SDP_SESSION_2.rtcpAddress()
+        }
+
         val PACKET_2 = Packet().apply {
             srcAddr = SDP_SESSION_2.rtpAddress()
             dstAddr = SDP_SESSION_1.rtpAddress()
+        }
+
+        val PACKET_2_RTCP = Packet().apply {
+            srcAddr = SDP_SESSION_2.rtcpAddress()
+            dstAddr = SDP_SESSION_1.rtcpAddress()
         }
 
         val RTPR_SESSION_1 = RtprSession(PACKET_1).apply {
@@ -195,7 +206,7 @@ class MediaSessionTest {
             add(RTPR_1)
         }
 
-        val RTPR_SESSION_1_RTCP = RtprSession(PACKET_1).apply {
+        val RTPR_SESSION_1_RTCP = RtprSession(PACKET_1_RTCP).apply {
             sdp = Pair(SDP_SESSION_1, SDP_SESSION_2)
             add(RTPR_1_RTCP)
         }
@@ -205,7 +216,7 @@ class MediaSessionTest {
             add(RTPR_2)
         }
 
-        val RTPR_SESSION_2_RTCP = RtprSession(PACKET_2).apply {
+        val RTPR_SESSION_2_RTCP = RtprSession(PACKET_2_RTCP).apply {
             sdp = Pair(SDP_SESSION_1, SDP_SESSION_2)
             add(RTPR_2_RTCP)
         }
