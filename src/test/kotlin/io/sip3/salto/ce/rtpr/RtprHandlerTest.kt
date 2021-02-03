@@ -26,6 +26,7 @@ import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -459,15 +460,81 @@ class RtprHandlerTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
             },
             assert = {
-                vertx.eventBus().consumer<Pair<String, String>>(RoutesCE.media + "_keep-alive") { event ->
-                    val (callId, legId) = event.body()
+                vertx.eventBus().consumer<RtprSession>(RoutesCE.media + "_keep-alive") { event ->
+                    val session = event.body()
 
                     context.verify {
                         assertFalse(event.isSend)
-                        assertEquals(RTPR_1.callId, callId)
-                        assertEquals(SRC_ADDR.compositeAddrKey(DST_ADDR), legId)
+                        assertEquals(RTPR_1.callId, session.callId)
+                        assertEquals(RTPR_1.startedAt, session.createdAt)
                     }
 
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Update RTP attributes`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
+                    put("media", JsonObject().apply {
+                        put("rtp-r", JsonObject().apply {
+                            put("expiration-delay", 100L)
+                            put("aggregation-timeout", 200L)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                    val (prefix, attributes) = event.body()
+
+                    context.verify {
+                        assertEquals("rtp", prefix)
+                        assertEquals(2, attributes.size)
+                        assertEquals(12.0F, attributes[Attributes.r_factor])
+                        assertEquals(13.0F, attributes[Attributes.mos])
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Update RTCP attributes`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
+                    put("media", JsonObject().apply {
+                        put("rtp-r", JsonObject().apply {
+                            put("expiration-delay", 100L)
+                            put("aggregation-timeout", 200L)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_2))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                    val (prefix, attributes) = event.body()
+
+                    context.verify {
+                        assertEquals("rtcp", prefix)
+                        assertEquals(2, attributes.size)
+                        assertEquals(93.2F, attributes[Attributes.r_factor])
+                        assertEquals(4.4092855F , attributes[Attributes.mos])
+                    }
                     context.completeNow()
                 }
             }

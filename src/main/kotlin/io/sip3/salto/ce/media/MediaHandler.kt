@@ -102,10 +102,10 @@ open class MediaHandler : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<Pair<String, String>>(RoutesCE.media + "_keep-alive") { event ->
+        vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media + "_keep-alive") { event ->
             try {
-                val (callId, legId) = event.body()
-                handleKeepAlive(callId, legId)
+                val rtprSession = event.body()
+                handleKeepAlive(rtprSession)
             } catch (e: Exception) {
                 logger.error(e) { "MediaHandler 'handleKeepAlive()' failed." }
             }
@@ -121,6 +121,44 @@ open class MediaHandler : AbstractVerticle() {
                     logger.error(e) { "MediaHandler 'handle()' failed." }
                 }
             }
+        }
+    }
+
+    open fun handleSdp(sessions: Pair<SdpSession, SdpSession>) {
+        val (request, response) = sessions
+
+        val srcAddr = request.rtpAddress()
+        val dstAddr = response.rtpAddress()
+
+        media.getOrPut(request.callId) { mutableMapOf() }
+            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
+    }
+
+    open fun handleKeepAlive(rtprSession: RtprSession) {
+        rtprSession.sdp?.let { (request, response) ->
+            val srcAddr = request.rtpAddress()
+            val dstAddr = response.rtpAddress()
+            val legId = srcAddr.compositeAddrKey(dstAddr)
+
+            media.get(rtprSession.callId)?.get(legId)?.apply {
+                updatedAt = System.currentTimeMillis()
+            }
+        }
+    }
+
+    open fun handle(session: RtprSession) {
+        session.sdp?.let { (request, response) ->
+            val srcAddr = request.rtpAddress()
+            val dstAddr = response.rtpAddress()
+            val legId = srcAddr.compositeAddrKey(dstAddr)
+
+            val callId = session.callId!!
+            val mediaSession = media.getOrPut(callId) { mutableMapOf() }
+                .getOrPut(legId) {
+                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${session.report.source}" }
+                    MediaSession(srcAddr, dstAddr, callId)
+                }
+            mediaSession.add(session)
         }
     }
 
@@ -143,7 +181,7 @@ open class MediaHandler : AbstractVerticle() {
     open fun terminateMediaSession(session: MediaSession) {
         if (session.hasMedia()) {
             writeAttributes(session)
-            writeToDatabase("media_call_index", session)
+            writeToDatabase("rtpr_${PREFIX}_index", session)
             calculateMetrics(session)
         }
     }
@@ -164,38 +202,6 @@ open class MediaHandler : AbstractVerticle() {
         }
     }
 
-    open fun handleSdp(sessions: Pair<SdpSession, SdpSession>) {
-        val (request, response) = sessions
-
-        val srcAddr = request.rtpAddress()
-        val dstAddr = response.rtpAddress()
-
-        media.getOrPut(request.callId) { mutableMapOf() }
-            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
-    }
-
-    open fun handleKeepAlive(callId: String, legId: String) {
-        media.get(callId)?.get(legId)?.apply {
-            updatedAt = System.currentTimeMillis()
-        }
-    }
-
-    open fun handle(session: RtprSession) {
-        session.sdp?.let { (request, response) ->
-            val callId = request.callId
-            val srcAddr = request.rtpAddress()
-            val dstAddr = response.rtpAddress()
-            val legId = srcAddr.compositeAddrKey(dstAddr)
-
-            val mediaSession = media.getOrPut(callId) { mutableMapOf() }
-                .getOrPut(legId) {
-                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${session.report.source}" }
-                    MediaSession(srcAddr, dstAddr, callId)
-                }
-            mediaSession.add(session)
-        }
-    }
-
     open fun writeAttributes(session: MediaSession) {
         val attributes = mutableMapOf<String, Any>().apply {
             put(Attributes.mos, session.mos)
@@ -205,7 +211,7 @@ open class MediaHandler : AbstractVerticle() {
             put(Attributes.bad_report_fraction, session.badReportFraction)
         }
 
-        vertx.eventBus().localSend(RoutesCE.attributes, Pair("media", attributes))
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair(PREFIX, attributes))
     }
 
     open fun writeToDatabase(prefix: String, session: MediaSession) {

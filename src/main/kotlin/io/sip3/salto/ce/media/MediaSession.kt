@@ -39,14 +39,10 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
         }
 
     val isOneWay: Boolean
-        get() {
-            return forward.hasRtp() xor reverse.hasRtp()
-        }
+        get() = forward.hasRtp() xor reverse.hasRtp()
 
     val hasUndefinedCodec: Boolean
-        get() {
-            return codecNames.any { it.contains("UNDEFINED") }
-        }
+        get() = codecNames.any { it.contains("UNDEFINED") }
 
     val mos: Double
         get() {
@@ -67,14 +63,10 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
         }
 
     val reportCount: Int
-        get() {
-            return forward.reportCount + reverse.reportCount
-        }
+        get() = forward.reportCount + reverse.reportCount
 
     val badReportCount: Int
-        get() {
-            return forward.badReportCount + reverse.badReportCount
-        }
+        get() = forward.badReportCount + reverse.badReportCount
 
     val badReportFraction: Double
         get() {
@@ -86,9 +78,7 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
         }
 
     val duration: Long
-        get() {
-            return terminatedAt - createdAt
-        }
+        get() = terminatedAt - createdAt
 
     fun add(session: RtprSession) {
         when (session.report.source) {
@@ -118,7 +108,7 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
     }
 
     private fun addRtcpSession(session: RtprSession) {
-        if (session.dstAddr.addr == srcAddr.addr || session.dstAddr.addr == srcAddr.addr) {
+        if (session.dstAddr.addr == srcAddr.addr || session.srcAddr.addr == dstAddr.addr) {
             forward.addRtcp(session)
         } else {
             reverse.addRtcp(session)
@@ -146,9 +136,7 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
             }
 
         val badReportCount: Int
-            get() {
-                return rtp?.badReportCount ?: rtcp?.reportCount ?: 0
-            }
+            get() = rtp?.badReportCount ?: rtcp?.reportCount ?: 0
 
         val codecNames: Set<String>
             get() {
@@ -159,13 +147,10 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
             }
 
         val mos: Float?
-            get() {
-                return rtp?.mos ?: rtcp?.mos
-            }
+            get() = rtp?.mos ?: rtcp?.mos
+
         val rFactor: Float?
-            get() {
-                return rtp?.rFactor ?: rtcp?.rFactor
-            }
+            get() = rtp?.rFactor ?: rtcp?.rFactor
 
         fun addRtp(session: RtprSession) {
             if (rtp == null) {

@@ -193,7 +193,7 @@ class MediaHandlerTest : VertxTest() {
                     val document = operation.getJsonObject("document")
 
                     context.verify {
-                        assertTrue(collection.startsWith("media_call_index"))
+                        assertTrue(collection.startsWith("rtpr_media_index"))
 
                         assertAddresses(PACKET_1, document)
 
@@ -266,9 +266,8 @@ class MediaHandlerTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_1)
 
                 vertx.setTimer(300L) {
-                    val legId = SRC_ADDR.compositeAddrKey(DST_ADDR)
                     // Send keep alive
-                    vertx.eventBus().localSend(RoutesCE.media + "_keep-alive", Pair(RTPR_1.callId, legId))
+                    vertx.eventBus().localSend(RoutesCE.media + "_keep-alive", RTPR_SESSION_1)
 
                     // Send after 300+400=700ms after first session
                     vertx.setTimer(400L) {
@@ -284,7 +283,7 @@ class MediaHandlerTest : VertxTest() {
                     val document = operation.getJsonObject("document")
 
                     context.verify {
-                        assertTrue(collection.startsWith("media_call_index"))
+                        assertTrue(collection.startsWith("rtpr_media_index"))
 
                         assertAddresses(PACKET_1, document)
 
@@ -353,7 +352,7 @@ class MediaHandlerTest : VertxTest() {
                     val (collection, _) = event.body()
 
                     context.verify {
-                        assertTrue(collection.startsWith("media_call_index"))
+                        assertTrue(collection.startsWith("rtpr_media_index"))
                     }
                 }
 

@@ -27,12 +27,12 @@ import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
-import io.sip3.salto.ce.util.rtpAddress
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
@@ -152,7 +152,7 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    private fun handleSdp(sdpSessions: Pair<SdpSession, SdpSession>) {
+    open fun handleSdp(sdpSessions: Pair<SdpSession, SdpSession>) {
         sdpSessions.toList().forEach { sdpSession ->
             sdp.putIfAbsent(sdpSession.rtpId, sdpSessions)
             sdp.putIfAbsent(sdpSession.rtcpId, sdpSessions)
@@ -193,7 +193,10 @@ open class RtprHandler : AbstractVerticle() {
             session.sdp?.first?.let { updateWithSdp(report, it) }
         }
         session.add(report)
-        sendKeepAlive(session)
+
+        if (session.callId != null) {
+            vertx.eventBus().localPublish(RoutesCE.media + "_keep-alive", session)
+        }
 
         val prefix = when (report.source) {
             RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
@@ -207,17 +210,13 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    private fun createRtprSession(packet: Packet): RtprSession {
+    open fun createRtprSession(packet: Packet): RtprSession {
         val session = RtprSession(packet, rFactorThreshold)
-        (sdp[sdpSessionId(packet.srcAddr)] ?: sdp[sdpSessionId(packet.dstAddr)])?.let { session.sdp = it }
+        (sdp[packet.srcAddr.sdpSessionId()] ?: sdp[packet.dstAddr.sdpSessionId()])?.let { session.sdp = it }
         return session
     }
 
-    private fun sdpSessionId(address: Address): Long {
-        return sdpSessionId(address.addr, address.port)
-    }
-
-    private fun updateWithSdp(report: RtpReportPayload, sdpSession: SdpSession) {
+    open fun updateWithSdp(report: RtpReportPayload, sdpSession: SdpSession) {
         report.callId = sdpSession.callId
 
         if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
@@ -244,15 +243,7 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    private fun sendKeepAlive(session: RtprSession) {
-        session.sdp?.let { (request, response) ->
-            val srcAddr = request.rtpAddress()
-            val dstAddr = response.rtpAddress()
-            vertx.eventBus().localPublish(RoutesCE.media + "_keep-alive", Pair(session.callId, srcAddr.compositeAddrKey(dstAddr)))
-        }
-    }
-
-    private fun terminateExpiredSessions() {
+    open fun terminateExpiredSessions() {
         val now = System.currentTimeMillis()
 
         rtp.filterValues { it.terminatedAt + aggregationTimeout < now }
@@ -271,11 +262,13 @@ open class RtprHandler : AbstractVerticle() {
             .forEach { (key, _) -> sdp.remove(key) }
     }
 
-    private fun terminateRtprSession(session: RtprSession) {
+    open fun terminateRtprSession(session: RtprSession) {
         session.callId?.let { callId ->
             val index = callId.hashCode() % instances
             vertx.eventBus().localSend(RoutesCE.media + "_$index", session)
         }
+
+        writeAttributes(session)
 
         if (cumulativeMetrics) {
             val prefix = when (session.report.source) {
@@ -310,6 +303,21 @@ open class RtprHandler : AbstractVerticle() {
                 Metrics.counter(prefix + UNDEFINED, attributes).increment()
             }
         }
+    }
+
+    open fun writeAttributes(session: RtprSession) {
+        val report = session.report
+        val attributes = mutableMapOf<String, Any>().apply {
+            put(Attributes.mos, report.mos)
+            put(Attributes.r_factor, report.rFactor)
+        }
+
+        val prefix = when (report.source) {
+            RtpReportPayload.SOURCE_RTP -> "rtp"
+            RtpReportPayload.SOURCE_RTCP -> "rtcp"
+            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
+        }
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair(prefix, attributes))
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
@@ -357,5 +365,9 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+    }
+
+    private fun Address.sdpSessionId(): Long {
+        return sdpSessionId(addr, port)
     }
 }
