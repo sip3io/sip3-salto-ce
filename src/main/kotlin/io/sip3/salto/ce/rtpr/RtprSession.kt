@@ -92,7 +92,9 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
             fractionLost = lostPacketCount.toFloat() / expectedPacketCount
 
             lastJitter = payload.lastJitter
-            avgJitter = (avgJitter * reportCount + payload.avgJitter) / (reportCount + reportCountIncrement)
+            avgJitter = (avgJitter * reportCount + payload.avgJitter * reportCountIncrement) /
+                    (reportCount + reportCountIncrement)
+
             if (maxJitter < lastJitter) {
                 maxJitter = lastJitter
             }
@@ -100,20 +102,25 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
                 minJitter = lastJitter
             }
 
-            if (payload.rFactor > 0.0F)
+            if (payload.rFactor > 0.0F) {
                 if (rFactor > 0.0F) {
-                    rFactor = (rFactor * reportCount + payload.rFactor) / (reportCount + reportCountIncrement)
+                    rFactor = (rFactor * reportCount + payload.rFactor * reportCountIncrement) /
+                            (reportCount + reportCountIncrement)
                 } else {
                     rFactor = payload.rFactor
                 }
 
-            // MoS
-            mos = MediaUtil.computeMos(rFactor)
+                // MoS
+                mos = MediaUtil.computeMos(rFactor)
+            }
         }
 
         if (createdAt > payload.startedAt) {
             createdAt = payload.startedAt
         }
-        terminatedAt = payload.startedAt + payload.duration
+
+        if (payload.startedAt + payload.duration > terminatedAt) {
+            terminatedAt = payload.startedAt + payload.duration
+        }
     }
 }

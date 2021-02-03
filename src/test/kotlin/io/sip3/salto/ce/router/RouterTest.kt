@@ -314,7 +314,7 @@ class RouterTest : VertxTest() {
                 vertx.deployTestVerticle(Router::class, JsonObject().apply {
                     put("udf", JsonObject().apply {
                         put("check-period", 100)
-                        put("execution-timeout", 100)
+                        put("execution-timeout", 1000)
                     })
                 })
             },
