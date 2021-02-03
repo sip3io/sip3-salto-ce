@@ -33,12 +33,19 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     var sdp: Pair<SdpSession,SdpSession>? = null
     val codecNames = mutableSetOf<String>()
     val callId: String?
-        get() = report.callId
+        get() {
+            return report.callId
+        }
 
     val mos: Float?
-        get() = report.mos.takeIf { it != 1F }
+        get() {
+            return report.mos.takeIf { it != 1F }
+        }
+
     val rFactor: Float?
-        get() = report.rFactor.takeIf { it != 0F }
+        get() {
+            return report.rFactor.takeIf { it != 0F }
+        }
 
     var reportCount = 0
     var badReportCount = 0

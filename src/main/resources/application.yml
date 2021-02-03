@@ -65,9 +65,9 @@ server:
 #    aggregation-timeout: 30000
 #  rtp-r:
 #    trim-to-size-delay: 3600000
-#    cumulative-metrics: true
 #    expiration-delay: 4000
 #    aggregation-timeout: 30000
+#    cumulative-metrics: true
 
 #! Metrics
 #metrics:
@@ -139,19 +139,14 @@ server:
 #        ascending: [created_at]
 #        hashed: [call_id]
 #      max-collections: 30
-#    - prefix: rtpr_rtp_index
+#    - prefix: media_call_index
 #      indexes:
-#        ascending: [started_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor]
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor, bad_report_fraction]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rtpr_rtp_raw
 #      indexes:
 #        ascending: [created_at]
-#        hashed: [call_id]
-#      max-collections: 30
-#    - prefix: rtpr_rtcp_index
-#      indexes:
-#        ascending: [started_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rtpr_rtcp_raw

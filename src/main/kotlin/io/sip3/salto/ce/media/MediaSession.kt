@@ -31,45 +31,64 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
     val reverse = MediaStream()
 
     val codecNames: Set<String>
-        get() = mutableSetOf<String>().apply {
-            addAll(forward.codecNames)
-            addAll(reverse.codecNames)
+        get() {
+            return mutableSetOf<String>().apply {
+                addAll(forward.codecNames)
+                addAll(reverse.codecNames)
+            }
         }
 
     val isOneWay: Boolean
-        get() = forward.hasRtp() xor reverse.hasRtp()
+        get() {
+            return forward.hasRtp() xor reverse.hasRtp()
+        }
+
     val hasUndefinedCodec: Boolean
-        get() = codecNames.any { it.contains("UNDEFINED") }
+        get() {
+            return codecNames.any { it.contains("UNDEFINED") }
+        }
 
     val mos: Double
-        get() = if (forward.mos == null) {
-            reverse.mos ?: 1F
-        } else {
-            reverse.mos?.let { min(forward.mos!!, it) } ?: forward.mos!!
-        }.toDouble()
+        get() {
+            return if (forward.mos == null) {
+                reverse.mos ?: 1F
+            } else {
+                reverse.mos?.let { min(forward.mos!!, it) } ?: forward.mos!!
+            }.toDouble()
+        }
 
     val rFactor: Double
-        get() = if (forward.rFactor == null) {
-            reverse.rFactor ?: 1F
-        } else {
-            reverse.rFactor?.let { min(forward.rFactor!!, it) } ?: forward.rFactor!!
-        }.toDouble()
+        get() {
+            return if (forward.rFactor == null) {
+                reverse.rFactor ?: 1F
+            } else {
+                reverse.rFactor?.let { min(forward.rFactor!!, it) } ?: forward.rFactor!!
+            }.toDouble()
+        }
 
     val reportCount: Int
-        get() = forward.reportCount + reverse.reportCount
+        get() {
+            return forward.reportCount + reverse.reportCount
+        }
 
     val badReportCount: Int
-        get() = forward.badReportCount + reverse.badReportCount
+        get() {
+            return forward.badReportCount + reverse.badReportCount
+        }
 
     val badReportFraction: Double
-        get() = if (reportCount > 0) {
-            badReportCount / reportCount.toDouble()
-        } else {
-            1.0
+        get() {
+            return if (reportCount > 0) {
+                badReportCount / reportCount.toDouble()
+            } else {
+                1.0
+            }
         }
 
     val duration: Long
-        get() = terminatedAt - createdAt
+        get() {
+            return terminatedAt - createdAt
+        }
 
     fun add(session: RtprSession) {
         when (session.report.source) {
@@ -122,21 +141,31 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
         var rtcp: RtprSession? = null
 
         val reportCount: Int
-            get() = rtp?.reportCount ?: rtcp?.reportCount ?: 0
+            get() {
+                return rtp?.reportCount ?: rtcp?.reportCount ?: 0
+            }
 
         val badReportCount: Int
-            get() = rtp?.badReportCount ?: rtcp?.reportCount ?: 0
+            get() {
+                return rtp?.badReportCount ?: rtcp?.reportCount ?: 0
+            }
 
         val codecNames: Set<String>
-            get() = mutableSetOf<String>().apply {
-                rtp?.let { addAll(it.codecNames) }
-                rtcp?.let { addAll(it.codecNames) }
+            get() {
+                return mutableSetOf<String>().apply {
+                    rtp?.let { addAll(it.codecNames) }
+                    rtcp?.let { addAll(it.codecNames) }
+                }
             }
 
         val mos: Float?
-            get() = rtp?.mos ?: rtcp?.mos
+            get() {
+                return rtp?.mos ?: rtcp?.mos
+            }
         val rFactor: Float?
-            get() = rtp?.rFactor ?: rtcp?.rFactor
+            get() {
+                return rtp?.rFactor ?: rtcp?.rFactor
+            }
 
         fun addRtp(session: RtprSession) {
             if (rtp == null) {

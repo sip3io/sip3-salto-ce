@@ -202,6 +202,7 @@ open class MediaHandler : AbstractVerticle() {
             put(Attributes.r_factor, session.rFactor)
             put(Attributes.one_way, session.isOneWay)
             put(Attributes.undefined_codec, session.hasUndefinedCodec)
+            put(Attributes.bad_report_fraction, session.badReportFraction)
         }
 
         vertx.eventBus().localSend(RoutesCE.attributes, Pair("media", attributes))
@@ -239,33 +240,30 @@ open class MediaHandler : AbstractVerticle() {
                 put("mos", session.mos)
                 put("r_factor", session.rFactor)
 
-                session.forward.rtp?.let { put("forward_rtp", toJsonObject(it)) }
-                session.forward.rtcp?.let { put("forward_rtcp", toJsonObject(it)) }
-                session.reverse.rtp?.let { put("reverse_rtp", toJsonObject(it)) }
-                session.reverse.rtcp?.let { put("reverse_rtcp", toJsonObject(it)) }
+                session.forward.rtp?.let { put("forward_rtp", it.toJson()) }
+                session.forward.rtcp?.let { put("forward_rtcp", it.toJson()) }
+                session.reverse.rtp?.let { put("reverse_rtp", it.toJson()) }
+                session.reverse.rtcp?.let { put("reverse_rtcp", it.toJson()) }
             })
         }
 
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
-    private fun toJsonObject(session: RtprSession): JsonObject {
-        val report = session.report
+    private fun RtprSession.toJson(): JsonObject {
         return JsonObject().apply {
-            put("created_at", session.report.startedAt)
-            put("terminated_at", session.report.startedAt + session.report.duration)
+            put("created_at", report.startedAt)
+            put("terminated_at", report.startedAt + report.duration)
 
-            val src = session.srcAddr
-            put("src_addr", src.addr)
-            put("src_port", src.port)
-            src.host?.let { put("src_host", it) }
+            put("src_addr", srcAddr.addr)
+            put("src_port", srcAddr.port)
+            srcAddr.host?.let { put("src_host", it) }
 
-            val dst = session.dstAddr
-            put("dst_addr", dst.addr)
-            put("dst_port", dst.port)
-            dst.host?.let { put("dst_host", it) }
+            put("dst_addr", dstAddr.addr)
+            put("dst_port", dstAddr.port)
+            dstAddr.host?.let { put("dst_host", it) }
 
-            put("call_id", session.report.callId)
+            put("call_id", report.callId)
             put("payload_type", report.payloadType.toInt())
             put("codec_name", report.codecName)
             put("ssrc", report.ssrc)

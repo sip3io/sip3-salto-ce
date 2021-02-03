@@ -81,8 +81,9 @@ class ManagementSocket : AbstractVerticle() {
 
         vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
             if (sendSdpSessions) {
-                val sdpSessions = event.body()
-                sdpSessions.toList().forEach { publishSdpSession(it) }
+                val (request, response) = event.body()
+                publishSdpSession(request)
+                publishSdpSession(response)
             }
         }
     }

@@ -316,11 +316,12 @@ class MediaHandlerTest : VertxTest() {
 
                     context.verify {
                         assertEquals("media", prefix)
-                        assertEquals(4, attributes.size)
+                        assertEquals(5, attributes.size)
                         assertEquals(12.0, attributes[Attributes.r_factor])
                         assertEquals(13.0, attributes[Attributes.mos])
                         assertEquals(false, attributes[Attributes.one_way])
                         assertEquals(false, attributes[Attributes.undefined_codec])
+                        assertEquals(0.0, attributes[Attributes.bad_report_fraction])
                     }
                     context.completeNow()
                 }

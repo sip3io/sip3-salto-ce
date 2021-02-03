@@ -21,7 +21,7 @@ import io.sip3.salto.ce.domain.Address
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class SdpSessionUtilKtTest {
+class SdpSessionUtilTest {
 
     companion object {
 
