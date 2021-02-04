@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 /**
  * Handles RTP reports
@@ -264,7 +265,7 @@ open class RtprHandler : AbstractVerticle() {
 
     open fun terminateRtprSession(session: RtprSession) {
         session.callId?.let { callId ->
-            val index = callId.hashCode() % instances
+            val index = abs(callId.hashCode() % instances)
             vertx.eventBus().localSend(RoutesCE.media + "_$index", session)
         }
 
