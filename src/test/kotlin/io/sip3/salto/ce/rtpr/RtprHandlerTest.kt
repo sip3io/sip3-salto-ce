@@ -26,11 +26,13 @@ import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
@@ -55,7 +57,7 @@ class RtprHandlerTest : VertxTest() {
             cumulative = false
             payloadType = 1
             ssrc = 2
-            callId = "some@call.id"
+            callId = "callId_uuid@domain.io"
             codecName = "PCMA"
 
             expectedPacketCount = 3
@@ -80,7 +82,7 @@ class RtprHandlerTest : VertxTest() {
 
         // Periodic RTP report without Call-ID
         val RTPR_2 = RtpReportPayload().apply {
-            source = RtpReportPayload.SOURCE_RTP
+            source = RtpReportPayload.SOURCE_RTCP
             cumulative = false
             payloadType = 0
             ssrc = 2
@@ -118,20 +120,8 @@ class RtprHandlerTest : VertxTest() {
             payload = RTPR_2.encode().array()
         }
 
-        // Packet with cumulative RTP report with RTCP source
-        val PACKET_3 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
-            srcAddr = SRC_ADDR
-            dstAddr = DST_ADDR
-            payload = RtpReportPayload().apply {
-                source = RtpReportPayload.SOURCE_RTCP
-                cumulative = true
-                payloadType = 1
-            }.encode().array()
-        }
-
-        // SDP
-        val SDP_SESSION = SdpSession().apply {
+        // SDP Request
+        val SDP_SESSION_1 = SdpSession().apply {
             callId = "callId_uuid@domain.io"
             timestamp = System.currentTimeMillis()
 
@@ -147,10 +137,28 @@ class RtprHandlerTest : VertxTest() {
                 ie = 0F
             })
         }
+
+        // SDP Response
+        val SDP_SESSION_2 = SdpSession().apply {
+            callId = "callId_uuid@domain.io"
+            timestamp = System.currentTimeMillis()
+
+            address = DST_ADDR.addr
+            rtpPort = DST_ADDR.port
+            rtcpPort = DST_ADDR.port + 1
+
+            codecs = mutableListOf(Codec().apply {
+                name = "PCMU"
+                payloadTypes = listOf(0)
+                clockRate = 8000
+                bpl = 4.3F
+                ie = 0F
+            })
+        }
     }
 
     @Test
-    fun `Write periodic RTP report to database`() {
+    fun `Write periodic RTP report from RTP to database`() {
         runTest(
             deploy = {
                 vertx.deployTestVerticle(RtprHandler::class)
@@ -181,23 +189,82 @@ class RtprHandlerTest : VertxTest() {
                         assertEquals(RTPR_1.payloadType, document.getInteger("payload_type").toByte())
                         assertEquals(RTPR_1.ssrc, document.getLong("ssrc"))
 
+                        document.getJsonObject("packets").apply {
+                            assertEquals(RTPR_1.expectedPacketCount, getInteger("expected"))
+                            assertEquals(RTPR_1.receivedPacketCount, getInteger("received"))
+                            assertEquals(RTPR_1.lostPacketCount, getInteger("lost"))
+                            assertEquals(RTPR_1.rejectedPacketCount, getInteger("rejected"))
+                        }
 
-                        val packets = document.getJsonObject("packets")
-                        assertEquals(RTPR_1.expectedPacketCount, packets.getInteger("expected"))
-                        assertEquals(RTPR_1.receivedPacketCount, packets.getInteger("received"))
-                        assertEquals(RTPR_1.lostPacketCount, packets.getInteger("lost"))
-                        assertEquals(RTPR_1.rejectedPacketCount, packets.getInteger("rejected"))
-
-                        val jitter = document.getJsonObject("jitter")
-                        assertEquals(RTPR_1.lastJitter, jitter.getDouble("last").toFloat())
-                        assertEquals(RTPR_1.avgJitter, jitter.getDouble("avg").toFloat())
-                        assertEquals(RTPR_1.minJitter, jitter.getDouble("min").toFloat())
-                        assertEquals(RTPR_1.maxJitter, jitter.getDouble("max").toFloat())
+                        document.getJsonObject("jitter").apply {
+                            assertEquals(RTPR_1.lastJitter, getDouble("last").toFloat())
+                            assertEquals(RTPR_1.avgJitter, getDouble("avg").toFloat())
+                            assertEquals(RTPR_1.minJitter, getDouble("min").toFloat())
+                            assertEquals(RTPR_1.maxJitter, getDouble("max").toFloat())
+                        }
 
                         assertEquals(RTPR_1.rFactor, document.getFloat("r_factor"))
                         assertEquals(RTPR_1.mos, document.getFloat("mos"))
                         assertEquals(RTPR_1.fractionLost, document.getFloat("fraction_lost"))
                     }
+
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Write periodic RTP report from RTCP to database`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_2)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("rtpr_rtcp_raw"))
+
+                        assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
+                        assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
+                        assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
+
+                        assertEquals(RTPR_2.createdAt, document.getLong("created_at"))
+                        assertEquals(RTPR_2.startedAt, document.getLong("started_at"))
+
+                        assertEquals(RTPR_2.callId, document.getString("call_id"))
+                        assertEquals(RTPR_2.codecName, document.getString("codec_name"))
+
+                        assertEquals(RTPR_2.payloadType, document.getInteger("payload_type").toByte())
+                        assertEquals(RTPR_2.ssrc, document.getLong("ssrc"))
+
+                        document.getJsonObject("packets").apply {
+                            assertEquals(RTPR_2.expectedPacketCount, getInteger("expected"))
+                            assertEquals(RTPR_2.receivedPacketCount, getInteger("received"))
+                            assertEquals(RTPR_2.lostPacketCount, getInteger("lost"))
+                            assertEquals(RTPR_2.rejectedPacketCount, getInteger("rejected"))
+                        }
+
+                        document.getJsonObject("jitter").apply {
+                            assertEquals(RTPR_2.lastJitter, getDouble("last").toFloat())
+                            assertEquals(RTPR_2.avgJitter, getDouble("avg").toFloat())
+                            assertEquals(RTPR_2.minJitter, getDouble("min").toFloat())
+                            assertEquals(RTPR_2.maxJitter, getDouble("max").toFloat())
+                        }
+
+                        assertEquals(RTPR_2.rFactor, document.getFloat("r_factor"))
+                        assertEquals(RTPR_2.mos, document.getFloat("mos"))
+                        assertEquals(RTPR_2.fractionLost, document.getFloat("fraction_lost"))
+                    }
+
                     context.completeNow()
                 }
             }
@@ -218,22 +285,27 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_2, RTPR_2))
             },
             assert = {
-                vertx.eventBus().consumer<RtprSession>(RoutesCE.media) { event ->
+                vertx.eventBus().consumer<RtprSession>(RoutesCE.media + "_0") { event ->
                     val session = event.body()
 
                     context.verify {
-                        with(session) {
+                        session.apply {
                             assertEquals(1, reportCount)
-                            assertEquals(PACKET_2.timestamp, session.timestamp)
+                            assertEquals(0, badReportCount)
+                            assertEquals(SDP_SESSION_1.callId, callId)
+
+                            assertEquals(1, codecNames.size)
+                            assertEquals(SDP_SESSION_1.codecs[0].name, codecNames.first())
+
+                            assertEquals(RTPR_1.startedAt, session.createdAt)
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
 
-                            with(session.report) {
-                                assertEquals(SDP_SESSION.callId, callId)
+                            report.apply {
                                 assertEquals(4.4092855F, mos)
                                 assertEquals(93.2F, rFactor)
                             }
@@ -246,22 +318,30 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Handle RTP Report and generate RtprSession`() {
+    fun `Handle RTP Report from RTCP and generate RtprSession`() {
         runTest(
             deploy = {
-                vertx.deployTestVerticle(RtprHandler::class)
+                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
+                    put("media", JsonObject().apply {
+                        put("rtp-r", JsonObject().apply {
+                            put("expiration-delay", 100L)
+                            put("aggregation-timeout", 500L)
+                        })
+                    })
+                })
             },
             execute = {
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
             },
             assert = {
-                vertx.eventBus().consumer<RtprSession>(RoutesCE.media) { event ->
+                vertx.eventBus().consumer<RtprSession>(RoutesCE.media + "_0") { event ->
                     val session = event.body()
 
                     context.verify {
-                        with(session) {
+                        session.apply {
                             assertEquals(1, reportCount)
-                            assertEquals(PACKET_1.timestamp, session.timestamp)
+                            assertEquals(RTPR_1.startedAt, session.createdAt)
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
                             assertEquals(RTPR_1, session.report)
@@ -334,7 +414,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", listOf(SDP_SESSION))
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
                 vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_2)
             },
             assert = {
@@ -342,21 +422,120 @@ class RtprHandlerTest : VertxTest() {
                     val (collection, _) = event.body()
 
                     context.verify {
-                        assertTrue(collection.startsWith("rtpr_rtp_raw"))
+                        assertTrue(collection.startsWith("rtpr_rtcp_raw"))
                     }
                 }
 
                 vertx.setPeriodic(200L) {
-                    registry.find("rtpr_rtp_r-factor").summaries()
+                    registry.find("rtpr_rtcp_r-factor").summaries()
                         .firstOrNull { it.mean().toFloat() == 93.2F }
                         ?.let { summary ->
                             context.verify {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
-                                assertTrue(tags.any { it.value == SDP_SESSION.codecs.first().name })
+                                assertTrue(tags.any { it.value == SDP_SESSION_1.codecs.first().name })
                             }
                             context.completeNow()
                         }
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Send keep-alive to Media Handler`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
+                    put("media", JsonObject().apply {
+                        put("rtp-r", JsonObject().apply {
+                            put("expiration-delay", 100L)
+                            put("aggregation-timeout", 500L)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
+            },
+            assert = {
+                vertx.eventBus().consumer<RtprSession>(RoutesCE.media + "_keep-alive") { event ->
+                    val session = event.body()
+
+                    context.verify {
+                        assertFalse(event.isSend)
+                        assertEquals(RTPR_1.callId, session.callId)
+                        assertEquals(RTPR_1.startedAt, session.createdAt)
+                    }
+
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Update RTP attributes`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
+                    put("media", JsonObject().apply {
+                        put("rtp-r", JsonObject().apply {
+                            put("expiration-delay", 100L)
+                            put("aggregation-timeout", 200L)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                    val (prefix, attributes) = event.body()
+
+                    context.verify {
+                        assertEquals("rtp", prefix)
+                        assertEquals(2, attributes.size)
+                        assertEquals(12.0F, attributes[Attributes.r_factor])
+                        assertEquals(13.0F, attributes[Attributes.mos])
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Update RTCP attributes`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
+                    put("media", JsonObject().apply {
+                        put("rtp-r", JsonObject().apply {
+                            put("expiration-delay", 100L)
+                            put("aggregation-timeout", 200L)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_2))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
+                    val (prefix, attributes) = event.body()
+
+                    context.verify {
+                        assertEquals("rtcp", prefix)
+                        assertEquals(2, attributes.size)
+                        assertEquals(93.2F, attributes[Attributes.r_factor])
+                        assertEquals(4.4092855F , attributes[Attributes.mos])
+                    }
+                    context.completeNow()
                 }
             }
         )

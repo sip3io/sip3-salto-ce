@@ -16,17 +16,25 @@
 
 package io.sip3.salto.ce.media
 
-import io.sip3.commons.domain.payload.RtpReportPayload
+import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.micrometer.Metrics
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.rtpr.RtprSession
+import io.sip3.salto.ce.util.rtpAddress
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.dispatcher
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 /**
  * Handles media sessions
@@ -36,57 +44,183 @@ open class MediaHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
+    companion object {
+
+        const val PREFIX = "media"
+
+        const val REPORTS = PREFIX + "_reports"
+        const val BAD_REPORTS = PREFIX + "_bad-reports"
+        const val BAD_REPORTS_FRACTION = PREFIX + "_bad-reports-fraction"
+
+        const val DURATION = PREFIX + "_duration"
+    }
+
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+
+    private var trimToSizeDelay: Long = 3600000
+    private var expirationDelay: Long = 4000L
+    private var aggregationTimeout: Long = 30000L
+
+    private var instances: Int = 1
+
+    private var media = mutableMapOf<String, MutableMap<String, MediaSession>>()
 
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
 
-        vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media) { event ->
+        config().getJsonObject("media")?.let { config ->
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
+            config.getLong("expiration-delay")?.let {
+                expirationDelay = it
+            }
+            config.getLong("aggregation-timeout")?.let {
+                aggregationTimeout = it
+            }
+        }
+
+        config().getJsonObject("vertx")?.getInteger("instances")?.let {
+            instances = it
+        }
+
+        vertx.setPeriodic(trimToSizeDelay) {
+            media = MutableMapUtil.mutableMapOf(media)
+        }
+        vertx.setPeriodic(expirationDelay) {
+            terminateExpiredMediaSessions()
+        }
+
+        vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
             try {
-                val session = event.body()
-                handle(session)
+                val sessions = event.body()
+                handleSdp(sessions)
             } catch (e: Exception) {
-                logger.error(e) { "MediaHandler 'handle()' failed." }
+                logger.error(e) { "MediaHandler 'handleSdp()' failed." }
+            }
+        }
+
+        vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media + "_keep-alive") { event ->
+            try {
+                val rtprSession = event.body()
+                handleKeepAlive(rtprSession)
+            } catch (e: Exception) {
+                logger.error(e) { "MediaHandler 'handleKeepAlive()' failed." }
+            }
+        }
+
+        GlobalScope.launch(vertx.dispatcher()) {
+            val index = vertx.sharedData().getLocalCounter(RoutesCE.media).await()
+            vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media + "_${index.andIncrement.await()}") { event ->
+                try {
+                    val session = event.body()
+                    handle(session)
+                } catch (e: Exception) {
+                    logger.error(e) { "MediaHandler 'handle()' failed." }
+                }
+            }
+        }
+    }
+
+    open fun handleSdp(sessions: Pair<SdpSession, SdpSession>) {
+        val (request, response) = sessions
+
+        val srcAddr = request.rtpAddress()
+        val dstAddr = response.rtpAddress()
+
+        media.getOrPut(request.callId) { mutableMapOf() }
+            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
+    }
+
+    open fun handleKeepAlive(rtprSession: RtprSession) {
+        rtprSession.sdp?.let { (request, response) ->
+            val srcAddr = request.rtpAddress()
+            val dstAddr = response.rtpAddress()
+            val legId = srcAddr.compositeAddrKey(dstAddr)
+
+            media.get(rtprSession.callId)?.get(legId)?.apply {
+                updatedAt = System.currentTimeMillis()
             }
         }
     }
 
     open fun handle(session: RtprSession) {
-        val report = session.report
-        writeAttributes(report)
+        session.sdp?.let { (request, response) ->
+            val srcAddr = request.rtpAddress()
+            val dstAddr = response.rtpAddress()
+            val legId = srcAddr.compositeAddrKey(dstAddr)
 
-        val prefix = when (report.source) {
-            RtpReportPayload.SOURCE_RTP -> "rtpr_rtp_index"
-            RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp_index"
-            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
+            val callId = session.callId!!
+            val mediaSession = media.getOrPut(callId) { mutableMapOf() }
+                .getOrPut(legId) {
+                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${session.report.source}" }
+                    MediaSession(srcAddr, dstAddr, callId)
+                }
+            mediaSession.add(session)
         }
-        writeToDatabase(prefix, session)
     }
 
-    open fun writeAttributes(report: RtpReportPayload) {
+    open fun terminateExpiredMediaSessions() {
+        val now = System.currentTimeMillis()
+
+        media.filterValues { sessions ->
+            sessions.filterValues { session ->
+                session.updatedAt + aggregationTimeout < now
+            }.forEach { (sid, session) ->
+                sessions.remove(sid)
+                terminateMediaSession(session)
+            }
+            return@filterValues sessions.isEmpty()
+        }.forEach { (callId, _) ->
+            media.remove(callId)
+        }
+    }
+
+    open fun terminateMediaSession(session: MediaSession) {
+        if (session.hasMedia()) {
+            writeAttributes(session)
+            writeToDatabase("rtpr_${PREFIX}_index", session)
+            calculateMetrics(session)
+        }
+    }
+
+    open fun calculateMetrics(session: MediaSession) {
+        session.apply {
+            val attributes = mutableMapOf<String, Any>().apply {
+                srcAddr.host?.let { put("src_host", it) }
+                dstAddr.host?.let { put("dst_host", it) }
+                codecNames.firstOrNull()?.let { put("codec_name", it) }
+            }
+
+            Metrics.summary(REPORTS, attributes).record(reportCount.toDouble())
+            Metrics.summary(BAD_REPORTS, attributes).record(badReportCount.toDouble())
+            Metrics.summary(BAD_REPORTS_FRACTION, attributes).record(badReportFraction)
+
+            Metrics.timer(DURATION, attributes).record(duration, TimeUnit.MILLISECONDS)
+        }
+    }
+
+    open fun writeAttributes(session: MediaSession) {
         val attributes = mutableMapOf<String, Any>().apply {
-            put(Attributes.mos, report.mos)
-            put(Attributes.r_factor, report.rFactor)
+            put(Attributes.mos, session.mos)
+            put(Attributes.r_factor, session.rFactor)
+            put(Attributes.one_way, session.isOneWay)
+            put(Attributes.undefined_codec, session.hasUndefinedCodec)
+            put(Attributes.bad_report_fraction, session.badReportFraction)
         }
 
-        val prefix = when (report.source) {
-            RtpReportPayload.SOURCE_RTP -> "rtp"
-            RtpReportPayload.SOURCE_RTCP -> "rtcp"
-            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
-        }
-        vertx.eventBus().localSend(RoutesCE.attributes, Pair(prefix, attributes))
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair(PREFIX, attributes))
     }
 
-    open fun writeToDatabase(prefix: String, session: RtprSession) {
-        val collection = prefix + "_" + timeSuffix.format(session.timestamp)
-        val report = session.report
+    open fun writeToDatabase(prefix: String, session: MediaSession) {
+        val collection = prefix + "_" + timeSuffix.format(session.createdAt)
 
         val operation = JsonObject().apply {
             put("document", JsonObject().apply {
-                put("created_at", report.createdAt)
-                put("started_at", report.startedAt)
+                put("created_at", session.createdAt)
+                put("terminated_at", session.terminatedAt)
 
                 val src = session.srcAddr
                 put("src_addr", src.addr)
@@ -98,32 +232,66 @@ open class MediaHandler : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
-                put("payload_type", report.payloadType.toInt())
-                put("ssrc", report.ssrc)
-                report.callId?.let { put("call_id", it) }
-                report.codecName?.let { put("codec_name", it) }
-                put("duration", report.duration)
+                put("call_id", session.callId)
+                put("codec_names", session.codecNames.toList())
+                put("duration", session.duration)
 
-                put("packets", JsonObject().apply {
-                    put("expected", report.expectedPacketCount)
-                    put("received", report.receivedPacketCount)
-                    put("lost", report.lostPacketCount)
-                    put("rejected", report.rejectedPacketCount)
-                })
+                put("report_count", session.reportCount)
+                put("bad_report_count", session.badReportCount)
+                put("bad_report_fraction", session.badReportFraction)
 
-                put("jitter", JsonObject().apply {
-                    put("last", report.lastJitter.toDouble())
-                    put("avg", report.avgJitter.toDouble())
-                    put("min", report.minJitter.toDouble())
-                    put("max", report.maxJitter.toDouble())
-                })
+                put("one_way", session.isOneWay)
+                put("undefined_codec", session.hasUndefinedCodec)
 
-                put("r_factor", report.rFactor.toDouble())
-                put("mos", report.mos.toDouble())
-                put("fraction_lost", report.fractionLost.toDouble())
+                put("mos", session.mos)
+                put("r_factor", session.rFactor)
+
+                session.forward.rtp?.let { put("forward_rtp", it.toJson()) }
+                session.forward.rtcp?.let { put("forward_rtcp", it.toJson()) }
+                session.reverse.rtp?.let { put("reverse_rtp", it.toJson()) }
+                session.reverse.rtcp?.let { put("reverse_rtcp", it.toJson()) }
             })
         }
 
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+    }
+
+    private fun RtprSession.toJson(): JsonObject {
+        return JsonObject().apply {
+            put("created_at", report.startedAt)
+            put("terminated_at", report.startedAt + report.duration)
+
+            put("src_addr", srcAddr.addr)
+            put("src_port", srcAddr.port)
+            srcAddr.host?.let { put("src_host", it) }
+
+            put("dst_addr", dstAddr.addr)
+            put("dst_port", dstAddr.port)
+            dstAddr.host?.let { put("dst_host", it) }
+
+            put("call_id", report.callId)
+            put("payload_type", report.payloadType.toInt())
+            put("codec_name", report.codecName)
+            put("ssrc", report.ssrc)
+            put("duration", report.duration)
+
+            put("packets", JsonObject().apply {
+                put("expected", report.expectedPacketCount)
+                put("received", report.receivedPacketCount)
+                put("lost", report.lostPacketCount)
+                put("rejected", report.rejectedPacketCount)
+            })
+
+            put("jitter", JsonObject().apply {
+                put("last", report.lastJitter.toDouble())
+                put("avg", report.avgJitter.toDouble())
+                put("min", report.minJitter.toDouble())
+                put("max", report.maxJitter.toDouble())
+            })
+
+            put("r_factor", report.rFactor.toDouble())
+            put("mos", report.mos.toDouble())
+            put("fraction_lost", report.fractionLost.toDouble())
+        }
     }
 }

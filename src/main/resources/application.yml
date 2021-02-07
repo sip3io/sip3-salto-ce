@@ -56,14 +56,18 @@ server:
 #    duration-timeout: 900000
 #    transaction-exclusions: [exclude-me]
 #media:
+#  trim-to-size-delay: 3600000
+#  expiration-delay: 4000
+#  aggregation-timeout: 30000
 #  rtcp:
+#    trim-to-size-delay: 3600000
 #    expiration-delay: 4000
 #    aggregation-timeout: 30000
 #  rtp-r:
-#    cumulative-metrics: true
+#    trim-to-size-delay: 3600000
 #    expiration-delay: 4000
 #    aggregation-timeout: 30000
-#    duration-timeout: 3600000
+#    cumulative-metrics: true
 
 #! Metrics
 #metrics:
@@ -74,7 +78,7 @@ server:
 #    db: sip3
 #    step: 1000
 #    retention-duration: 7d
-#  stasd:
+#  statsd:
 #    host: 127.0.0.1
 #    port: 8125
 #    step: 1000
@@ -135,19 +139,14 @@ server:
 #        ascending: [created_at]
 #        hashed: [call_id]
 #      max-collections: 30
-#    - prefix: rtpr_rtp_index
+#    - prefix: rtpr_media_index
 #      indexes:
-#        ascending: [started_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor]
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor, bad_report_fraction, forward_rtp.mos, forward_rtp.r_factor, forward_rtcp.mos, forward_rtcp.r_factor, reverse_rtp.mos, reverse_rtp.r_factor, reverse_rtcp.mos, reverse_rtcp.r_factor,]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rtpr_rtp_raw
 #      indexes:
 #        ascending: [created_at]
-#        hashed: [call_id]
-#      max-collections: 30
-#    - prefix: rtpr_rtcp_index
-#      indexes:
-#        ascending: [started_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rtpr_rtcp_raw

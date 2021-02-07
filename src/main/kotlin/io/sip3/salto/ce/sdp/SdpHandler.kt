@@ -109,7 +109,7 @@ class SdpHandler : AbstractVerticle() {
             }
         }
 
-        if (session.request == null && session.response == null) {
+        if (session.request == null || session.response == null) {
             return
         }
 
@@ -149,26 +149,8 @@ class SdpHandler : AbstractVerticle() {
     }
 
     private fun send(session: SdpSessionDescription) {
-        val now = System.currentTimeMillis()
-
-        val sdpSessions = listOfNotNull(session.request, session.response)
-            .map { mediaDescription ->
-                SdpSession().apply {
-                    timestamp = now
-
-                    address = mediaDescription.address()
-                    rtpPort = mediaDescription.port
-                    rtcpPort = mediaDescription.defineRtcpPort(session.isRtcpMux)
-
-                    codecs = session.codecs
-                    ptime = session.ptime
-
-                    callId = session.callId
-                }
-            }
-
         logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
-        vertx.eventBus().localPublish(RoutesCE.sdp + "_info", sdpSessions)
+        vertx.eventBus().localPublish(RoutesCE.sdp + "_info", session.sdpSessions())
     }
 
     private class SdpSessionDescription {
@@ -199,6 +181,25 @@ class SdpHandler : AbstractVerticle() {
         }
         val responseAddress: String? by lazy {
             response?.let { "${it.connection.address}:${it.port}" }
+        }
+
+        fun sdpSessions(): Pair<SdpSession, SdpSession> {
+            return Pair(sdpSession(request!!), sdpSession(response!!))
+        }
+
+        private fun sdpSession(mediaDescription: MediaDescriptionField): SdpSession {
+            return SdpSession().apply {
+                timestamp = System.currentTimeMillis()
+
+                address = mediaDescription.address()
+                rtpPort = mediaDescription.port
+                rtcpPort = mediaDescription.defineRtcpPort(isRtcpMux)
+
+                codecs = this@SdpSessionDescription.codecs
+                ptime = this@SdpSessionDescription.ptime
+
+                callId = this@SdpSessionDescription.callId
+            }
         }
     }
 }

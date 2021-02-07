@@ -26,6 +26,14 @@ class Address {
         host ?: addr
     }
 
+    fun compositeAddrKey(other: Address): String {
+        return if (addr > other.addr) {
+            "$addr:${other.addr}"
+        } else {
+            "${other.addr}:$addr"
+        }
+    }
+
     fun compositeKey(other: Address): String {
         return if (hostOrAddr > other.hostOrAddr) {
             "$hostOrAddr:${other.hostOrAddr}"
@@ -36,5 +44,18 @@ class Address {
 
     override fun toString(): String {
         return "Address(addr='$addr', port=$port, host=$host)"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Address) return false
+
+        return addr == other.addr && port == other.port
+    }
+
+    override fun hashCode(): Int {
+        var result = addr.hashCode()
+        result = 31 * result + port
+        return result
     }
 }

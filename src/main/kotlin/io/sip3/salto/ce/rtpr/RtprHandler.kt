@@ -22,9 +22,12 @@ import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.MediaUtil.rtpSessionId
 import io.sip3.commons.util.MediaUtil.sdpSessionId
+import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -39,6 +42,7 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 /**
  * Handles RTP reports
@@ -58,19 +62,23 @@ open class RtprHandler : AbstractVerticle() {
         const val REJECTED_PACKETS = "_rejected-packets"
 
         const val DURATION = "_duration"
+
+        const val UNDEFINED = "_undefined"
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+
     private var cumulativeMetrics = true
+    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
-    private var durationTimeout: Long = 3600000
+    private var rFactorThreshold: Float = 85F
 
     private var instances: Int = 1
 
-    private val sdp = mutableMapOf<Long, SdpSession>()
-    private val rtp = mutableMapOf<Long, RtprSession>()
-    private val rtcp = mutableMapOf<Long, RtprSession>()
+    private var sdp = mutableMapOf<Long, Pair<SdpSession, SdpSession>>()
+    private var rtp = mutableMapOf<Long, RtprSession>()
+    private var rtcp = mutableMapOf<Long, RtprSession>()
 
     override fun start() {
         config().getString("time-suffix")?.let {
@@ -81,14 +89,18 @@ open class RtprHandler : AbstractVerticle() {
             config.getBoolean("cumulative-metrics")?.let {
                 cumulativeMetrics = it
             }
+            config.getLong("trim-to-size-delay")?.let {
+                trimToSizeDelay = it
+            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
             }
-            config.getLong("duration-timeout")?.let {
-                durationTimeout = it
+
+            config.getFloat("r-factor-threshold")?.let {
+                rFactorThreshold = it
             }
         }
 
@@ -96,20 +108,18 @@ open class RtprHandler : AbstractVerticle() {
             instances = it
         }
 
+        vertx.setPeriodic(trimToSizeDelay) {
+            sdp = MutableMapUtil.mutableMapOf(sdp)
+            rtp = MutableMapUtil.mutableMapOf(rtp)
+            rtcp = MutableMapUtil.mutableMapOf(rtcp)
+        }
         vertx.setPeriodic(expirationDelay) {
             terminateExpiredSessions()
         }
 
-        vertx.eventBus().localConsumer<List<SdpSession>>(RoutesCE.sdp + "_info") { event ->
+        vertx.eventBus().localConsumer<Pair<SdpSession,SdpSession>>(RoutesCE.sdp + "_info") { event ->
             val sdpSessions = event.body()
-            sdpSessions.forEach { sdpSession ->
-                sdp[sdpSession.rtpId] = sdpSession
-
-                // Put same `sdpSession` with Id for RTCP port if different
-                if (sdpSession.rtpId != sdpSession.rtcpId) {
-                    sdp[sdpSession.rtcpId] = sdpSession
-                }
-            }
+            handleSdp(sdpSessions)
         }
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr) { event ->
@@ -143,6 +153,18 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
+    open fun handleSdp(sdpSessions: Pair<SdpSession, SdpSession>) {
+        sdpSessions.toList().forEach { sdpSession ->
+            sdp.putIfAbsent(sdpSession.rtpId, sdpSessions)
+            sdp.putIfAbsent(sdpSession.rtcpId, sdpSessions)
+
+            // Put same `sdpSession` with Id for RTCP port if different
+            if (sdpSession.rtpId != sdpSession.rtcpId) {
+                sdp[sdpSession.rtcpId] = sdpSessions
+            }
+        }
+    }
+
     open fun handleRaw(packet: Packet) {
         val report = RtpReportPayload().apply {
             val payload = Unpooled.wrappedBuffer(packet.payload)
@@ -161,17 +183,21 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
-        if (report.callId == null) {
-            updateWithSdp(packet, report)
-        }
-
         val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, report.ssrc)
         val session = if (report.source == RtpReportPayload.SOURCE_RTP) {
-            rtp.getOrPut(sessionId) { RtprSession(packet) }
+            rtp.getOrPut(sessionId) { createRtprSession(packet) }
         } else {
-            rtcp.getOrPut(sessionId) { RtprSession(packet) }
+            rtcp.getOrPut(sessionId) { createRtprSession(packet) }
+        }
+
+        if (report.callId == null) {
+            session.sdp?.first?.let { updateWithSdp(report, it) }
         }
         session.add(report)
+
+        if (session.callId != null) {
+            vertx.eventBus().localPublish(RoutesCE.media + "_keep-alive", session)
+        }
 
         val prefix = when (report.source) {
             RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
@@ -185,55 +211,65 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    private fun updateWithSdp(packet: Packet, report: RtpReportPayload) {
-        (sdp[sdpSessionId(packet.srcAddr)] ?: sdp[sdpSessionId(packet.dstAddr)])?.let { sdpSession ->
-            report.callId = sdpSession.callId
+    open fun createRtprSession(packet: Packet): RtprSession {
+        val session = RtprSession(packet, rFactorThreshold)
+        (sdp[packet.srcAddr.sdpSessionId()] ?: sdp[packet.dstAddr.sdpSessionId()])?.let { session.sdp = it }
+        return session
+    }
 
-            if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
-                report.duration = report.expectedPacketCount * sdpSession.ptime
-            }
+    open fun updateWithSdp(report: RtpReportPayload, sdpSession: SdpSession) {
+        report.callId = sdpSession.callId
 
-            sdpSession.codec(report.payloadType.toInt())?.let { codec ->
-                report.codecName = codec.name
+        if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
+            report.duration = report.expectedPacketCount * sdpSession.ptime
+        }
 
-                // Raw rFactor value
-                val ppl = report.fractionLost * 100
-                val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
+        val codec = if (report.source == RtpReportPayload.SOURCE_RTCP) {
+            sdpSession.codecs.firstOrNull()
+        } else {
+            sdpSession.codec(report.payloadType.toInt())
+        }
 
-                report.rFactor = (R0 - ieEff)
+        if (codec != null) {
+            report.codecName = codec.name
 
-                // MoS
-                report.mos = computeMos(report.rFactor)
-            }
+            // Raw rFactor value
+            val ppl = report.fractionLost * 100
+            val ieEff = codec.ie + (95 - codec.ie) * ppl / (ppl + codec.bpl)
+
+            report.rFactor = (R0 - ieEff)
+
+            // MoS
+            report.mos = computeMos(report.rFactor)
         }
     }
 
-    private fun sdpSessionId(address: Address): Long {
-        return sdpSessionId(address.addr, address.port)
-    }
-
-    private fun terminateExpiredSessions() {
+    open fun terminateExpiredSessions() {
         val now = System.currentTimeMillis()
-        val expiredCallIds = mutableSetOf<String>()
 
-        rtp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
+        rtp.filterValues { it.terminatedAt + aggregationTimeout < now }
             .forEach { (sessionId, session) ->
                 terminateRtprSession(session)
-                rtp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
+                rtp.remove(sessionId)
             }
 
-        rtcp.filterValues { it.lastReportTimestamp + aggregationTimeout < now }
+        rtcp.filterValues { it.terminatedAt + aggregationTimeout < now }
             .forEach { (sessionId, session) ->
                 terminateRtprSession(session)
-                rtcp.remove(sessionId)?.apply { report.callId?.let { expiredCallIds.add(it) } }
+                rtcp.remove(sessionId)
             }
 
-        sdp.filterValues { expiredCallIds.contains(it.callId) || it.timestamp + durationTimeout < now }
+        sdp.filterValues { it.first.timestamp + aggregationTimeout < now }
             .forEach { (key, _) -> sdp.remove(key) }
     }
 
-    private fun terminateRtprSession(session: RtprSession) {
-        vertx.eventBus().localSend(RoutesCE.media, session)
+    open fun terminateRtprSession(session: RtprSession) {
+        session.callId?.let { callId ->
+            val index = abs(callId.hashCode() % instances)
+            vertx.eventBus().localSend(RoutesCE.media + "_$index", session)
+        }
+
+        writeAttributes(session)
 
         if (cumulativeMetrics) {
             val prefix = when (session.report.source) {
@@ -249,7 +285,7 @@ open class RtprHandler : AbstractVerticle() {
         val attributes = mutableMapOf<String, Any>().apply {
             src.host?.let { put("src_host", it) }
             dst.host?.let { put("dst_host", it) }
-            put("codec", report.codecName ?: report.payloadType)
+            report.codecName?.let { put("codec", it) }
         }
 
         report.apply {
@@ -257,13 +293,32 @@ open class RtprHandler : AbstractVerticle() {
             Metrics.summary(prefix + LOST_PACKETS, attributes).record(lostPacketCount.toDouble())
             Metrics.summary(prefix + REJECTED_PACKETS, attributes).record(rejectedPacketCount.toDouble())
 
-            Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
+            if (callId != null && codecName != null) {
+                Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
 
-            Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
-            Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
+                Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
+                Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
 
-            Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
+                Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
+            } else {
+                Metrics.counter(prefix + UNDEFINED, attributes).increment()
+            }
         }
+    }
+
+    open fun writeAttributes(session: RtprSession) {
+        val report = session.report
+        val attributes = mutableMapOf<String, Any>().apply {
+            put(Attributes.mos, report.mos)
+            put(Attributes.r_factor, report.rFactor)
+        }
+
+        val prefix = when (report.source) {
+            RtpReportPayload.SOURCE_RTP -> "rtp"
+            RtpReportPayload.SOURCE_RTCP -> "rtcp"
+            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
+        }
+        vertx.eventBus().localSend(RoutesCE.attributes, Pair(prefix, attributes))
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
@@ -311,5 +366,9 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+    }
+
+    private fun Address.sdpSessionId(): Long {
+        return sdpSessionId(addr, port)
     }
 }

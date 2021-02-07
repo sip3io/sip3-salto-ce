@@ -16,36 +16,62 @@
 
 package io.sip3.salto.ce.rtpr
 
+import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil
 
-class RtprSession(packet: Packet) {
+class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
 
-    val timestamp = packet.timestamp
+    var createdAt: Long = 0L
+    var terminatedAt: Long = 0L
+
     val srcAddr = packet.srcAddr
     val dstAddr = packet.dstAddr
     lateinit var report: RtpReportPayload
 
+    var sdp: Pair<SdpSession,SdpSession>? = null
+    val codecNames = mutableSetOf<String>()
+    val callId: String?
+        get() = report.callId
+
+    val mos: Float?
+        get() = report.mos.takeIf { it != 1F }
+
+    val rFactor: Float?
+        get() = report.rFactor.takeIf { it != 0F }
+
     var reportCount = 0
-    var lastReportTimestamp: Long = Long.MAX_VALUE
+    var badReportCount = 0
 
     fun add(payload: RtpReportPayload) {
         if (reportCount == 0) {
             report = payload
+            createdAt = payload.startedAt
+            terminatedAt = payload.startedAt + payload.duration
+            report.codecName?.let { codecNames.add(it) }
         } else {
-            updateReport(payload)
+            mergeReport(payload)
         }
 
         reportCount++
-        lastReportTimestamp = payload.startedAt
+        rFactorThreshold?.let { if (report.rFactor in 0F..rFactorThreshold) badReportCount++ }
     }
 
-    private fun updateReport(payload: RtpReportPayload) {
+    fun merge(other: RtprSession) {
+        mergeReport(other.report, other.reportCount)
+
+        reportCount += other.reportCount
+        badReportCount += other.badReportCount
+    }
+
+    private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1 ) {
         report.apply {
             if (codecName == null) {
                 payload.codecName?.let { codecName = it }
             }
+
+            codecNames.add(payload.codecName ?: "UNDEFINED($payloadType)")
 
             if (callId == null) {
                 payload.callId?.let { callId = it }
@@ -60,7 +86,9 @@ class RtprSession(packet: Packet) {
             fractionLost = lostPacketCount.toFloat() / expectedPacketCount
 
             lastJitter = payload.lastJitter
-            avgJitter = (avgJitter * reportCount + payload.avgJitter) / (reportCount + 1)
+            avgJitter = (avgJitter * reportCount + payload.avgJitter * reportCountIncrement) /
+                    (reportCount + reportCountIncrement)
+
             if (maxJitter < lastJitter) {
                 maxJitter = lastJitter
             }
@@ -68,15 +96,25 @@ class RtprSession(packet: Packet) {
                 minJitter = lastJitter
             }
 
-            if (payload.rFactor > 0.0F)
+            if (payload.rFactor > 0.0F) {
                 if (rFactor > 0.0F) {
-                    rFactor = (rFactor * reportCount + payload.rFactor) / (reportCount + 1)
+                    rFactor = (rFactor * reportCount + payload.rFactor * reportCountIncrement) /
+                            (reportCount + reportCountIncrement)
                 } else {
                     rFactor = payload.rFactor
                 }
 
-            // MoS
-            mos = MediaUtil.computeMos(rFactor)
+                // MoS
+                mos = MediaUtil.computeMos(rFactor)
+            }
+        }
+
+        if (createdAt > payload.startedAt) {
+            createdAt = payload.startedAt
+        }
+
+        if (payload.startedAt + payload.duration > terminatedAt) {
+            terminatedAt = payload.startedAt + payload.duration
         }
     }
 }
