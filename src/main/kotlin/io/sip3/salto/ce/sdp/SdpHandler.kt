@@ -20,7 +20,6 @@ import io.sip3.commons.domain.Codec
 import io.sip3.commons.domain.SdpSession
 import io.sip3.commons.util.toIntRange
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localPublish
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.address
@@ -28,6 +27,8 @@ import io.sip3.salto.ce.util.defineRtcpPort
 import io.sip3.salto.ce.util.ptime
 import io.sip3.salto.ce.util.sessionDescription
 import io.vertx.core.AbstractVerticle
+import io.vertx.core.AsyncResult
+import io.vertx.core.Future
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
 import org.restcomm.media.sdp.fields.MediaDescriptionField
@@ -56,9 +57,17 @@ class SdpHandler : AbstractVerticle() {
         vertx.eventBus().localConsumer<SipTransaction>(RoutesCE.sdp + "_session") { event ->
             try {
                 val transaction = event.body()
-                handle(transaction)
+
+                handle(transaction) { asr ->
+                    if (asr.succeeded()) {
+                        event.reply(asr.result())
+                    } else {
+                        event.fail(500, asr.cause().message)
+                    }
+                }
             } catch (e: Exception) {
                 logger.error("SdpHandler 'handle()' failed.", e)
+                event.fail(500, e.message)
             }
         }
     }
@@ -92,7 +101,10 @@ class SdpHandler : AbstractVerticle() {
         codecs = tmpCodecs
     }
 
-    private fun handle(transaction: SipTransaction) {
+    private fun handle(
+        transaction: SipTransaction,
+        completionHandler: (AsyncResult<Pair<SdpSession, SdpSession>>) -> Unit,
+    ) {
         logger.debug { "Execute handle(). TransactionId: ${transaction.id}" }
         val session = SdpSessionDescription().apply {
             callId = transaction.callId
@@ -110,11 +122,13 @@ class SdpHandler : AbstractVerticle() {
         }
 
         if (session.request == null || session.response == null) {
-            return
-        }
+            completionHandler.invoke(Future.failedFuture("SdpHandler 'handle()' failed. Request or Response is null"))
+        } else {
+            defineCodecs(session)
 
-        defineCodecs(session)
-        send(session)
+            logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
+            completionHandler.invoke(Future.succeededFuture(session.sdpSessions()))
+        }
     }
 
     private fun defineCodecs(session: SdpSessionDescription) {
@@ -146,11 +160,6 @@ class SdpHandler : AbstractVerticle() {
             // Use default Codec if still Undefined
             return@map codec ?: Codec().apply { this.payloadTypes = listOf(payloadType) }
         }
-    }
-
-    private fun send(session: SdpSessionDescription) {
-        logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
-        vertx.eventBus().localPublish(RoutesCE.sdp + "_info", session.sdpSessions())
     }
 
     private class SdpSessionDescription {
