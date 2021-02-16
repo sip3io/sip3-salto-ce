@@ -401,19 +401,18 @@ open class SipRegisterHandler : AbstractVerticle() {
                 caller = registration.caller
                 state = registration.state
             } else {
-                expiresAt?.let { overlappedInterval = it - registration.createdAt }
+                overlappedInterval = expiresAt!! - registration.createdAt
 
-                registration.expires
-                    ?.takeIf { it > 0L }
-                    ?.let {
-                        val fraction = overlappedInterval!! / it.toDouble()
-                        if (fraction > (overlappedFraction ?: 0.0)) {
-                            overlappedFraction = fraction
-                        }
+                if (registration.expires > 0L) {
+                    val fraction = overlappedInterval!! / expires.toDouble()
+                    if (fraction > (overlappedFraction ?: 0.0)) {
+                        overlappedFraction = fraction
                     }
+                }
             }
 
             expiresAt = registration.expiresAt
+            expires = registration.expires
 
             registrations.add(Pair(registration.createdAt, registration.expiresAt ?: registration.terminatedAt ?: registration.createdAt))
 
@@ -426,7 +425,6 @@ open class SipRegisterHandler : AbstractVerticle() {
         var state = UNKNOWN
 
         var createdAt: Long = 0
-        var expires: Long? = null
         var expiresAt: Long? = null
         var terminatedAt: Long? = null
 
@@ -436,6 +434,8 @@ open class SipRegisterHandler : AbstractVerticle() {
         lateinit var callId: String
         lateinit var callee: String
         lateinit var caller: String
+
+        var expires: Long = 0L
 
         var attributes = mutableMapOf<String, Any>()
 
@@ -450,10 +450,9 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
 
             transaction.expires?.let { expires ->
-                this.expires = expires * 1000L
-
                 if (expires > 0) {
-                    expiresAt = transaction.createdAt + this.expires!!
+                    this.expires = expires * 1000L
+                    expiresAt = transaction.createdAt + this.expires
                 } else {
                     // Registration has to be removed
                     expiresAt = transaction.terminatedAt ?: transaction.createdAt
