@@ -58,6 +58,8 @@ open class SipRegisterHandler : AbstractVerticle() {
         const val REQUEST_DELAY = PREFIX + "_request-delay"
         const val REMOVED = PREFIX + "_removed"
         const val ACTIVE = PREFIX + "_active"
+        const val OVERLAPPED_INTERVAL = PREFIX + "_overlapped-interval"
+        const val OVERLAPPED_FRACTION = PREFIX + "_overlapped-fraction"
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
@@ -139,8 +141,21 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
             REGISTERED -> {
                 calculateRegistrationMetrics(registration)
-                activeSessions.getOrPut(id) { SipSession() }.addSipRegistration(registration)
+                val session = activeSessions.getOrPut(id) { SipSession() }
+                session.addSipRegistration(registration)
                 activeRegistrations.remove(id)
+
+                session.overlappedInterval?.let { interval ->
+                    val attributes = excludeRegistrationAttributes(registration.attributes)
+                        .apply {
+                            registration.srcAddr.host?.let { put("src_host", it) }
+                            registration.dstAddr.host?.let { put("dst_host", it) }
+                        }
+
+                    Metrics.timer(OVERLAPPED_INTERVAL, attributes).record(interval, TimeUnit.MILLISECONDS)
+
+                    session.overlappedFraction?.let { Metrics.summary(OVERLAPPED_FRACTION, attributes).record(it) }
+                }
             }
             else -> {
                 activeRegistrations[id] = registration
@@ -262,6 +277,11 @@ open class SipRegisterHandler : AbstractVerticle() {
 
                 val callee = get(Attributes.callee) ?: registration.callee
                 put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
+
+                (registration as? SipSession)?.let { session ->
+                    session.overlappedInterval?.let { put(Attributes.overlapped_interval, it) }
+                    session.overlappedFraction?.let { put(Attributes.overlapped_fraction, it) }
+                }
             }
 
         vertx.eventBus().localSend(RoutesCE.attributes, Pair("sip", attributes))
@@ -323,6 +343,9 @@ open class SipRegisterHandler : AbstractVerticle() {
                 if (registration is SipSession) {
                     registration.duration?.let { document.put("duration", it) }
 
+                    registration.overlappedInterval?.let { document.put("overlapped_interval", it) }
+                    registration.overlappedFraction?.let { document.put("overlapped_fraction", it) }
+
                     var registrations: Any = registration.registrations
                         .map { (createdAt, terminatedAt) ->
                             JsonObject().apply {
@@ -363,6 +386,9 @@ open class SipRegisterHandler : AbstractVerticle() {
 
         var updatedAt: Long? = null
         var duration: Long? = null
+        var overlappedInterval: Long? = null
+        var overlappedFraction: Double? = null
+
         val registrations = mutableListOf<Pair<Long, Long>>()
 
         fun addSipRegistration(registration: SipRegistration) {
@@ -374,9 +400,19 @@ open class SipRegisterHandler : AbstractVerticle() {
                 callee = registration.callee
                 caller = registration.caller
                 state = registration.state
+            } else {
+                overlappedInterval = expiresAt!! - registration.createdAt
+
+                if (registration.expires > 0L) {
+                    val fraction = overlappedInterval!! / expires.toDouble()
+                    if (fraction > (overlappedFraction ?: 0.0)) {
+                        overlappedFraction = fraction
+                    }
+                }
             }
 
             expiresAt = registration.expiresAt
+            expires = registration.expires
 
             registrations.add(Pair(registration.createdAt, registration.expiresAt ?: registration.terminatedAt ?: registration.createdAt))
 
@@ -399,6 +435,8 @@ open class SipRegisterHandler : AbstractVerticle() {
         lateinit var callee: String
         lateinit var caller: String
 
+        var expires: Long = 0L
+
         var attributes = mutableMapOf<String, Any>()
 
         fun addRegisterTransaction(transaction: SipTransaction) {
@@ -413,7 +451,8 @@ open class SipRegisterHandler : AbstractVerticle() {
 
             transaction.expires?.let { expires ->
                 if (expires > 0) {
-                    expiresAt = transaction.createdAt + expires * 1000L
+                    this.expires = expires * 1000L
+                    expiresAt = transaction.createdAt + this.expires
                 } else {
                     // Registration has to be removed
                     expiresAt = transaction.terminatedAt ?: transaction.createdAt
