@@ -47,6 +47,9 @@ object MongoClient {
                 ssl.getString("cert-path")?.let {
                     put("certPath", it)
                 }
+                ssl.getString("key-path")?.let {
+                    put("keyPath", it)
+                }
                 ssl.getBoolean("trust-all")?.let {
                     put("trustAll", it)
                 }

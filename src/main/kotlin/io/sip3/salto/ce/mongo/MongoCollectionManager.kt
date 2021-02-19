@@ -16,27 +16,26 @@
 
 package io.sip3.salto.ce.mongo
 
-import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoClient
-import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.coroutines.CoroutineVerticle
 import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
-import java.time.format.DateTimeFormatter
+import java.text.DateFormat
+import java.text.SimpleDateFormat
 
 /**
  * Manages MongoDB collections
  */
 @Instance(singleton = true)
 @ConditionalOnProperty("/mongo")
-class MongoCollectionManager : AbstractVerticle() {
+class MongoCollectionManager : CoroutineVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
@@ -45,49 +44,70 @@ class MongoCollectionManager : AbstractVerticle() {
         const val DEFAULT_MAX_COLLECTIONS = 30
     }
 
-    private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+    private var timeSuffix: DateFormat = SimpleDateFormat("yyyyMMdd")
+    private var timeSuffixInterval: Long = 0
 
     private lateinit var client: io.vertx.ext.mongo.MongoClient
     private var updatePeriod: Long = 3600000
     private var collections: JsonArray = JsonArray()
 
-    override fun start() {
-        config().getString("time-suffix")?.let {
-            timeSuffix = DateTimeFormatter.ofPattern(it)
+    override suspend fun start() {
+        config.getString("time-suffix")?.let {
+            timeSuffix = SimpleDateFormat(it)
         }
 
-        config().getJsonObject("mongo").let { config ->
+        config.getJsonObject("mongo").let { config ->
             client = MongoClient.createShared(vertx, config)
             config.getLong("update-period")?.let { updatePeriod = it }
             config.getJsonArray("collections")?.let { collections = it }
         }
 
-        vertx.setPeriodic(0L, updatePeriod) { manageCollections() }
-    }
+        defineTimeSuffixInterval()
 
-    private fun manageCollections() {
-        GlobalScope.launch(vertx.dispatcher()) {
-            // Drop and create collections
-            collections.forEach { collection ->
-                try {
-                    // Drop collections
-                    dropOldCollectionsByPrefix(collection as JsonObject)
-
-                    // Create collection `${prefix}_${System.currentTimeMillis()}`
-                    var name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis())}"
-                    createCollectionIfNeeded(name, collection.getJsonObject("indexes"))
-
-                    // Create collection `${prefix}_${System.currentTimeMillis() + updatePeriod}`
-                    name = collection.getString("prefix") + "_${timeSuffix.format(System.currentTimeMillis() + updatePeriod)}"
-                    createCollectionIfNeeded(name, collection.getJsonObject("indexes"))
-                } catch (e: Exception) {
-                    logger.error(e) { "MongoCollectionManager 'manageCollections()' failed." }
-                }
+        manageCollections()
+        vertx.setPeriodic(updatePeriod) {
+            GlobalScope.launch(vertx.dispatcher()) {
+                manageCollections()
             }
         }
     }
 
-    private suspend fun dropOldCollectionsByPrefix(collection: JsonObject) {
+    private fun defineTimeSuffixInterval() {
+        val now = System.currentTimeMillis()
+
+        val first = timeSuffix.format(now)
+        var second: String
+
+        var i = 1
+        do {
+            second = timeSuffix.format(now + updatePeriod * i++)
+        } while (second == first)
+
+        timeSuffixInterval = timeSuffix.parse(second).time - timeSuffix.parse(first).time
+    }
+
+    private suspend fun manageCollections() {
+        val now = System.currentTimeMillis()
+
+        val currentTimeSuffix = timeSuffix.format(now)
+        val followingTimeSuffix = timeSuffix.format(now + timeSuffixInterval)
+
+        // Drop and create collections
+        collections.forEach { collection ->
+            try {
+                // Drop old collections
+                dropOldCollections(collection as JsonObject)
+
+                // Create new collections if needed
+                createCollectionIfNeeded(collection.getString("prefix") + "_$currentTimeSuffix", collection.getJsonObject("indexes"))
+                createCollectionIfNeeded(collection.getString("prefix") + "_$followingTimeSuffix", collection.getJsonObject("indexes"))
+            } catch (e: Exception) {
+                logger.error(e) { "MongoCollectionManager 'manageCollections()' failed." }
+            }
+        }
+    }
+
+    private suspend fun dropOldCollections(collection: JsonObject) {
         client.collections.await()
             .filter { name -> name.startsWith(collection.getString("prefix")) }
             .sortedDescending()

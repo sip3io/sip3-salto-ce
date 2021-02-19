@@ -39,7 +39,8 @@ class MongoCollectionManagerTest : VertxTest() {
 
     @Test
     fun `Create MongoDB collection`() {
-        val collection = "test_create_${TIME_SUFFIX.format(System.currentTimeMillis())}"
+        val collection1 = "test_create_${TIME_SUFFIX.format(System.currentTimeMillis())}"
+        val collection2 = "test_create_${TIME_SUFFIX.format(System.currentTimeMillis() + 25 * 3600 * 1000)}"
 
         runTest(
             deploy = {
@@ -66,15 +67,22 @@ class MongoCollectionManagerTest : VertxTest() {
                 })
                 vertx.setPeriodic(500, 100) {
                     mongo.getCollections { asr ->
-                        if (asr.succeeded() && asr.result().contains(collection)) {
-                            mongo.listIndexes(collection) { asr2 ->
+                        if (asr.succeeded() && asr.result().contains(collection1) && asr.result().contains(collection2)) {
+                            mongo.listIndexes(collection1) { asr2 ->
                                 if (asr2.succeeded()) {
                                     context.verify {
                                         assertTrue(asr2.result().size() > 1)
                                     }
-                                    context.completeNow()
                                 }
                             }
+                            mongo.listIndexes(collection2) { asr2 ->
+                                if (asr2.succeeded()) {
+                                    context.verify {
+                                        assertTrue(asr2.result().size() > 1)
+                                    }
+                                }
+                            }
+                            context.completeNow()
                         }
                     }
                 }

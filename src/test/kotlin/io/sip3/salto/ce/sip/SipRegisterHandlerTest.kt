@@ -24,7 +24,9 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -147,6 +149,63 @@ class SipRegisterHandlerTest : VertxTest() {
                         Content-Length:  0
                     """.trimIndent().toByteArray()
         }
+
+        // 2nd REGISTER
+        val PACKET_5 = Packet().apply {
+            timestamp = Timestamp(NOW + 90015)
+            srcAddr = Address().apply {
+                addr = "192.168.10.123"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "192.168.10.5"
+                port = 5060
+            }
+            payload = """
+                        REGISTER sip:192.168.10.5:5060 SIP/2.0
+                        Via: SIP/2.0/UDP 192.168.10.123:55399;branch=z9hG4bK-d8754z-ef77c05e05556d61-1---d8754z-;rport
+                        Max-Forwards: 70
+                        Contact: <sip:1010@192.168.10.123:55399;rinstance=13bf343a521442b5>
+                        To: "1010"<sip:1010@192.168.10.5:5060>
+                        From: "1010"<sip:1010@192.168.10.5:5060>;tag=bd285f07
+                        Call-ID: ZDg3ZGU1ZTA1YjZkMThlNzEzOTA0Y2JkZmQ0YWU2ODU.
+                        CSeq: 144 REGISTER
+                        Expires: 120
+                        Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REGISTER, SUBSCRIBE, NOTIFY, REFER, INFO, MESSAGE
+                        Supported: replaces
+                        User-Agent: 3CXPhone 6.0.26523.0
+                        Authorization: Digest username="1010",realm="asterisk",nonce="1589932801/8185e08b5190c16849be3d2cacdf342d8",uri="sip:192.168.10.5:5060",response="097123a1b44a287570f02dbb087ed690",cnonce="21b74f167c716d14bc7912330071b026",nc=00000001,qop=auth,algorithm=md5,opaque="3067a732021f5804"
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
+
+        // 2nd 200 Ok
+        val PACKET_6 = Packet().apply {
+            timestamp = Timestamp(NOW + 90020)
+            srcAddr = Address().apply {
+                addr = "192.168.10.5"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "192.168.10.123"
+                port = 5060
+            }
+
+            attributes["include-me"] = true
+            payload = """
+                        SIP/2.0 200 OK
+                        Via: SIP/2.0/UDP 192.168.10.123:55399;rport=55399;received=192.168.10.123;branch=z9hG4bK-d8754z-ef77c05e05556d61-1---d8754z-
+                        Call-ID: ZDg3ZGU1ZTA1YjZkMThlNzEzOTA0Y2JkZmQ0YWU2ODU.
+                        From: "1010" <sip:1010@192.168.10.5>;tag=bd285f07
+                        To: "1010" <sip:1010@192.168.10.5>;tag=z9hG4bK-d8754z-ef77c05e05556d61-1---d8754z-
+                        CSeq: 144 REGISTER
+                        Date: Wed, 20 May 2020 00:00:01 GMT
+                        Contact: <sip:1010@192.168.10.123:55399;rinstance=13bf343a521442b5>;expires=119
+                        Expires: 120
+                        Server: FPBX-14.0.13.23(13.29.2)
+                        Content-Length:  0
+                    """.trimIndent().toByteArray()
+        }
     }
 
     @Test
@@ -202,6 +261,67 @@ class SipRegisterHandlerTest : VertxTest() {
                             assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
                             assertEquals(PACKET_3.timestamp.time + 120000, getLong("terminated_at"))
                             assertEquals(PACKET_3.timestamp.time + 120000 - PACKET_1.timestamp.time, getLong("duration"))
+                        }
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Validate 'overlapped_interval' and 'overlapped_fraction'`() {
+        val transaction1 = SipTransaction().apply {
+            addPacket(PACKET_3)
+            addPacket(PACKET_4)
+        }
+
+        val transaction2 = SipTransaction().apply {
+            addPacket(PACKET_5)
+            addPacket(PACKET_6)
+        }
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("register", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 200)
+                            put("duration-timeout", 200)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setTimer(400) {
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction1)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction2)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_register_index_"))
+
+                        document.getJsonObject("\$setOnInsert").apply {
+                            assertEquals(PACKET_3.timestamp.time, getLong("created_at"))
+                            assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
+                            assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
+                            assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
+                            assertEquals(PACKET_3.dstAddr.port, getInteger("dst_port"))
+                            assertNotNull(getString("call_id"))
+                        }
+
+                        document.getJsonObject("\$set").apply {
+                            assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
+                            assertEquals(PACKET_5.timestamp.time + 120000, getLong("terminated_at"))
+                            assertEquals(PACKET_5.timestamp.time + 120000 - PACKET_3.timestamp.time, getLong("duration"))
+                            assertEquals(30000L, getLong("overlapped_interval"))
+                            assertEquals(0.25, getDouble("overlapped_fraction"))
                         }
                     }
                     context.completeNow()
