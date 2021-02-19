@@ -41,6 +41,8 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
     val isOneWay: Boolean
         get() = forward.hasRtp() xor reverse.hasRtp()
 
+    var hasRecording: Boolean = false
+
     val hasUndefinedCodec: Boolean
         get() = codecNames.any { it.contains("UNDEFINED") }
 

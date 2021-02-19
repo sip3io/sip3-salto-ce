@@ -16,7 +16,9 @@
 
 package io.sip3.salto.ce.media
 
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.MediaControl
+import io.sip3.commons.domain.media.Recording
+import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localRequest
@@ -29,18 +31,18 @@ import mu.KotlinLogging
  * Manages media feature
  */
 @Instance(singleton = true)
-class MediaManager : AbstractVerticle() {
+open class MediaManager : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private var recordAll: Boolean = false
+    private var recordingEnabled: Boolean = false
 
     private var instances: Int = 1
 
     override fun start() {
-        config().getJsonObject("record")?.let { config ->
-            config.getBoolean("record-all")?.let {
-                recordAll = it
+        config().getJsonObject("recording")?.let { config ->
+            config.getBoolean("enabled")?.let {
+                recordingEnabled = it
             }
         }
 
@@ -59,27 +61,23 @@ class MediaManager : AbstractVerticle() {
     }
 
     open fun handleSipTransaction(transaction: SipTransaction) {
-        vertx.eventBus().localRequest<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_session", transaction) { asr ->
+        vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { asr ->
             if (asr.failed()) {
                 logger.error(asr.cause()) { "MediaManager 'handleSipTransaction()' failed. " }
                 return@localRequest
             }
 
             try {
-                val sdpSessions = asr.result().body()
-                handleSdpSessions(transaction, sdpSessions)
+                val sdpSession = asr.result().body()
+                handleSdpSession(transaction, sdpSession)
             } catch (e: Exception) {
                 logger.error(e) { "MediaHandler 'handleSdpSessions()' failed." }
             }
         }
     }
 
-    open fun handleSdpSessions(transaction: SipTransaction, sdpSessions: Pair<SdpSession, SdpSession>) {
-        // TODO: change to `localSend` if possible
-        // Publish SDP Session for consumers
-        vertx.eventBus().localPublish(RoutesCE.sdp + "_info", sdpSessions)
-
-        createMediaControl(transaction, sdpSessions) { mediaControl ->
+    open fun handleSdpSession(transaction: SipTransaction, sdpSession: SdpSession) {
+        createMediaControl(transaction, sdpSession) { mediaControl ->
             vertx.eventBus().localPublish(RoutesCE.media + "_control", mediaControl)
         }
 
@@ -87,14 +85,19 @@ class MediaManager : AbstractVerticle() {
 
     open fun createMediaControl(
         transaction: SipTransaction,
-        sdpSessions: Pair<SdpSession, SdpSession>,
+        sdpSession: SdpSession,
         onComplete: (MediaControl) -> Unit,
     ) {
-        //TODO: do some staff to create media control session
-        val mediaControl = MediaControl()
+        val mediaControl = MediaControl().apply {
+            timestamp = System.currentTimeMillis()
+            callId = transaction.callId
+            this.sdpSession = sdpSession
+
+            if (recordingEnabled) {
+                recording = Recording()
+            }
+        }
         onComplete.invoke(mediaControl)
     }
 
 }
-
-typealias MediaControl = Any

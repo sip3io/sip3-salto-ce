@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.socket
 
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.MongoClient
@@ -40,7 +40,7 @@ class ManagementSocket : AbstractVerticle() {
 
     companion object {
 
-        const val TYPE_SDP_SESSION = "sdp_session"
+        const val TYPE_MEDIA_CONTROL = "media_control"
         const val TYPE_REGISTER = "register"
     }
 
@@ -79,11 +79,10 @@ class ManagementSocket : AbstractVerticle() {
             sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
         }
 
-        vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
+    vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
             if (sendSdpSessions) {
-                val (request, response) = event.body()
-                publishSdpSession(request)
-                publishSdpSession(response)
+                val mediaControl = event.body()
+                publishMediaControl(mediaControl)
             }
         }
     }
@@ -157,10 +156,10 @@ class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    private fun publishSdpSession(sdpSession: SdpSession) {
+    private fun publishMediaControl(mediaControl: MediaControl) {
         val buffer = JsonObject().apply {
-            put("type", TYPE_SDP_SESSION)
-            put("payload", JsonObject.mapFrom(sdpSession))
+            put("type", TYPE_MEDIA_CONTROL)
+            put("payload", JsonObject.mapFrom(mediaControl))
         }.toBuffer()
 
         remoteHosts.forEach { (_, remoteHost) ->

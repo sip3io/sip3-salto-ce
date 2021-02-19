@@ -17,7 +17,7 @@
 package io.sip3.salto.ce.rtpr
 
 import io.netty.buffer.Unpooled
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.MediaUtil.rtpSessionId
@@ -76,7 +76,7 @@ open class RtprHandler : AbstractVerticle() {
 
     private var instances: Int = 1
 
-    private var sdp = mutableMapOf<Long, Pair<SdpSession, SdpSession>>()
+    private var mediaControls = mutableMapOf<Long, MediaControl>()
     private var rtp = mutableMapOf<Long, RtprSession>()
     private var rtcp = mutableMapOf<Long, RtprSession>()
 
@@ -109,7 +109,7 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         vertx.setPeriodic(trimToSizeDelay) {
-            sdp = MutableMapUtil.mutableMapOf(sdp)
+            mediaControls = MutableMapUtil.mutableMapOf(mediaControls)
             rtp = MutableMapUtil.mutableMapOf(rtp)
             rtcp = MutableMapUtil.mutableMapOf(rtcp)
         }
@@ -117,9 +117,9 @@ open class RtprHandler : AbstractVerticle() {
             terminateExpiredSessions()
         }
 
-        vertx.eventBus().localConsumer<Pair<SdpSession,SdpSession>>(RoutesCE.sdp + "_info") { event ->
-            val sdpSessions = event.body()
-            handleSdp(sdpSessions)
+        vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
+            val mediaControl = event.body()
+            handleMediaControl(mediaControl)
         }
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr) { event ->
@@ -153,16 +153,13 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    open fun handleSdp(sdpSessions: Pair<SdpSession, SdpSession>) {
-        sdpSessions.toList().forEach { sdpSession ->
-            sdp.putIfAbsent(sdpSession.rtpId, sdpSessions)
-            sdp.putIfAbsent(sdpSession.rtcpId, sdpSessions)
+    open fun handleMediaControl(mediaControl: MediaControl) {
+        val sdpSession = mediaControl.sdpSession
 
-            // Put same `sdpSession` with Id for RTCP port if different
-            if (sdpSession.rtpId != sdpSession.rtcpId) {
-                sdp[sdpSession.rtcpId] = sdpSessions
-            }
-        }
+        mediaControls.putIfAbsent(sdpSession.src.rtpId, mediaControl)
+        mediaControls.putIfAbsent(sdpSession.src.rtcpId, mediaControl)
+        mediaControls.putIfAbsent(sdpSession.dst.rtpId, mediaControl)
+        mediaControls.putIfAbsent(sdpSession.dst.rtcpId, mediaControl)
     }
 
     open fun handleRaw(packet: Packet) {
@@ -191,7 +188,7 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         if (report.callId == null) {
-            session.sdp?.first?.let { updateWithSdp(report, it) }
+            session.mediaControl?.let { updateWithSdp(report, it) }
         }
         session.add(report)
 
@@ -213,13 +210,16 @@ open class RtprHandler : AbstractVerticle() {
 
     open fun createRtprSession(packet: Packet): RtprSession {
         val session = RtprSession(packet, rFactorThreshold)
-        (sdp[packet.srcAddr.sdpSessionId()] ?: sdp[packet.dstAddr.sdpSessionId()])?.let { session.sdp = it }
+        (mediaControls[packet.srcAddr.sdpSessionId()] ?: mediaControls[packet.dstAddr.sdpSessionId()])?.let {
+            session.mediaControl = it
+        }
         return session
     }
 
-    open fun updateWithSdp(report: RtpReportPayload, sdpSession: SdpSession) {
-        report.callId = sdpSession.callId
+    open fun updateWithSdp(report: RtpReportPayload, mediaControl: MediaControl) {
+        report.callId = mediaControl.callId
 
+        val sdpSession = mediaControl.sdpSession
         if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
             report.duration = report.expectedPacketCount * sdpSession.ptime
         }
@@ -259,8 +259,8 @@ open class RtprHandler : AbstractVerticle() {
                 rtcp.remove(sessionId)
             }
 
-        sdp.filterValues { it.first.timestamp + aggregationTimeout < now }
-            .forEach { (key, _) -> sdp.remove(key) }
+        mediaControls.filterValues { it.timestamp + aggregationTimeout < now }
+            .forEach { (key, _) -> mediaControls.remove(key) }
     }
 
     open fun terminateRtprSession(session: RtprSession) {

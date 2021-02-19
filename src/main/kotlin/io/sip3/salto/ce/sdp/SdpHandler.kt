@@ -16,8 +16,9 @@
 
 package io.sip3.salto.ce.sdp
 
-import io.sip3.commons.domain.Codec
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.Codec
+import io.sip3.commons.domain.media.MediaAddress
+import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.util.toIntRange
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
@@ -103,7 +104,7 @@ class SdpHandler : AbstractVerticle() {
 
     private fun handle(
         transaction: SipTransaction,
-        completionHandler: (AsyncResult<Pair<SdpSession, SdpSession>>) -> Unit,
+        completionHandler: (AsyncResult<SdpSession>) -> Unit,
     ) {
         logger.debug { "Execute handle(). TransactionId: ${transaction.id}" }
         val session = SdpSessionDescription().apply {
@@ -127,7 +128,7 @@ class SdpHandler : AbstractVerticle() {
             defineCodecs(session)
 
             logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
-            completionHandler.invoke(Future.succeededFuture(session.sdpSessions()))
+            completionHandler.invoke(Future.succeededFuture(session.sdpSession()))
         }
     }
 
@@ -192,22 +193,22 @@ class SdpHandler : AbstractVerticle() {
             response?.let { "${it.connection.address}:${it.port}" }
         }
 
-        fun sdpSessions(): Pair<SdpSession, SdpSession> {
-            return Pair(sdpSession(request!!), sdpSession(response!!))
-        }
-
-        private fun sdpSession(mediaDescription: MediaDescriptionField): SdpSession {
+        fun sdpSession(): SdpSession {
             return SdpSession().apply {
-                timestamp = System.currentTimeMillis()
+                src = MediaAddress().apply {
+                    addr = request!!.address()
+                    rtpPort = request!!.port
+                    rtcpPort = request!!.defineRtcpPort(isRtcpMux)
+                }
 
-                address = mediaDescription.address()
-                rtpPort = mediaDescription.port
-                rtcpPort = mediaDescription.defineRtcpPort(isRtcpMux)
+                dst = MediaAddress().apply {
+                    addr = response!!.address()
+                    rtpPort = response!!.port
+                    rtcpPort = response!!.defineRtcpPort(isRtcpMux)
+                }
 
                 codecs = this@SdpSessionDescription.codecs
                 ptime = this@SdpSessionDescription.ptime
-
-                callId = this@SdpSessionDescription.callId
             }
         }
     }

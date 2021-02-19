@@ -16,19 +16,19 @@
 
 package io.sip3.salto.ce.util
 
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.MediaAddress
 import io.sip3.salto.ce.domain.Address
 
-fun SdpSession.rtpAddress(): Address {
+fun MediaAddress.rtpAddress(): Address {
     return Address().apply {
-        addr = address
-        port = rtpPort
+        addr = this@rtpAddress.addr
+        port = this@rtpAddress.rtpPort
     }
 }
 
-fun SdpSession.rtcpAddress(): Address {
+fun MediaAddress.rtcpAddress(): Address {
     return Address().apply {
-        addr = address
-        port = rtcpPort
+        addr = this@rtcpAddress.addr
+        port = this@rtcpAddress.rtcpPort
     }
 }
