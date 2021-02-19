@@ -33,7 +33,7 @@ import java.text.SimpleDateFormat
 /**
  * Manages MongoDB collections
  */
-@Instance(singleton = true)
+@Instance(order = 0, singleton = true)
 @ConditionalOnProperty("/mongo")
 class MongoCollectionManager : CoroutineVerticle() {
 
