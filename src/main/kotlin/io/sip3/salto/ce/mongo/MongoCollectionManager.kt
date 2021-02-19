@@ -16,7 +16,6 @@
 
 package io.sip3.salto.ce.mongo
 
-import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.MongoClient
@@ -28,7 +27,8 @@ import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
-import java.time.format.DateTimeFormatter
+import java.text.DateFormat
+import java.text.SimpleDateFormat
 
 /**
  * Manages MongoDB collections
@@ -44,7 +44,8 @@ class MongoCollectionManager : CoroutineVerticle() {
         const val DEFAULT_MAX_COLLECTIONS = 30
     }
 
-    private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
+    private var timeSuffix: DateFormat = SimpleDateFormat("yyyyMMdd")
+    private var timeSuffixInterval: Long = 0
 
     private lateinit var client: io.vertx.ext.mongo.MongoClient
     private var updatePeriod: Long = 3600000
@@ -52,7 +53,7 @@ class MongoCollectionManager : CoroutineVerticle() {
 
     override suspend fun start() {
         config.getString("time-suffix")?.let {
-            timeSuffix = DateTimeFormatter.ofPattern(it)
+            timeSuffix = SimpleDateFormat(it)
         }
 
         config.getJsonObject("mongo").let { config ->
@@ -60,6 +61,8 @@ class MongoCollectionManager : CoroutineVerticle() {
             config.getLong("update-period")?.let { updatePeriod = it }
             config.getJsonArray("collections")?.let { collections = it }
         }
+
+        defineTimeSuffixInterval()
 
         manageCollections()
         vertx.setPeriodic(updatePeriod) {
@@ -69,7 +72,26 @@ class MongoCollectionManager : CoroutineVerticle() {
         }
     }
 
+    private fun defineTimeSuffixInterval() {
+        val now = System.currentTimeMillis()
+
+        val first = timeSuffix.format(now)
+        var second: String
+
+        var i = 1
+        do {
+            second = timeSuffix.format(now + updatePeriod * i++)
+        } while (second == first)
+
+        timeSuffixInterval = timeSuffix.parse(second).time - timeSuffix.parse(first).time
+    }
+
     private suspend fun manageCollections() {
+        val now = System.currentTimeMillis()
+
+        val currentTimeSuffix = timeSuffix.format(now)
+        val followingTimeSuffix = timeSuffix.format(now + timeSuffixInterval)
+
         // Drop and create collections
         collections.forEach { collection ->
             try {
@@ -77,9 +99,8 @@ class MongoCollectionManager : CoroutineVerticle() {
                 dropOldCollections(collection as JsonObject)
 
                 // Create new collections if needed
-                val (currentCollectionName, followingCollectionName) = retrieveNewCollectionNames(collection)
-                createCollectionIfNeeded(currentCollectionName, collection.getJsonObject("indexes"))
-                createCollectionIfNeeded(followingCollectionName, collection.getJsonObject("indexes"))
+                createCollectionIfNeeded(collection.getString("prefix") + "_$currentTimeSuffix", collection.getJsonObject("indexes"))
+                createCollectionIfNeeded(collection.getString("prefix") + "_$followingTimeSuffix", collection.getJsonObject("indexes"))
             } catch (e: Exception) {
                 logger.error(e) { "MongoCollectionManager 'manageCollections()' failed." }
             }
@@ -92,20 +113,6 @@ class MongoCollectionManager : CoroutineVerticle() {
             .sortedDescending()
             .drop(collection.getInteger("max-collections") ?: DEFAULT_MAX_COLLECTIONS)
             .forEach { name -> client.dropCollection(name).await() }
-    }
-
-    private fun retrieveNewCollectionNames(collection: JsonObject): Pair<String, String> {
-        val now = System.currentTimeMillis()
-
-        val first = timeSuffix.format(now)
-        var second: String
-
-        var i = 1
-        do {
-            second = timeSuffix.format(now + updatePeriod * i++)
-        } while (second == first)
-
-        return Pair(collection.getString("prefix") + "_$first", collection.getString("prefix") + "_$second")
     }
 
     private suspend fun createCollectionIfNeeded(name: String, indexes: JsonObject? = null) {
