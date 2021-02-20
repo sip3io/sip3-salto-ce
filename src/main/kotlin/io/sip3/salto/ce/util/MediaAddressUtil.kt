@@ -22,13 +22,13 @@ import io.sip3.salto.ce.domain.Address
 fun MediaAddress.rtpAddress(): Address {
     return Address().apply {
         addr = this@rtpAddress.addr
-        port = this@rtpAddress.rtpPort
+        port = rtpPort
     }
 }
 
 fun MediaAddress.rtcpAddress(): Address {
     return Address().apply {
         addr = this@rtcpAddress.addr
-        port = this@rtcpAddress.rtcpPort
+        port = rtcpPort
     }
 }

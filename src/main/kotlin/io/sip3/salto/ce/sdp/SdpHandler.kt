@@ -21,6 +21,7 @@ import io.sip3.commons.domain.media.MediaAddress
 import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.util.toIntRange
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localReply
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.address
@@ -61,7 +62,7 @@ class SdpHandler : AbstractVerticle() {
 
                 handle(transaction) { asr ->
                     if (asr.succeeded()) {
-                        event.reply(asr.result())
+                        event.localReply(asr.result())
                     } else {
                         event.fail(500, asr.cause().message)
                     }

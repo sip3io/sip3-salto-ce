@@ -16,11 +16,13 @@
 
 package io.sip3.salto.ce.rtpr
 
-import io.sip3.commons.domain.Codec
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.Codec
+import io.sip3.commons.domain.media.MediaAddress
+import io.sip3.commons.domain.media.MediaControl
+import io.sip3.commons.domain.media.Recording
+import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.media.MediaSessionTest
 import io.sip3.salto.ce.util.rtcpAddress
 import io.sip3.salto.ce.util.rtpAddress
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -31,40 +33,34 @@ class RtprSessionTest {
 
     companion object {
 
-        // SDP Request
-        val SDP_SESSION_1 = SdpSession().apply {
-            callId = "callId_uuid@domain.io"
+        // Media Control
+        val MEDIA_CONTROL = MediaControl().apply {
             timestamp = System.currentTimeMillis()
 
-            address = "10.10.10.10"
-            rtpPort = 10500
-            rtcpPort = rtpPort + 1
-
-            codecs = mutableListOf(Codec().apply {
-                name = "PCMU"
-                payloadTypes = listOf(0)
-                clockRate = 8000
-                bpl = 4.3F
-                ie = 0F
-            })
-        }
-
-        // SDP Response
-        val SDP_SESSION_2 = SdpSession().apply {
             callId = "callId_uuid@domain.io"
-            timestamp = System.currentTimeMillis()
 
-            address = "10.20.20.20"
-            rtpPort = 20500
-            rtcpPort = rtpPort + 1
+            sdpSession = SdpSession().apply {
+                src = MediaAddress().apply {
+                    addr = "10.10.10.10"
+                    rtpPort = 10500
+                    rtcpPort = rtpPort + 1
+                }
+                dst = MediaAddress().apply {
+                    addr = "10.20.20.20"
+                    rtpPort = 20500
+                    rtcpPort = rtpPort + 1
+                }
 
-            codecs = mutableListOf(Codec().apply {
-                name = "PCMU"
-                payloadTypes = listOf(0)
-                clockRate = 8000
-                bpl = 4.3F
-                ie = 0F
-            })
+                codecs = mutableListOf(Codec().apply {
+                    name = "PCMU"
+                    payloadTypes = listOf(0)
+                    clockRate = 8000
+                    bpl = 4.3F
+                    ie = 0F
+                })
+            }
+
+            recording = Recording()
         }
 
         val RTPR_1 = RtpReportPayload().apply {
@@ -152,18 +148,18 @@ class RtprSessionTest {
         }
 
         val PACKET_1 = Packet().apply {
-            srcAddr = MediaSessionTest.SDP_SESSION_1.rtpAddress()
-            dstAddr = MediaSessionTest.SDP_SESSION_2.rtpAddress()
+            srcAddr = MEDIA_CONTROL.sdpSession.src.rtpAddress()
+            dstAddr = MEDIA_CONTROL.sdpSession.dst.rtpAddress()
         }
 
         val PACKET_1_RTCP = Packet().apply {
-            srcAddr = MediaSessionTest.SDP_SESSION_1.rtcpAddress()
-            dstAddr = MediaSessionTest.SDP_SESSION_2.rtcpAddress()
+            srcAddr = MEDIA_CONTROL.sdpSession.src.rtcpAddress()
+            dstAddr = MEDIA_CONTROL.sdpSession.dst.rtcpAddress()
         }
 
         val PACKET_2 = Packet().apply {
-            srcAddr = MediaSessionTest.SDP_SESSION_2.rtpAddress()
-            dstAddr = MediaSessionTest.SDP_SESSION_1.rtpAddress()
+            srcAddr = MEDIA_CONTROL.sdpSession.dst.rtpAddress()
+            dstAddr = MEDIA_CONTROL.sdpSession.src.rtpAddress()
         }
     }
 
@@ -171,7 +167,7 @@ class RtprSessionTest {
     @Test
     fun `Validate RtprSession 'add()' method from RTP`() {
         val session = RtprSession(PACKET_1).apply {
-            sdp = Pair(SDP_SESSION_1, SDP_SESSION_2)
+            mediaControl = MEDIA_CONTROL
             add(RTPR_1)
         }
 
@@ -189,7 +185,7 @@ class RtprSessionTest {
     @Test
     fun `Validate RtprSession 'add()' method from 2 RTP`() {
         val session = RtprSession(PACKET_1).apply {
-            sdp = Pair(SDP_SESSION_1, SDP_SESSION_2)
+            mediaControl = MEDIA_CONTROL
             RtpReportPayload().apply {
                 decode(RTPR_1.encode())
             }.let { add(it) }
@@ -210,14 +206,14 @@ class RtprSessionTest {
     @Test
     fun `Validate RtprSession 'merge()' method from RTP`() {
         val session = RtprSession(PACKET_1).apply {
-            sdp = Pair(SDP_SESSION_1, SDP_SESSION_2)
+            mediaControl = MEDIA_CONTROL
             RtpReportPayload().apply {
                 decode(RTPR_1.encode())
             }.let { add(it) }
         }
 
         val session2 = RtprSession(PACKET_1).apply {
-            sdp = Pair(SDP_SESSION_1, SDP_SESSION_2)
+            mediaControl = MEDIA_CONTROL
             add(RTPR_2)
         }
 
@@ -236,7 +232,7 @@ class RtprSessionTest {
     @Test
     fun `Validate RtprSession R-Factor threshold`() {
         val session = RtprSession(PACKET_1, 50F).apply {
-            sdp = Pair(SDP_SESSION_1, SDP_SESSION_2)
+            mediaControl = MEDIA_CONTROL
             add(RTPR_1)
         }
 
@@ -247,7 +243,7 @@ class RtprSessionTest {
     @Test
     fun `Validate RtprSession 'add()' method from RTCP`() {
         val session = RtprSession(PACKET_1_RTCP).apply {
-            sdp = Pair(SDP_SESSION_1, SDP_SESSION_2)
+            mediaControl = MEDIA_CONTROL
             add(RTPR_1_RTCP)
         }
 

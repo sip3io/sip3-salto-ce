@@ -17,9 +17,11 @@
 package io.sip3.salto.ce.sdp
 
 import gov.nist.javax.sip.parser.StringMsgParser
-import io.sip3.commons.domain.Codec
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.Codec
+import io.sip3.commons.domain.media.MediaControl
+import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
@@ -29,7 +31,7 @@ import io.sip3.salto.ce.sip.SipTransactionHandlerTest
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -383,20 +385,19 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
-            },
-            assert = {
-                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { response ->
                     context.verify {
-                        val (session1, session2) = event.body()
+                        val session = response.result().body()
 
-                        assertNotEquals(session1.rtpId, session2.rtpId)
-                        assertEquals(session1.callId, session2.callId)
-                        assertEquals(transaction.callId, session1.callId)
-                        assertEquals(session1.codecs, session2.codecs)
-                        assertEquals(20, session1.ptime)
+                        assertEquals("10.177.131.228", session.src.addr)
+                        assertEquals(35176, session.src.rtpPort)
+                        assertEquals(35177, session.src.rtcpPort)
 
-                        session1.codecs.first().apply {
+                        assertEquals("10.177.116.41", session.dst.addr)
+                        assertEquals(36046, session.dst.rtpPort)
+                        assertEquals(36047, session.dst.rtcpPort)
+
+                        session.codecs.first().apply {
                             assertEquals(CODEC.name, name)
                             assertEquals(CODEC.clockRate, clockRate)
                             assertEquals(CODEC.payloadTypes, payloadTypes)
@@ -404,8 +405,14 @@ class SdpHandlerTest : VertxTest() {
                             assertEquals(CODEC.bpl, bpl)
                         }
 
+                        assertEquals(20, session.ptime)
+
                         context.completeNow()
                     }
+                }
+            },
+            assert = {
+                vertx.eventBus().localConsumer<MediaControl>(RoutesCE.sdp + "_info") { event ->
                 }
             }
         )
@@ -470,16 +477,14 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, JsonObject())
             },
             execute = {
-                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
-                vertx.setTimer(2000L) {
+                vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { response ->
+                    context.verify {
+                        assertTrue(response.failed())
+                    }
                     context.completeNow()
                 }
             },
-            assert = {
-                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") {
-                    context.failNow(IllegalStateException("No sdp_info expected"))
-                }
-            }
+            assert = { }
         )
     }
 
@@ -495,31 +500,33 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
-            },
-            assert = {
-                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
+                vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { response ->
                     context.verify {
-                        val (session1, session2) = event.body()
+                        val session = response.result().body()
 
-                        assertNotEquals(session1.rtpId, session2.rtpId)
-                        assertEquals(session1.callId, session2.callId)
-                        assertEquals(transaction.callId, session1.callId)
-                        assertEquals(session1.codecs, session2.codecs)
-                        assertEquals(20, session1.ptime)
+                        assertEquals("10.177.94.5", session.src.addr)
+                        assertEquals(59668, session.src.rtpPort)
+                        assertEquals(59669, session.src.rtcpPort)
 
-                        session1.codecs.first().apply {
+                        assertEquals("10.196.8.220", session.dst.addr)
+                        assertEquals(29520, session.dst.rtpPort)
+                        assertEquals(29521, session.dst.rtcpPort)
+
+                        session.codecs.first().apply {
                             assertEquals(CODEC.name, name)
                             assertEquals(CODEC.clockRate, clockRate)
                             assertEquals(CODEC.payloadTypes, payloadTypes)
                             assertEquals(CODEC.ie, ie)
                             assertEquals(CODEC.bpl, bpl)
                         }
+
+                        assertEquals(20, session.ptime)
                     }
 
                     context.completeNow()
                 }
-            }
+            },
+            assert = { }
         )
     }
 
@@ -535,15 +542,17 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
-            },
-            assert = {
-                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
-                    val (session, _) = event.body()
-
+                vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { response ->
                     context.verify {
-                        assertEquals(transaction.callId, session.callId)
-                        assertEquals(30, session.ptime)
+                        val session = response.result().body()
+
+                        assertEquals("79.104.212.169", session.src.addr)
+                        assertEquals(20522, session.src.rtpPort)
+                        assertEquals(20523, session.src.rtcpPort)
+
+                        assertEquals("10.177.94.5", session.dst.addr)
+                        assertEquals(17220, session.dst.rtpPort)
+                        assertEquals(17221, session.dst.rtcpPort)
 
                         session.codecs.first().apply {
                             assertEquals(CODEC.name, name)
@@ -552,11 +561,14 @@ class SdpHandlerTest : VertxTest() {
                             assertEquals(CODEC.ie, ie)
                             assertEquals(CODEC.bpl, bpl)
                         }
+
+                        assertEquals(30, session.ptime)
                     }
 
                     context.completeNow()
                 }
-            }
+            },
+            assert = { }
         )
     }
 

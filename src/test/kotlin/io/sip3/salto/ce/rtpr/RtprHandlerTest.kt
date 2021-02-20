@@ -20,8 +20,11 @@ import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.MockClock
 import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.sip3.commons.domain.Codec
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.Codec
+import io.sip3.commons.domain.media.MediaAddress
+import io.sip3.commons.domain.media.MediaControl
+import io.sip3.commons.domain.media.Recording
+import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localPublish
@@ -120,40 +123,34 @@ class RtprHandlerTest : VertxTest() {
             payload = RTPR_2.encode().array()
         }
 
-        // SDP Request
-        val SDP_SESSION_1 = SdpSession().apply {
-            callId = "callId_uuid@domain.io"
+        // Media Control
+        val MEDIA_CONTROL = MediaControl().apply {
             timestamp = System.currentTimeMillis()
 
-            address = SRC_ADDR.addr
-            rtpPort = SRC_ADDR.port
-            rtcpPort = SRC_ADDR.port + 1
-
-            codecs = mutableListOf(Codec().apply {
-                name = "PCMU"
-                payloadTypes = listOf(0)
-                clockRate = 8000
-                bpl = 4.3F
-                ie = 0F
-            })
-        }
-
-        // SDP Response
-        val SDP_SESSION_2 = SdpSession().apply {
             callId = "callId_uuid@domain.io"
-            timestamp = System.currentTimeMillis()
 
-            address = DST_ADDR.addr
-            rtpPort = DST_ADDR.port
-            rtcpPort = DST_ADDR.port + 1
+            sdpSession = SdpSession().apply {
+                src = MediaAddress().apply {
+                    addr = SRC_ADDR.addr
+                    rtpPort = SRC_ADDR.port
+                    rtcpPort = SRC_ADDR.port + 1
+                }
+                dst = MediaAddress().apply {
+                    addr = DST_ADDR.addr
+                    rtpPort = DST_ADDR.port
+                    rtcpPort = DST_ADDR.port + 1
+                }
 
-            codecs = mutableListOf(Codec().apply {
-                name = "PCMU"
-                payloadTypes = listOf(0)
-                clockRate = 8000
-                bpl = 4.3F
-                ie = 0F
-            })
+                codecs = mutableListOf(Codec().apply {
+                    name = "PCMU"
+                    payloadTypes = listOf(0)
+                    clockRate = 8000
+                    bpl = 4.3F
+                    ie = 0F
+                })
+            }
+
+            recording = Recording()
         }
     }
 
@@ -285,7 +282,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_2, RTPR_2))
             },
             assert = {
@@ -296,10 +293,10 @@ class RtprHandlerTest : VertxTest() {
                         session.apply {
                             assertEquals(1, reportCount)
                             assertEquals(0, badReportCount)
-                            assertEquals(SDP_SESSION_1.callId, callId)
+                            assertEquals(MEDIA_CONTROL.callId, callId)
 
                             assertEquals(1, codecNames.size)
-                            assertEquals(SDP_SESSION_1.codecs[0].name, codecNames.first())
+                            assertEquals(MEDIA_CONTROL.sdpSession.codecs.first().name, codecNames.first())
 
                             assertEquals(RTPR_1.startedAt, session.createdAt)
                             assertEquals(DST_ADDR, dstAddr)
@@ -331,7 +328,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
             },
             assert = {
@@ -414,7 +411,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_2)
             },
             assert = {
@@ -433,7 +430,7 @@ class RtprHandlerTest : VertxTest() {
                             context.verify {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
-                                assertTrue(tags.any { it.value == SDP_SESSION_1.codecs.first().name })
+                                assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
                             }
                             context.completeNow()
                         }
@@ -456,7 +453,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
             },
             assert = {
@@ -489,7 +486,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
             },
             assert = {
@@ -522,7 +519,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.eventBus().localPublish(RoutesCE.sdp + "_info", Pair(SDP_SESSION_1, SDP_SESSION_2))
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_2))
             },
             assert = {

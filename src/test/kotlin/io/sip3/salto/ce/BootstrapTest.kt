@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce
 
-import io.sip3.commons.domain.Codec
+import io.sip3.commons.domain.media.Codec
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.setPeriodic
 import io.vertx.core.json.JsonObject

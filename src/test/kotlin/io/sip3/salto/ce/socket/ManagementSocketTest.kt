@@ -16,8 +16,11 @@
 
 package io.sip3.salto.ce.socket
 
-import io.sip3.commons.domain.Codec
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.Codec
+import io.sip3.commons.domain.media.MediaAddress
+import io.sip3.commons.domain.media.MediaControl
+import io.sip3.commons.domain.media.Recording
+import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
@@ -26,6 +29,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
+import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -94,7 +98,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                vertx.createDatagramSocket().send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {}
+                vertx.createDatagramSocket().send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
             },
             assert = {
                 val mongo = MongoClient.createShared(vertx, JsonObject().apply {
@@ -114,22 +118,35 @@ class ManagementSocketTest : VertxTest() {
     }
 
     @Test
-    fun `Send SDP session to registered remote host`() {
-        val sdpSession = SdpSession().apply {
+    fun `Send Media Control to registered remote host`() {
+        // Media Control
+        val mediaControl = MediaControl().apply {
             timestamp = System.currentTimeMillis()
+
             callId = "SomeKindOfCallId"
 
-            address = "127.0.0.1"
-            rtpPort = 1000
-            rtcpPort = 1001
+            sdpSession = SdpSession().apply {
+                src = MediaAddress().apply {
+                    addr = "127.0.0.1"
+                    rtpPort = 1000
+                    rtcpPort = 1001
+                }
+                dst = MediaAddress().apply {
+                    addr = "127.0.0.2"
+                    rtpPort = 2000
+                    rtcpPort = 2001
+                }
 
-            codecs = mutableListOf(Codec().apply {
-                name = "PCMU"
-                payloadTypes = listOf(0)
-                clockRate = 8000
-                ie = 1F
-                bpl = 2F
-            })
+                codecs = mutableListOf(Codec().apply {
+                    name = "PCMU"
+                    payloadTypes = listOf(0)
+                    clockRate = 8000
+                    bpl = 4.3F
+                    ie = 0F
+                })
+            }
+
+            recording = Recording()
         }
 
         lateinit var socket: DatagramSocket
@@ -139,16 +156,16 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1") {
-                    vertx.eventBus().localSend(RoutesCE.sdp + "_info", Pair(sdpSession, sdpSession))
-                }
+                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
+
+                vertx.eventBus().localSend(RoutesCE.media + "_control", mediaControl)
             },
             assert = {
                 socket = vertx.createDatagramSocket()
                 socket.handler { packet ->
                     context.verify {
                         val message = packet.data().toJsonObject()
-                        assertEquals(ManagementSocket.TYPE_SDP_SESSION, message.getString("type"))
+                        assertEquals(ManagementSocket.TYPE_MEDIA_CONTROL, message.getString("type"))
                     }
                     context.completeNow()
                 }
