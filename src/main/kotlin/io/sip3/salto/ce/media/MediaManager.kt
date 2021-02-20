@@ -37,17 +37,11 @@ open class MediaManager : AbstractVerticle() {
 
     private var recordingEnabled: Boolean = false
 
-    private var instances: Int = 1
-
     override fun start() {
         config().getJsonObject("recording")?.let { config ->
             config.getBoolean("enabled")?.let {
                 recordingEnabled = it
             }
-        }
-
-        config().getJsonObject("vertx")?.getInteger("instances")?.let {
-            instances = it
         }
 
         vertx.eventBus().localConsumer<SipTransaction>(RoutesCE.media + "_sdp") { event ->
@@ -88,8 +82,9 @@ open class MediaManager : AbstractVerticle() {
         onComplete: (MediaControl) -> Unit,
     ) {
         val mediaControl = MediaControl().apply {
-            timestamp = System.currentTimeMillis()
+            timestamp = transaction.createdAt
             callId = transaction.callId
+
             this.sdpSession = sdpSession
 
             if (recordingEnabled) {
