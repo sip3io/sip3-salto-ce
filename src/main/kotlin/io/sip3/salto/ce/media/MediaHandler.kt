@@ -130,9 +130,7 @@ open class MediaHandler : AbstractVerticle() {
         val dstAddr = sdpSession.dst.rtpAddress()
 
         media.getOrPut(mediaControl.callId) { mutableMapOf() }
-            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, mediaControl.callId).apply {
-                hasRecording = mediaControl.recording != null
-            })
+            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, mediaControl.callId))
     }
 
     open fun handleKeepAlive(rtprSession: RtprSession) {

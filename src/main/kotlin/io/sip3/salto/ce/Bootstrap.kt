@@ -28,7 +28,7 @@ open class Bootstrap : AbstractBootstrap() {
 
     override val configLocations = listOf("config.location", "codecs.location")
 
-    override fun deployVerticles(config: JsonObject) {
+    override suspend fun deployVerticles(config: JsonObject) {
         super.deployVerticles(config)
         deployUdfVerticles(config, config.getJsonObject("vertx")?.getInteger("instances") ?: 1)
     }

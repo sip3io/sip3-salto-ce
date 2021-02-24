@@ -18,11 +18,9 @@ package io.sip3.salto.ce.sdp
 
 import gov.nist.javax.sip.parser.StringMsgParser
 import io.sip3.commons.domain.media.Codec
-import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localRequest
-import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
@@ -31,6 +29,7 @@ import io.sip3.salto.ce.sip.SipTransactionHandlerTest
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
@@ -385,9 +384,9 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { response ->
+                vertx.eventBus().localRequest<SdpSession?>(RoutesCE.sdp + "_session", transaction) { response ->
                     context.verify {
-                        val session = response.result().body()
+                        val session = response.result().body()!!
 
                         assertEquals("10.177.131.228", session.src.addr)
                         assertEquals(35176, session.src.rtpPort)
@@ -411,10 +410,7 @@ class SdpHandlerTest : VertxTest() {
                     }
                 }
             },
-            assert = {
-                vertx.eventBus().localConsumer<MediaControl>(RoutesCE.sdp + "_info") { event ->
-                }
-            }
+            assert = { }
         )
     }
 
@@ -429,16 +425,15 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
-                vertx.setTimer(2000L) {
+                vertx.eventBus().localRequest<SdpSession?>(RoutesCE.sdp + "_session", transaction) { response ->
+                    context.verify {
+                        assertTrue(response.succeeded())
+                        assertNull(response.result().body())
+                    }
                     context.completeNow()
                 }
             },
-            assert = {
-                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") {
-                    context.failNow(IllegalStateException("No sdp_info expected"))
-                }
-            }
+            assert = { }
         )
     }
 
@@ -453,16 +448,15 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localSend(RoutesCE.sdp + "_session", transaction)
-                vertx.setTimer(2000L) {
+                vertx.eventBus().localRequest<SdpSession?>(RoutesCE.sdp + "_session", transaction) { response ->
+                    context.verify {
+                        assertTrue(response.succeeded())
+                        assertNull(response.result().body())
+                    }
                     context.completeNow()
                 }
             },
-            assert = {
-                vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") {
-                    context.failNow(IllegalStateException("No sdp_info expected"))
-                }
-            }
+            assert = { }
         )
     }
 
@@ -477,9 +471,10 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, JsonObject())
             },
             execute = {
-                vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { response ->
+                vertx.eventBus().localRequest<SdpSession?>(RoutesCE.sdp + "_session", transaction) { response ->
                     context.verify {
-                        assertTrue(response.failed())
+                        assertTrue(response.succeeded())
+                        assertNull(response.result().body())
                     }
                     context.completeNow()
                 }
@@ -500,9 +495,9 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { response ->
+                vertx.eventBus().localRequest<SdpSession?>(RoutesCE.sdp + "_session", transaction) { response ->
                     context.verify {
-                        val session = response.result().body()
+                        val session = response.result().body()!!
 
                         assertEquals("10.177.94.5", session.src.addr)
                         assertEquals(59668, session.src.rtpPort)
@@ -542,9 +537,9 @@ class SdpHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SdpHandler::class, CONFIG)
             },
             execute = {
-                vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { response ->
+                vertx.eventBus().localRequest<SdpSession?>(RoutesCE.sdp + "_session", transaction) { response ->
                     context.verify {
-                        val session = response.result().body()
+                        val session = response.result().body()!!
 
                         assertEquals("79.104.212.169", session.src.addr)
                         assertEquals(20522, session.src.rtpPort)

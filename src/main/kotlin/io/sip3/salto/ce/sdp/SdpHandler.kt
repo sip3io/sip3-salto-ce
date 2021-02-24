@@ -29,8 +29,6 @@ import io.sip3.salto.ce.util.defineRtcpPort
 import io.sip3.salto.ce.util.ptime
 import io.sip3.salto.ce.util.sessionDescription
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.AsyncResult
-import io.vertx.core.Future
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
 import org.restcomm.media.sdp.fields.MediaDescriptionField
@@ -57,16 +55,10 @@ class SdpHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().localConsumer<SipTransaction>(RoutesCE.sdp + "_session") { event ->
+            val transaction = event.body()
             try {
-                val transaction = event.body()
-
-                handle(transaction) { asr ->
-                    if (asr.succeeded()) {
-                        event.localReply(asr.result())
-                    } else {
-                        event.fail(500, asr.cause().message)
-                    }
-                }
+                val sdpSession = handle(transaction)
+                event.localReply(sdpSession)
             } catch (e: Exception) {
                 logger.error("SdpHandler 'handle()' failed.", e)
                 event.fail(500, e.message)
@@ -103,10 +95,7 @@ class SdpHandler : AbstractVerticle() {
         codecs = tmpCodecs
     }
 
-    private fun handle(
-        transaction: SipTransaction,
-        completionHandler: (AsyncResult<SdpSession>) -> Unit,
-    ) {
+    private fun handle(transaction: SipTransaction): SdpSession? {
         logger.debug { "Execute handle(). TransactionId: ${transaction.id}" }
         val session = SdpSessionDescription().apply {
             callId = transaction.callId
@@ -124,13 +113,11 @@ class SdpHandler : AbstractVerticle() {
         }
 
         if (session.request == null || session.response == null) {
-            completionHandler.invoke(Future.failedFuture("SdpHandler 'handle()' failed. Request or Response is null"))
-        } else {
-            defineCodecs(session)
-
-            logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
-            completionHandler.invoke(Future.succeededFuture(session.sdpSession()))
+            return null
         }
+
+        defineCodecs(session)
+        return session.sdpSession()
     }
 
     private fun defineCodecs(session: SdpSessionDescription) {
@@ -185,13 +172,6 @@ class SdpHandler : AbstractVerticle() {
             return@lazy response?.ptime()
                 ?: request?.ptime()
                 ?: DEFAULT_PTIME
-        }
-
-        val requestAddress: String? by lazy {
-            request?.let { "${it.connection.address}:${it.port}" }
-        }
-        val responseAddress: String? by lazy {
-            response?.let { "${it.connection.address}:${it.port}" }
         }
 
         fun sdpSession(): SdpSession {

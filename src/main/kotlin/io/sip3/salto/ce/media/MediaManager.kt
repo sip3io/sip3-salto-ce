@@ -55,33 +55,27 @@ open class MediaManager : AbstractVerticle() {
     }
 
     open fun handleSipTransaction(transaction: SipTransaction) {
-        vertx.eventBus().localRequest<SdpSession>(RoutesCE.sdp + "_session", transaction) { asr ->
-            if (asr.failed()) {
-                logger.debug(asr.cause()) { "MediaManager 'handleSipTransaction()' failed. " }
-                return@localRequest
-            }
-
-            try {
-                val sdpSession = asr.result().body()
-                handleSdpSession(transaction, sdpSession)
-            } catch (e: Exception) {
-                logger.error(e) { "MediaHandler 'handleSdpSession()' failed." }
+        vertx.eventBus().localRequest<SdpSession?>(RoutesCE.sdp + "_session", transaction) { asr ->
+            if (asr.succeeded()) {
+                try {
+                    val sdpSession = asr.result().body()
+                    if (sdpSession != null) {
+                        handleSdpSession(transaction, sdpSession)
+                    }
+                } catch (e: Exception) {
+                    logger.error(e) { "MediaHandler 'handleSdpSession()' failed." }
+                }
             }
         }
     }
 
     open fun handleSdpSession(transaction: SipTransaction, sdpSession: SdpSession) {
-        createMediaControl(transaction, sdpSession) { mediaControl ->
-            vertx.eventBus().localPublish(RoutesCE.media + "_control", mediaControl)
-        }
+        val mediaControl = createMediaControl(transaction, sdpSession)
+        vertx.eventBus().localPublish(RoutesCE.media + "_control", mediaControl)
     }
 
-    open fun createMediaControl(
-        transaction: SipTransaction,
-        sdpSession: SdpSession,
-        onComplete: (MediaControl) -> Unit,
-    ) {
-        val mediaControl = MediaControl().apply {
+    open fun createMediaControl(transaction: SipTransaction, sdpSession: SdpSession): MediaControl {
+        return MediaControl().apply {
             timestamp = transaction.createdAt
             callId = transaction.callId
 
@@ -91,7 +85,5 @@ open class MediaManager : AbstractVerticle() {
                 recording = Recording()
             }
         }
-
-        onComplete.invoke(mediaControl)
     }
 }
