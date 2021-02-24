@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.media
 
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
@@ -93,12 +93,12 @@ open class MediaHandler : AbstractVerticle() {
             terminateExpiredMediaSessions()
         }
 
-        vertx.eventBus().localConsumer<Pair<SdpSession, SdpSession>>(RoutesCE.sdp + "_info") { event ->
+        vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
             try {
-                val sessions = event.body()
-                handleSdp(sessions)
+                val mediaControl = event.body()
+                handleMediaControl(mediaControl)
             } catch (e: Exception) {
-                logger.error(e) { "MediaHandler 'handleSdp()' failed." }
+                logger.error(e) { "MediaHandler 'handleMediaControl()' failed." }
             }
         }
 
@@ -124,20 +124,19 @@ open class MediaHandler : AbstractVerticle() {
         }
     }
 
-    open fun handleSdp(sessions: Pair<SdpSession, SdpSession>) {
-        val (request, response) = sessions
+    open fun handleMediaControl(mediaControl: MediaControl) {
+        val sdpSession = mediaControl.sdpSession
+        val srcAddr = sdpSession.src.rtpAddress()
+        val dstAddr = sdpSession.dst.rtpAddress()
 
-        val srcAddr = request.rtpAddress()
-        val dstAddr = response.rtpAddress()
-
-        media.getOrPut(request.callId) { mutableMapOf() }
-            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, request.callId))
+        media.getOrPut(mediaControl.callId) { mutableMapOf() }
+            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, mediaControl.callId))
     }
 
     open fun handleKeepAlive(rtprSession: RtprSession) {
-        rtprSession.sdp?.let { (request, response) ->
-            val srcAddr = request.rtpAddress()
-            val dstAddr = response.rtpAddress()
+        rtprSession.mediaControl?.sdpSession?.let { sdpSession ->
+            val srcAddr = sdpSession.src.rtpAddress()
+            val dstAddr = sdpSession.dst.rtpAddress()
             val legId = srcAddr.compositeAddrKey(dstAddr)
 
             media.get(rtprSession.callId)?.get(legId)?.apply {
@@ -146,19 +145,19 @@ open class MediaHandler : AbstractVerticle() {
         }
     }
 
-    open fun handle(session: RtprSession) {
-        session.sdp?.let { (request, response) ->
-            val srcAddr = request.rtpAddress()
-            val dstAddr = response.rtpAddress()
+    open fun handle(rtprSession: RtprSession) {
+        rtprSession.mediaControl?.sdpSession?.let { sdpSession ->
+            val srcAddr = sdpSession.src.rtpAddress()
+            val dstAddr = sdpSession.dst.rtpAddress()
             val legId = srcAddr.compositeAddrKey(dstAddr)
 
-            val callId = session.callId!!
+            val callId = rtprSession.callId!!
             val mediaSession = media.getOrPut(callId) { mutableMapOf() }
                 .getOrPut(legId) {
-                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${session.report.source}" }
+                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${rtprSession.report.source}" }
                     MediaSession(srcAddr, dstAddr, callId)
                 }
-            mediaSession.add(session)
+            mediaSession.add(rtprSession)
         }
     }
 

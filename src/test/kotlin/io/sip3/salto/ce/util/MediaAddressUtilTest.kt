@@ -16,17 +16,17 @@
 
 package io.sip3.salto.ce.util
 
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.MediaAddress
 import io.sip3.salto.ce.domain.Address
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class SdpSessionUtilTest {
+class MediaAddressUtilTest {
 
     companion object {
 
-        val SDP_SESSION = SdpSession().apply {
-            address = "192.168.168.100"
+        val MEDIA_ADDRESS = MediaAddress().apply {
+            addr = "192.168.168.100"
             rtpPort = 12002
             rtcpPort = 12003
         }
@@ -35,20 +35,20 @@ class SdpSessionUtilTest {
     @Test
     fun `Check 'rtpAddress()' method`() {
         val addr = Address().apply {
-            addr = SDP_SESSION.address
-            port = SDP_SESSION.rtpPort
+            addr = MEDIA_ADDRESS.addr
+            port = MEDIA_ADDRESS.rtpPort
         }
 
-        assertEquals(addr, SDP_SESSION.rtpAddress())
+        assertEquals(addr, MEDIA_ADDRESS.rtpAddress())
     }
 
     @Test
     fun `Check 'rtcpAddress()' method`() {
         val addr = Address().apply {
-            addr = SDP_SESSION.address
-            port = SDP_SESSION.rtcpPort
+            addr = MEDIA_ADDRESS.addr
+            port = MEDIA_ADDRESS.rtcpPort
         }
 
-        assertEquals(addr, SDP_SESSION.rtcpAddress())
+        assertEquals(addr, MEDIA_ADDRESS.rtcpAddress())
     }
 }

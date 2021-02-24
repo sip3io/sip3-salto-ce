@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.rtpr
 
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil
@@ -30,7 +30,7 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     val dstAddr = packet.dstAddr
     lateinit var report: RtpReportPayload
 
-    var sdp: Pair<SdpSession,SdpSession>? = null
+    var mediaControl: MediaControl? = null
     val codecNames = mutableSetOf<String>()
     val callId: String?
         get() = report.callId

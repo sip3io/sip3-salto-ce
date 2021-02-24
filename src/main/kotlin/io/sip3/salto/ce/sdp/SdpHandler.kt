@@ -16,11 +16,12 @@
 
 package io.sip3.salto.ce.sdp
 
-import io.sip3.commons.domain.Codec
-import io.sip3.commons.domain.SdpSession
+import io.sip3.commons.domain.media.Codec
+import io.sip3.commons.domain.media.MediaAddress
+import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.util.toIntRange
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localPublish
+import io.sip3.commons.vertx.util.localReply
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.address
@@ -54,11 +55,13 @@ class SdpHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().localConsumer<SipTransaction>(RoutesCE.sdp + "_session") { event ->
+            val transaction = event.body()
             try {
-                val transaction = event.body()
-                handle(transaction)
+                val sdpSession = handle(transaction)
+                event.localReply(sdpSession)
             } catch (e: Exception) {
                 logger.error("SdpHandler 'handle()' failed.", e)
+                event.fail(500, e.message)
             }
         }
     }
@@ -92,7 +95,7 @@ class SdpHandler : AbstractVerticle() {
         codecs = tmpCodecs
     }
 
-    private fun handle(transaction: SipTransaction) {
+    private fun handle(transaction: SipTransaction): SdpSession? {
         logger.debug { "Execute handle(). TransactionId: ${transaction.id}" }
         val session = SdpSessionDescription().apply {
             callId = transaction.callId
@@ -110,11 +113,11 @@ class SdpHandler : AbstractVerticle() {
         }
 
         if (session.request == null || session.response == null) {
-            return
+            return null
         }
 
         defineCodecs(session)
-        send(session)
+        return session.sdpSession()
     }
 
     private fun defineCodecs(session: SdpSessionDescription) {
@@ -148,11 +151,6 @@ class SdpHandler : AbstractVerticle() {
         }
     }
 
-    private fun send(session: SdpSessionDescription) {
-        logger.debug { "Sending SDP. CallID: ${session.callId}, Request media: ${session.requestAddress}, Response media: ${session.responseAddress}" }
-        vertx.eventBus().localPublish(RoutesCE.sdp + "_info", session.sdpSessions())
-    }
-
     private class SdpSessionDescription {
 
         companion object {
@@ -176,29 +174,22 @@ class SdpHandler : AbstractVerticle() {
                 ?: DEFAULT_PTIME
         }
 
-        val requestAddress: String? by lazy {
-            request?.let { "${it.connection.address}:${it.port}" }
-        }
-        val responseAddress: String? by lazy {
-            response?.let { "${it.connection.address}:${it.port}" }
-        }
-
-        fun sdpSessions(): Pair<SdpSession, SdpSession> {
-            return Pair(sdpSession(request!!), sdpSession(response!!))
-        }
-
-        private fun sdpSession(mediaDescription: MediaDescriptionField): SdpSession {
+        fun sdpSession(): SdpSession {
             return SdpSession().apply {
-                timestamp = System.currentTimeMillis()
+                src = MediaAddress().apply {
+                    addr = request!!.address()
+                    rtpPort = request!!.port
+                    rtcpPort = request!!.defineRtcpPort(isRtcpMux)
+                }
 
-                address = mediaDescription.address()
-                rtpPort = mediaDescription.port
-                rtcpPort = mediaDescription.defineRtcpPort(isRtcpMux)
+                dst = MediaAddress().apply {
+                    addr = response!!.address()
+                    rtpPort = response!!.port
+                    rtcpPort = response!!.defineRtcpPort(isRtcpMux)
+                }
 
                 codecs = this@SdpSessionDescription.codecs
                 ptime = this@SdpSessionDescription.ptime
-
-                callId = this@SdpSessionDescription.callId
             }
         }
     }
