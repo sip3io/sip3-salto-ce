@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.recording
 
 import io.sip3.commons.PacketTypes
+import io.sip3.commons.domain.media.Recording
 import io.sip3.commons.domain.payload.RecordingPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
@@ -34,7 +35,8 @@ class RecordingHandlerTest : VertxTest() {
 
     val RECORDING_1 = RecordingPayload().apply {
         callId = "callId@domain.com"
-        type = RecordingPayload.TYPE_RTP_GDPR
+        type = PacketTypes.RTP
+        mode = Recording.FULL
         payload = "rtp gdpr packet payload".toByteArray()
     }
 
@@ -59,7 +61,8 @@ class RecordingHandlerTest : VertxTest() {
 
     val RECORDING_2 = RecordingPayload().apply {
         callId = "callId@domain.com"
-        type = RecordingPayload.TYPE_RTCP
+        type = PacketTypes.RTCP
+        mode = Recording.FULL
         payload = "rtcp packet payload".toByteArray()
     }
 
@@ -99,21 +102,66 @@ class RecordingHandlerTest : VertxTest() {
                     context.verify {
                         assertTrue(collection.startsWith("rec_raw"))
 
-                        assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
-                        assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
-                        assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
-                        assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
-
-                        assertEquals(RecordingPayload.TYPE_RTP_GDPR.toInt(), document.getInteger("type"))
+                        assertEquals(PACKET_1.timestamp.time, document.getLong("created_at"))
                         assertEquals(RECORDING_1.callId, document.getString("call_id"))
-                        assertArrayEquals(RECORDING_1.payload, document.getBinary("raw_data"))
+
+                        assertEquals(1, document.getJsonArray("packets").size())
+                        val packet = document.getJsonArray("packets").first() as JsonObject
+                        assertEquals(PACKET_1.srcAddr.addr, packet.getString("src_addr"))
+                        assertEquals(PACKET_1.srcAddr.port, packet.getInteger("src_port"))
+                        assertEquals(PACKET_1.dstAddr.addr, packet.getString("dst_addr"))
+                        assertEquals(PACKET_1.dstAddr.port, packet.getInteger("dst_port"))
+
+                        assertEquals(PacketTypes.RTP.toInt(), packet.getInteger("type"))
+                        assertArrayEquals(RECORDING_1.payload, packet.getBinary("raw_data"))
                     }
 
                     context.completeNow()
                 }
             }
         )
+    }
 
+    @Test
+    fun `Receive packets and write to DB as bulk`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RecordingHandler::class, JsonObject().apply {
+                    put("recording", JsonObject().apply {
+                        put("bulk-size", 3)
+                    })
+                })
+            },
+            execute = {
+                repeat(4) {
+                    vertx.eventBus().localSend(RoutesCE.rec, PACKET_1)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+                    val document = operation.getJsonObject("document")
+                    context.verify {
+                        assertTrue(collection.startsWith("rec_raw"))
+
+                        assertEquals(PACKET_1.timestamp.time, document.getLong("created_at"))
+                        assertEquals(RECORDING_1.callId, document.getString("call_id"))
+
+                        assertEquals(3, document.getJsonArray("packets").size())
+                        val packet = document.getJsonArray("packets").first() as JsonObject
+                        assertEquals(PACKET_1.srcAddr.addr, packet.getString("src_addr"))
+                        assertEquals(PACKET_1.srcAddr.port, packet.getInteger("src_port"))
+                        assertEquals(PACKET_1.dstAddr.addr, packet.getString("dst_addr"))
+                        assertEquals(PACKET_1.dstAddr.port, packet.getInteger("dst_port"))
+
+                        assertEquals(PacketTypes.RTP.toInt(), packet.getInteger("type"))
+                        assertArrayEquals(RECORDING_1.payload, packet.getBinary("raw_data"))
+                    }
+
+                    context.completeNow()
+                }
+            }
+        )
     }
 
     @Test
@@ -140,6 +188,5 @@ class RecordingHandlerTest : VertxTest() {
                 }
             }
         )
-
     }
 }
