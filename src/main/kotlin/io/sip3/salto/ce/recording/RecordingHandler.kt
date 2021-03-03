@@ -84,7 +84,7 @@ open class RecordingHandler : AbstractVerticle() {
                 packets.isEmpty() || packets.last().getLong("created_at") + aggregationTimeout < now
             }.forEach { (callId, packets) ->
                 if (packets.isNotEmpty()) {
-                    writeToDatabase(packets)
+                    writeToDatabase(packets.toList())
                 }
                 bulks.remove(callId)
             }
@@ -102,7 +102,7 @@ open class RecordingHandler : AbstractVerticle() {
         GlobalScope.launch(vertx.dispatcher()) {
             val index = vertx.sharedData().getLocalCounter(RoutesCE.rec).await()
             vertx.eventBus()
-                .localConsumer<Pair<Packet, RecordingPayload>>(RoutesCE.rec + "_${index.andIncrement.await()}") { event ->
+                .localConsumer<Pair<Packet, RecordingPayload>>( RoutesCE.rec + "_${index.andIncrement.await()}") { event ->
                     try {
                         val (packet, recording) = event.body()
                         handleRecording(packet, recording)
@@ -154,7 +154,7 @@ open class RecordingHandler : AbstractVerticle() {
 
             put("type", recording.type.toInt())
             put("call_id", recording.callId)
-            put("raw_data", recording.payload)
+            put("raw_data", String(recording.payload, Charsets.ISO_8859_1))
         }
         packetsByCallId.add(packetRecord)
 

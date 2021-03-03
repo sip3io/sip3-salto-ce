@@ -37,7 +37,28 @@ class RecordingHandlerTest : VertxTest() {
         callId = "callId@domain.com"
         type = PacketTypes.RTP
         mode = Recording.FULL
-        payload = "rtp gdpr packet payload".toByteArray()
+        payload = byteArrayOf(0x80.toByte(), 0x08.toByte(), 0x1c.toByte(), 0xf9.toByte(), 0x99.toByte(), 0x75.toByte(), 0xd5.toByte(), 0x78.toByte(),
+            0x30.toByte(), 0xe8.toByte(), 0x71.toByte(), 0x2d.toByte(), 0xcc.toByte(), 0xf5.toByte(), 0xf7.toByte(), 0xf1.toByte(),
+            0xf1.toByte(), 0xf1.toByte(), 0xf0.toByte(), 0xf1.toByte(), 0xf1.toByte(), 0xf0.toByte(), 0xf3.toByte(), 0xf3.toByte(),
+            0xf2.toByte(), 0xfc.toByte(), 0xf2.toByte(), 0xfd.toByte(), 0xfd.toByte(), 0xf0.toByte(), 0xf6.toByte(), 0xca.toByte(),
+            0xc5.toByte(), 0xd0.toByte(), 0x5c.toByte(), 0x4e.toByte(), 0x70.toByte(), 0x79.toByte(), 0x64.toByte(), 0x66.toByte(),
+            0x61.toByte(), 0x63.toByte(), 0x60.toByte(), 0x66.toByte(), 0x67.toByte(), 0x7b.toByte(), 0x72.toByte(), 0x75.toByte(),
+            0x44.toByte(), 0x57.toByte(), 0xdd.toByte(), 0xc1.toByte(), 0xcb.toByte(), 0xf4.toByte(), 0xf6.toByte(), 0xf0.toByte(),
+            0xf1.toByte(), 0xf1.toByte(), 0xf1.toByte(), 0xf6.toByte(), 0xf6.toByte(), 0xf1.toByte(), 0xf6.toByte(), 0xf1.toByte(),
+            0xf3.toByte(), 0xf0.toByte(), 0xf3.toByte(), 0xf3.toByte(), 0xf1.toByte(), 0xf7.toByte(), 0xc8.toByte(), 0xc1.toByte(),
+            0xdd.toByte(), 0x51.toByte(), 0x40.toByte(), 0x74.toByte(), 0x7d.toByte(), 0x7b.toByte(), 0x64.toByte(), 0x67.toByte(),
+            0x61.toByte(), 0x61.toByte(), 0x66.toByte(), 0x64.toByte(), 0x79.toByte(), 0x73.toByte(), 0x75.toByte(), 0x44.toByte(),
+            0x56.toByte(), 0xd2.toByte(), 0xc7.toByte(), 0xce.toByte(), 0xf5.toByte(), 0xf7.toByte(), 0xf6.toByte(), 0xf7.toByte(),
+            0xf7.toByte(), 0xf7.toByte(), 0xf4.toByte(), 0xf5.toByte(), 0xf5.toByte(), 0xf4.toByte(), 0xf4.toByte(), 0xf7.toByte(),
+            0xf7.toByte(), 0xf6.toByte(), 0xf6.toByte(), 0xf7.toByte(), 0xf4.toByte(), 0xf5.toByte(), 0xc3.toByte(), 0xdb.toByte(),
+            0xd6.toByte(), 0x5e.toByte(), 0x4c.toByte(), 0x71.toByte(), 0x7f.toByte(), 0x65.toByte(), 0x66.toByte(), 0x61.toByte(),
+            0x60.toByte(), 0x61.toByte(), 0x66.toByte(), 0x65.toByte(), 0x7e.toByte(), 0x71.toByte(), 0x4c.toByte(), 0x5c.toByte(),
+            0xd0.toByte(), 0xc1.toByte(), 0xca.toByte(), 0xf1.toByte(), 0xf2.toByte(), 0xfc.toByte(), 0xff.toByte(), 0xff.toByte(),
+            0xfd.toByte(), 0xf3.toByte(), 0xf0.toByte(), 0xf1.toByte(), 0xf7.toByte(), 0xf4.toByte(), 0xf5.toByte(), 0xf5.toByte(),
+            0xcb.toByte(), 0xca.toByte(), 0xce.toByte(), 0xcf.toByte(), 0xc2.toByte(), 0xc5.toByte(), 0xdc.toByte(), 0xd4.toByte(),
+            0x5c.toByte(), 0x40.toByte(), 0x75.toByte(), 0x72.toByte(), 0x7e.toByte(), 0x65.toByte(), 0x64.toByte(), 0x67.toByte(),
+            0x67.toByte(), 0x64.toByte(), 0x65.toByte(), 0x79.toByte(), 0x72.toByte(), 0x75.toByte(), 0x46.toByte(), 0x51.toByte(),
+            0xd3.toByte(), 0xc6.toByte(), 0xc8.toByte(), 0xf4.toByte())
     }
 
     val PACKET_1 = Packet().apply {
@@ -113,7 +134,7 @@ class RecordingHandlerTest : VertxTest() {
                         assertEquals(PACKET_1.dstAddr.port, packet.getInteger("dst_port"))
 
                         assertEquals(PacketTypes.RTP.toInt(), packet.getInteger("type"))
-                        assertArrayEquals(RECORDING_1.payload, packet.getBinary("raw_data"))
+                        assertEquals(RECORDING_1.payload.toString(Charsets.ISO_8859_1), packet.getString("raw_data"))
                     }
 
                     context.completeNow()
@@ -155,7 +176,7 @@ class RecordingHandlerTest : VertxTest() {
                         assertEquals(PACKET_1.dstAddr.port, packet.getInteger("dst_port"))
 
                         assertEquals(PacketTypes.RTP.toInt(), packet.getInteger("type"))
-                        assertArrayEquals(RECORDING_1.payload, packet.getBinary("raw_data"))
+                        assertEquals(RECORDING_1.payload.toString(Charsets.ISO_8859_1), packet.getString("raw_data"))
                     }
 
                     context.completeNow()
