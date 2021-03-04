@@ -24,6 +24,7 @@ import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -46,12 +47,12 @@ open class RecordingHandler : AbstractVerticle() {
     private var instances = 1
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
     private var trimToSizeDelay: Long = 3600000
-    private var expirationDelay = 500L
-    private var aggregationTimeout = 1000L
+    private var expirationDelay = 1000L
+    private var aggregationTimeout = 5000L
 
     private var bulkSize = 1
 
-    private var bulks = mutableMapOf<String, MutableList<JsonObject>>()
+    private var bulks = mutableMapOf<String, RecordingRow>()
 
     override fun start() {
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
@@ -80,14 +81,11 @@ open class RecordingHandler : AbstractVerticle() {
         }
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
-            bulks.filterValues { packets ->
-                packets.isEmpty() || packets.last().getLong("created_at") + aggregationTimeout < now
-            }.forEach { (callId, packets) ->
-                if (packets.isNotEmpty()) {
-                    writeToDatabase(packets.toList())
+            bulks.filterValues { it.createdAt + aggregationTimeout < now }
+                .forEach { (callId, recordingRow) ->
+                    writeToDatabase(recordingRow)
+                    bulks.remove(callId)
                 }
-                bulks.remove(callId)
-            }
         }
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rec) { event ->
@@ -136,47 +134,63 @@ open class RecordingHandler : AbstractVerticle() {
     }
 
     open fun handleRecording(packet: Packet, recording: RecordingPayload) {
-        val packetsByCallId = bulks.getOrPut(recording.callId) { mutableListOf() }
+        val key = "${recording.callId}:${packet.srcAddr.compositeKey(packet.dstAddr)}"
+        val recordingRow = bulks.getOrPut(key) {
+            RecordingRow(packet.createdAt).apply {
+                srcAddr = packet.srcAddr
+                dstAddr = packet.dstAddr
+
+                callId = recording.callId
+            }
+        }
         val packetRecord = JsonObject().apply {
             val timestamp = packet.timestamp
             put("created_at", timestamp.time)
             put("nanos", timestamp.nanos)
 
-            val src = packet.srcAddr
-            put("src_addr", src.addr)
-            put("src_port", src.port)
-            src.host?.let { put("src_host", it) }
-
-            val dst = packet.dstAddr
-            put("dst_addr", dst.addr)
-            put("dst_port", dst.port)
-            dst.host?.let { put("dst_host", it) }
-
             put("type", recording.type.toInt())
-            put("call_id", recording.callId)
             put("raw_data", String(recording.payload, Charsets.ISO_8859_1))
         }
-        packetsByCallId.add(packetRecord)
 
-        if (packetsByCallId.size >= bulkSize) {
-            writeToDatabase(packetsByCallId.toList())
-            packetsByCallId.clear()
+        recordingRow.packets.add(packetRecord)
+
+        if (recordingRow.packets.size >= bulkSize) {
+            writeToDatabase(recordingRow)
+            recordingRow.createdAt = packet.createdAt
+            recordingRow.packets.clear()
         }
     }
 
-    open fun writeToDatabase(packets: List<JsonObject>) {
-        val firstPacket = packets.first()
-        val collection = "rec_raw_" + timeSuffix.format(firstPacket.getLong("created_at"))
+    open fun writeToDatabase(recordingRow: RecordingRow) {
+        val collection = "rec_raw_" + timeSuffix.format(recordingRow.createdAt)
 
         val operation = JsonObject().apply {
             put("document", JsonObject().apply {
-                put("created_at", firstPacket.getLong("created_at"))
+                put("created_at", recordingRow.createdAt)
 
-                put("call_id", firstPacket.getString("call_id"))
-                put("packets", packets)
+                val src = recordingRow.srcAddr
+                put("src_addr", src.addr)
+                put("src_port", src.port)
+
+                val dst = recordingRow.dstAddr
+                put("dst_addr", dst.addr)
+                put("dst_port", dst.port)
+
+                put("call_id", recordingRow.callId)
+                put("packets", recordingRow.packets.toList())
             })
         }
 
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
+    }
+
+    open class RecordingRow(var createdAt: Long) {
+
+        lateinit var srcAddr: Address
+        lateinit var dstAddr: Address
+
+        lateinit var callId: String
+
+        val packets = mutableListOf<JsonObject>()
     }
 }

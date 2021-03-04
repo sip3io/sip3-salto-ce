@@ -124,15 +124,16 @@ class RecordingHandlerTest : VertxTest() {
                         assertTrue(collection.startsWith("rec_raw"))
 
                         assertEquals(PACKET_1.timestamp.time, document.getLong("created_at"))
+
+                        assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
+                        assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
+                        assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
+
                         assertEquals(RECORDING_1.callId, document.getString("call_id"))
 
                         assertEquals(1, document.getJsonArray("packets").size())
                         val packet = document.getJsonArray("packets").first() as JsonObject
-                        assertEquals(PACKET_1.srcAddr.addr, packet.getString("src_addr"))
-                        assertEquals(PACKET_1.srcAddr.port, packet.getInteger("src_port"))
-                        assertEquals(PACKET_1.dstAddr.addr, packet.getString("dst_addr"))
-                        assertEquals(PACKET_1.dstAddr.port, packet.getInteger("dst_port"))
-
                         assertEquals(PacketTypes.RTP.toInt(), packet.getInteger("type"))
                         assertEquals(RECORDING_1.payload.toString(Charsets.ISO_8859_1), packet.getString("raw_data"))
                     }
@@ -166,14 +167,16 @@ class RecordingHandlerTest : VertxTest() {
                         assertTrue(collection.startsWith("rec_raw"))
 
                         assertEquals(PACKET_1.timestamp.time, document.getLong("created_at"))
+
+                        assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
+                        assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
+                        assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
+
                         assertEquals(RECORDING_1.callId, document.getString("call_id"))
 
                         assertEquals(3, document.getJsonArray("packets").size())
                         val packet = document.getJsonArray("packets").first() as JsonObject
-                        assertEquals(PACKET_1.srcAddr.addr, packet.getString("src_addr"))
-                        assertEquals(PACKET_1.srcAddr.port, packet.getInteger("src_port"))
-                        assertEquals(PACKET_1.dstAddr.addr, packet.getString("dst_addr"))
-                        assertEquals(PACKET_1.dstAddr.port, packet.getInteger("dst_port"))
 
                         assertEquals(PacketTypes.RTP.toInt(), packet.getInteger("type"))
                         assertEquals(RECORDING_1.payload.toString(Charsets.ISO_8859_1), packet.getString("raw_data"))
