@@ -49,6 +49,9 @@ interface RoutesCE : Routes {
     val rtpr get() = "rtpr"
     val media get() = "media"
 
+    // Recording
+    val rec get() = "rec"
+
     // Mongo
     val mongo_bulk_writer get() = "mongo_bulk_writer"
 }

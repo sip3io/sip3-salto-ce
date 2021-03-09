@@ -124,6 +124,7 @@ open class Router : AbstractVerticle() {
             PacketTypes.SIP -> RoutesCE.sip
             PacketTypes.RTCP -> RoutesCE.rtcp
             PacketTypes.RTPR -> RoutesCE.rtpr
+            PacketTypes.REC -> RoutesCE.rec
             else -> null
         }
 
