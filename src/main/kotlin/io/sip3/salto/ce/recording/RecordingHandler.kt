@@ -84,7 +84,7 @@ open class RecordingHandler : AbstractVerticle() {
             recordings.filterValues { it.createdAt + aggregationTimeout < now }
                 .forEach { (callId, recording) ->
                     writeToDatabase(recording)
-                    this.recordings.remove(callId)
+                    recordings.remove(callId)
                 }
         }
 
