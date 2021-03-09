@@ -177,15 +177,17 @@ open class RtcpHandler : AbstractVerticle() {
     open fun handleHep(packet: Packet) {
         val json = JsonObject(packet.payload.toString(Charset.defaultCharset()))
         json.getJsonObject("sender_information")?.let { senderInfo ->
-            if (senderInfo.getLong("ntp_timestamp_sec") != 0L && senderInfo.getLong("ntp_timestamp_usec") != 0L) {
+            val sec = senderInfo.getString("ntp_timestamp_sec")?.toLongOrNull() ?: 0L
+            val usec = senderInfo.getString("ntp_timestamp_usec")?.toLongOrNull() ?: 0L
+            if (sec != 0L && usec != 0L) {
                 val report = SenderReport().apply {
                     reportBlockCount = json.getInteger("report_count").toByte()
                     // Sender SSRC
                     senderSsrc = json.getLong("ssrc")
 
                     // NTP Timestamp: Most and Least significant words
-                    ntpTimestampMsw = senderInfo.getLong("ntp_timestamp_sec")
-                    ntpTimestampLsw = senderInfo.getLong("ntp_timestamp_usec")
+                    ntpTimestampMsw = sec
+                    ntpTimestampLsw = usec
                     // Sender's packet count
                     senderPacketCount = senderInfo.getLong("packets")
 
