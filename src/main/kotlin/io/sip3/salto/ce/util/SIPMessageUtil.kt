@@ -21,8 +21,8 @@ import gov.nist.javax.sip.message.Content
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
+import io.sip3.salto.ce.sdp.SessionDescriptionParser
 import org.restcomm.media.sdp.SessionDescription
-import org.restcomm.media.sdp.SessionDescriptionParser
 import javax.sip.address.TelURL
 import javax.sip.address.URI
 
