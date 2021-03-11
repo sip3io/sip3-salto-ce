@@ -142,7 +142,7 @@ open class RecordingHandler : AbstractVerticle() {
                 srcAddr = packet.srcAddr
                 dstAddr = packet.dstAddr
 
-                callId = recording.callId
+                callId = recordingPayload.callId
             }
 
             packets.add(JsonObject().apply {

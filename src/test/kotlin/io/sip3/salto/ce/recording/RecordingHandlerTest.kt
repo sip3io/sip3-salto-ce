@@ -110,7 +110,11 @@ class RecordingHandlerTest : VertxTest() {
     fun `Receive 'RTP' packet and write to DB`() {
         runTest(
                 deploy = {
-                    vertx.deployTestVerticle(RecordingHandler::class)
+                    vertx.deployTestVerticle(RecordingHandler::class, JsonObject().apply {
+                        put("recording", JsonObject().apply {
+                            put("bulk-size", 1)
+                        })
+                    })
                 },
                 execute = {
                     vertx.eventBus().localSend(RoutesCE.rec, PACKET_1)
