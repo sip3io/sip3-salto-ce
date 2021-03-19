@@ -387,7 +387,7 @@ class SipMessageParserTest {
 
     @Test
     fun `Parse single SIP message`() {
-        val messages = SipMessageParser().parse(Packet().apply {
+        val messages = SipMessageParser(setOf("PRACK")).parse(Packet().apply {
             timestamp = Timestamp(System.currentTimeMillis())
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
@@ -408,7 +408,7 @@ class SipMessageParserTest {
 
     @Test
     fun `Parse multiple SIP messages`() {
-        val messages = SipMessageParser().parse(Packet().apply {
+        val messages = SipMessageParser(setOf("INVITE", "PRACK")).parse(Packet().apply {
             timestamp = Timestamp(System.currentTimeMillis())
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
@@ -432,8 +432,50 @@ class SipMessageParserTest {
     }
 
     @Test
+    fun `Skip SIP response message`() {
+        val messages = SipMessageParser(setOf("INVITE")).parse(Packet().apply {
+            timestamp = Timestamp(System.currentTimeMillis())
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            payload = PACKET_2
+        })
+        assertEquals(1, messages.size)
+
+        val (_, message) = messages[0]
+        assertEquals("03F41ACCA6C2175E68F67D97@0d70ffffffff", message.callId())
+        assertEquals(660, message.contentLengthHeader.contentLength)
+    }
+
+    @Test
+    fun `Skip SIP request message`() {
+        val messages = SipMessageParser(setOf("PRACK")).parse(Packet().apply {
+            timestamp = Timestamp(System.currentTimeMillis())
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            payload = PACKET_2
+        })
+        assertEquals(1, messages.size)
+
+        val (_, message) = messages[0]
+        assertEquals("0211070C568140000EEA01FB@SFESIP1-id2-ext", message.callId())
+        assertEquals(0, message.contentLengthHeader.contentLength)
+    }
+
+    @Test
     fun `Parse single SIP messages with extension headers`() {
-        val messages = SipMessageParser(extensionHeaders = setOf("Supported", "X-Diversion")).parse(PACKET_3)
+        val messages = SipMessageParser(supportedMethods = setOf("INVITE"), extensionHeaders = setOf("Supported", "X-Diversion")).parse(PACKET_3)
         assertEquals(1, messages.size)
 
         val (_, message) = messages[0]

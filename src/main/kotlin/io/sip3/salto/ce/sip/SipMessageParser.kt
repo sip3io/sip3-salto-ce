@@ -16,8 +16,10 @@
 
 package io.sip3.salto.ce.sip
 
+import gov.nist.javax.sip.header.CSeq
 import gov.nist.javax.sip.header.ExtensionHeaderImpl
 import gov.nist.javax.sip.message.SIPMessage
+import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.parser.*
 import io.sip3.salto.ce.domain.Packet
 import mu.KotlinLogging
@@ -25,7 +27,7 @@ import mu.KotlinLogging
 /**
  * Parses SIP messages
  */
-class SipMessageParser(val extensionHeaders: Set<String> = emptySet()) {
+class SipMessageParser(val supportedMethods: Set<String>, val extensionHeaders: Set<String> = emptySet()) {
 
     private val logger = KotlinLogging.logger {}
 
@@ -51,12 +53,19 @@ class SipMessageParser(val extensionHeaders: Set<String> = emptySet()) {
         val payload = packet.payload
         var offset = 0
 
+        // Skip blank lines
         while (isCrLf(offset, payload)) {
             offset += 2
         }
 
-        val message = StringMessageParser().parseSIPMessage(payload, false, false, null) ?: return
+        // Create new parser
+        val parser = StringMessageParser()
+
+        // Parse message headers
+        val message = parser.parseSIPMessage(payload, false, false, null) ?: return
         offset += message.size
+
+        // Parse message content if needed
         message.contentLengthHeader?.contentLength?.let { length ->
             if (length > 0) {
                 message.setMessageContent(payload.copyOfRange(offset, offset + length))
@@ -64,15 +73,20 @@ class SipMessageParser(val extensionHeaders: Set<String> = emptySet()) {
             }
         }
 
-        if (payload.size > offset) {
-            packet.payload = payload.copyOfRange(0, offset)
-        }
-        accumulator.add(Pair(packet, message))
-
+        // Skip blank lines
         while (isCrLf(offset, payload)) {
             offset += 2
         }
 
+        // Skip or save message
+        if (!parser.skipMessage) {
+            if (payload.size > offset) {
+                packet.payload = payload.copyOfRange(0, offset)
+            }
+            accumulator.add(Pair(packet, message))
+        }
+
+        // Check if there is more then a single message
         if (payload.size > offset) {
             val pkt = Packet().apply {
                 this.timestamp = packet.timestamp
@@ -92,36 +106,50 @@ class SipMessageParser(val extensionHeaders: Set<String> = emptySet()) {
         return payload[offset] == CR && payload[offset + 1] == LF
     }
 
-    inner class StringMessageParser : StringMsgParser() {
+    inner class StringMessageParser() : StringMsgParser() {
+
+        var skipMessage = false
+
+        override fun processFirstLine(firstLine: String?, parseExceptionListener: ParseExceptionListener?, msgBuffer: ByteArray?): SIPMessage {
+            val message = super.processFirstLine(firstLine, parseExceptionListener, msgBuffer)
+            if (message is SIPRequest) {
+                skipMessage = !supportedMethods.contains(message.method)
+            }
+            return message
+        }
 
         override fun processHeader(header: String?, message: SIPMessage, parseExceptionListener: ParseExceptionListener?, rawMessage: ByteArray) {
             if (header.isNullOrEmpty()) {
                 return
             }
 
-            val headerName = Lexer.getHeaderName(header)
+            val name = Lexer.getHeaderName(header)
 
-            val hdr = when (headerName.toLowerCase()) {
+            val hdr = when (name.toLowerCase()) {
                 // These headers may or will be used in the SIP3 aggregation logic
-                "to", "t" -> ToParser(header + "\n").parse()
-                "from", "f" -> FromParser(header + "\n").parse()
-                "cseq" -> CSeqParser(header + "\n").parse()
-                "via", "v" -> ViaParser(header + "\n").parse()
-                "contact", "m" -> ContactParser(header + "\n").parse()
-                "content-type", "c" -> ContentTypeParser(header + "\n").parse()
                 "content-length", "l" -> ContentLengthParser(header + "\n").parse()
-                "call-id", "i" -> CallIDParser(header + "\n").parse()
-                "route" -> RouteParser(header + "\n").parse()
-                "record-route" -> RecordRouteParser(header + "\n").parse()
-                "max-forwards" -> MaxForwardsParser(header + "\n").parse()
-                "expires" -> ExpiresParser(header + "\n").parse()
+                "cseq" ->  {
+                    CSeqParser(header + "\n").parse().also { cseq ->
+                        skipMessage = !supportedMethods.contains((cseq as CSeq).method)
+                    }
+                }
+                "to", "t" -> if (!skipMessage) ToParser(header + "\n").parse() else null
+                "from", "f" -> if (!skipMessage) FromParser(header + "\n").parse() else null
+                "via", "v" -> if (!skipMessage) ViaParser(header + "\n").parse() else null
+                "contact", "m" -> if (!skipMessage) ContactParser(header + "\n").parse() else null
+                "content-type", "c" -> if (!skipMessage) ContentTypeParser(header + "\n").parse() else null
+                "call-id", "i" -> if (!skipMessage) CallIDParser(header + "\n").parse() else null
+                "route" -> if (!skipMessage) RouteParser(header + "\n").parse() else null
+                "record-route" -> if (!skipMessage) RecordRouteParser(header + "\n").parse() else null
+                "max-forwards" -> if (!skipMessage) MaxForwardsParser(header + "\n").parse() else null
+                "expires" -> if (!skipMessage) ExpiresParser(header + "\n").parse() else null
                 else -> {
                     // These headers won't be used in the SIP3 aggregation logic
                     // So we can just attach them as generic `Extension` headers
-                    if (extensionHeaders.contains(headerName)) {
+                    if (!skipMessage && extensionHeaders.contains(name)) {
                         ExtensionHeaderImpl().apply {
-                            name = headerName
-                            value = Lexer.getHeaderValue(header)?.trim()
+                            this.name = name
+                            this.value = Lexer.getHeaderValue(header)?.trim()
                         }
                     } else {
                         null

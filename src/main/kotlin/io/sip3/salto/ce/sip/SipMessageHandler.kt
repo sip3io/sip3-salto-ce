@@ -78,7 +78,7 @@ open class SipMessageHandler : AbstractVerticle() {
         }
         extensionHeaders.add(xCorrelationHeader)
 
-        parser = SipMessageParser(extensionHeaders)
+        parser = SipMessageParser(SUPPORTED_SIP_METHODS, extensionHeaders)
         udfExecutor = UdfExecutor(vertx)
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.sip) { event ->
@@ -95,19 +95,16 @@ open class SipMessageHandler : AbstractVerticle() {
         packetsProcessed.increment()
 
         parser.parse(packet).forEach { (pkt, message) ->
-            val cseqMethod = message.cseqMethod()
-            if (cseqMethod != null && SUPPORTED_SIP_METHODS.contains(cseqMethod)) {
-                if (validate(message)) {
-                    handleSipMessage(pkt, message)
-                } else {
-                    calculateSipMessageMetrics(RoutesCE.sip + "_invalid", pkt, message)
-                }
+            if (validate(message)) {
+                handleSipMessage(pkt, message)
+            } else {
+                calculateSipMessageMetrics(RoutesCE.sip + "_invalid", pkt, message)
             }
         }
     }
 
     open fun validate(message: SIPMessage): Boolean {
-        return message.callId() != null
+        return message.cseqMethod() != null && message.callId() != null
                 && message.toUserOrNumber() != null && message.fromUserOrNumber() != null
     }
 
