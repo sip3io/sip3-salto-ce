@@ -45,4 +45,5 @@ object Attributes {
     const val bad_report_fraction = "bad_report_fraction"
     const val overlapped_interval = "overlapped_interval"
     const val overlapped_fraction = "overlapped_fraction"
+    const val recording_mode = "recording_mode"
 }

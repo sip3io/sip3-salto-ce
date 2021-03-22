@@ -378,6 +378,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.retransmits)
+            remove(Attributes.recording_mode)
             transactionExclusions.forEach { remove(it) }
         }
     }

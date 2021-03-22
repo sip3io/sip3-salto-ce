@@ -194,6 +194,7 @@ open class SipTransactionHandler : AbstractVerticle() {
             remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.retransmits)
+            remove(Attributes.recording_mode)
             transactionExclusions.forEach { remove(it) }
         }
     }
@@ -209,6 +210,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
                 put(Attributes.call_id, "")
                 remove(Attributes.x_call_id)
+                remove(Attributes.recording_mode)
 
                 val caller = get(Attributes.caller) ?: transaction.caller
                 put(Attributes.caller, if (recordCallUsersAttributes) caller else "")

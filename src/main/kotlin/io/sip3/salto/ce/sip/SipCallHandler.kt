@@ -328,6 +328,7 @@ open class SipCallHandler : AbstractVerticle() {
                 remove(Attributes.caller)
                 remove(Attributes.callee)
                 remove(Attributes.x_call_id)
+                remove(Attributes.recording_mode)
             }
 
         Metrics.counter(ATTEMPTS, attributes).increment()
@@ -352,6 +353,7 @@ open class SipCallHandler : AbstractVerticle() {
 
                 put(Attributes.call_id, "")
                 remove(Attributes.x_call_id)
+                remove(Attributes.recording_mode)
 
                 val caller = get(Attributes.caller) ?: session.caller
                 put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
@@ -440,6 +442,7 @@ open class SipCallHandler : AbstractVerticle() {
             remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.retransmits)
+            remove(Attributes.recording_mode)
             transactionExclusions.forEach { remove(it) }
         }
     }
