@@ -35,7 +35,7 @@ open class MediaManager : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private var recordingEnabled: Boolean = false
+    protected var recordingEnabled: Boolean = false
 
     override fun start() {
         config().getJsonObject("recording")?.let { config ->

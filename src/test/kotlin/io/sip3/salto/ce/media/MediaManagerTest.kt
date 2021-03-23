@@ -28,11 +28,8 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.sip.SipTransaction
-import io.sip3.salto.ce.sip.SipTransactionHandlerTest
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -99,7 +96,7 @@ class MediaManagerTest : VertxTest() {
 
         // Valid SIP Message response with SDP
         val PACKET_RESPONSE_1 = Packet().apply {
-            timestamp = Timestamp(SipTransactionHandlerTest.NOW + 25)
+            timestamp = Timestamp(NOW + 25)
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
