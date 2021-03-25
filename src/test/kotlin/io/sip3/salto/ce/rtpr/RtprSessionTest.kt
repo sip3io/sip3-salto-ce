@@ -16,11 +16,7 @@
 
 package io.sip3.salto.ce.rtpr
 
-import io.sip3.commons.domain.media.Codec
-import io.sip3.commons.domain.media.MediaAddress
-import io.sip3.commons.domain.media.MediaControl
-import io.sip3.commons.domain.media.Recording
-import io.sip3.commons.domain.media.SdpSession
+import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.rtcpAddress
@@ -178,8 +174,8 @@ class RtprSessionTest {
         assertEquals(RTPR_1.startedAt + RTPR_1.duration, session.terminatedAt)
 
         assertTrue(session.codecNames.contains(RTPR_1.codecName))
-        assertEquals(RTPR_1.mos, session.mos)
-        assertEquals(RTPR_1.rFactor, session.rFactor)
+        assertEquals(RTPR_1.mos.toDouble(), session.mos)
+        assertEquals(RTPR_1.rFactor.toDouble(), session.rFactor)
     }
 
     @Test
@@ -200,7 +196,7 @@ class RtprSessionTest {
         assertEquals(RTPR_2.startedAt + RTPR_2.duration, session.terminatedAt)
 
         assertTrue(session.codecNames.contains(RTPR_1.codecName))
-        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2, session.rFactor)
+        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), session.rFactor)
     }
 
     @Test
@@ -226,7 +222,7 @@ class RtprSessionTest {
         assertEquals(RTPR_2.startedAt + RTPR_2.duration, session.terminatedAt)
 
         assertTrue(session.codecNames.contains(RTPR_1.codecName))
-        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2, session.rFactor)
+        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), session.rFactor)
     }
 
     @Test
@@ -254,7 +250,7 @@ class RtprSessionTest {
         assertEquals(RTPR_1_RTCP.startedAt + RTPR_1_RTCP.duration, session.terminatedAt)
 
         assertTrue(session.codecNames.contains(RTPR_1_RTCP.codecName))
-        assertEquals(RTPR_1_RTCP.mos, session.mos)
-        assertEquals(RTPR_1_RTCP.rFactor, session.rFactor)
+        assertEquals(RTPR_1_RTCP.mos.toDouble(), session.mos)
+        assertEquals(RTPR_1_RTCP.rFactor.toDouble(), session.rFactor)
     }
 }

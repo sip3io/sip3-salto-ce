@@ -16,12 +16,13 @@
 
 package io.sip3.salto.ce.media
 
+import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.rtpr.RtprSession
 import kotlin.math.min
 
-class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: String) {
+class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl: MediaControl) {
 
     var createdAt: Long = System.currentTimeMillis()
     var terminatedAt: Long = 0L
@@ -47,19 +48,19 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
     val mos: Double
         get() {
             return if (forward.mos == null) {
-                reverse.mos ?: 1F
+                reverse.mos ?: 1.0
             } else {
                 reverse.mos?.let { min(forward.mos!!, it) } ?: forward.mos!!
-            }.toDouble()
+            }
         }
 
     val rFactor: Double
         get() {
             return if (forward.rFactor == null) {
-                reverse.rFactor ?: 1F
+                reverse.rFactor ?: 1.0
             } else {
                 reverse.rFactor?.let { min(forward.rFactor!!, it) } ?: forward.rFactor!!
-            }.toDouble()
+            }
         }
 
     val reportCount: Int
@@ -146,10 +147,10 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val callId: Strin
                 }
             }
 
-        val mos: Float?
+        val mos: Double?
             get() = rtp?.mos ?: rtcp?.mos
 
-        val rFactor: Float?
+        val rFactor: Double?
             get() = rtp?.rFactor ?: rtcp?.rFactor
 
         fun addRtp(session: RtprSession) {

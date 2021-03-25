@@ -16,20 +16,13 @@
 
 package io.sip3.salto.ce.media
 
-import io.sip3.commons.domain.media.Codec
-import io.sip3.commons.domain.media.MediaAddress
-import io.sip3.commons.domain.media.MediaControl
-import io.sip3.commons.domain.media.Recording
-import io.sip3.commons.domain.media.SdpSession
+import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.rtpr.RtprSession
 import io.sip3.salto.ce.util.rtcpAddress
 import io.sip3.salto.ce.util.rtpAddress
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class MediaSessionTest {
@@ -221,7 +214,7 @@ class MediaSessionTest {
 
     @Test
     fun `Create MediaSession from RtprSession`() {
-        val session = MediaSession(PACKET_1.srcAddr, PACKET_1.dstAddr, RTPR_1.callId!!)
+        val session = MediaSession(PACKET_1.srcAddr, PACKET_1.dstAddr, MEDIA_CONTROL)
 
         // Add Rtpr Session for forward RTP Stream
         session.add(RTPR_SESSION_1)
@@ -239,8 +232,8 @@ class MediaSessionTest {
         assertTrue(session.isOneWay)
         assertFalse(session.hasUndefinedCodec)
 
-        assertEquals(RTPR_SESSION_1.mos, session.mos.toFloat())
-        assertEquals(RTPR_SESSION_1.rFactor, session.rFactor.toFloat())
+        assertEquals(RTPR_SESSION_1.mos, session.mos)
+        assertEquals(RTPR_SESSION_1.rFactor, session.rFactor)
 
         assertEquals(1, session.reportCount)
         assertEquals(0, session.badReportCount)
@@ -262,8 +255,8 @@ class MediaSessionTest {
         assertFalse(session.isOneWay)
         assertFalse(session.hasUndefinedCodec)
 
-        assertEquals(RTPR_SESSION_1.mos, session.mos.toFloat())
-        assertEquals(RTPR_SESSION_1.rFactor, session.rFactor.toFloat())
+        assertEquals(RTPR_SESSION_1.mos, session.mos)
+        assertEquals(RTPR_SESSION_1.rFactor, session.rFactor)
 
         assertEquals(2, session.reportCount)
         assertEquals(0, session.badReportCount)
