@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
+import gov.nist.javax.sip.message.SIPRequest
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
@@ -65,7 +66,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 2000
     private var transactionExclusions = emptyList<String>()
-    private var saveSipMessagePayload = true
+    private var saveSipMessagePayloadMode = 0
 
     private var recordCallUsersAttributes = false
     private var instances = 1
@@ -95,8 +96,8 @@ open class SipTransactionHandler : AbstractVerticle() {
             config.getJsonArray("transaction-exclusions")?.let {
                 transactionExclusions = it.map(Any::toString)
             }
-            config.getBoolean("save-sip-message-payload")?.let {
-                saveSipMessagePayload = it
+            config.getInteger("save-sip-message-payload-mode")?.let {
+                saveSipMessagePayloadMode = it
             }
         }
         config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
@@ -132,7 +133,9 @@ open class SipTransactionHandler : AbstractVerticle() {
         }
 
         val transaction = transactions.getOrPut(message.transactionId()) { SipTransaction() }
-        transaction.addMessage(packet, message, extend = (saveSipMessagePayload && message.cseqMethod() == "INVITE"))
+
+        val extend = (saveSipMessagePayloadMode == 0) || (saveSipMessagePayloadMode == 1 && message is SIPRequest)
+        transaction.addMessage(packet, message, extend)
 
         // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.request?.hasSdp() == true && transaction.response?.hasSdp() == true) {
