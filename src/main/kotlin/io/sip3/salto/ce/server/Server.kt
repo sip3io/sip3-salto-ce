@@ -34,7 +34,7 @@ import java.net.URI
 /**
  * Retrieves SIP3 and HEP3 packets
  */
-@Instance(singleton = true)
+@Instance(singleton = true, worker = true)
 @ConditionalOnProperty("/server")
 class Server : AbstractVerticle() {
 
