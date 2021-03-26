@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.media
 
 import io.sip3.commons.domain.media.MediaControl
+import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
@@ -130,7 +131,7 @@ open class MediaHandler : AbstractVerticle() {
         val dstAddr = sdpSession.dst.rtpAddress()
 
         media.getOrPut(mediaControl.callId) { mutableMapOf() }
-            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, mediaControl.callId))
+            .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, mediaControl))
     }
 
     open fun handleKeepAlive(rtprSession: RtprSession) {
@@ -139,8 +140,14 @@ open class MediaHandler : AbstractVerticle() {
             val dstAddr = sdpSession.dst.rtpAddress()
             val legId = srcAddr.compositeAddrKey(dstAddr)
 
-            media.get(rtprSession.callId)?.get(legId)?.apply {
-                updatedAt = System.currentTimeMillis()
+            media.get(rtprSession.callId)?.get(legId)?.let { mediaSession ->
+                mediaSession.updatedAt = System.currentTimeMillis()
+
+                if (mediaSession.mediaControl.recording == null
+                    && rtprSession.report.source == RtpReportPayload.SOURCE_RTP) {
+
+                    vertx.eventBus().localSend(RoutesCE.media + "_update", Pair(rtprSession, mediaSession.mediaControl))
+                }
             }
         }
     }
@@ -155,7 +162,7 @@ open class MediaHandler : AbstractVerticle() {
             val mediaSession = media.getOrPut(callId) { mutableMapOf() }
                 .getOrPut(legId) {
                     logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${rtprSession.report.source}" }
-                    MediaSession(srcAddr, dstAddr, callId)
+                    MediaSession(srcAddr, dstAddr, rtprSession.mediaControl!!)
                 }
             mediaSession.add(rtprSession)
         }
@@ -231,7 +238,7 @@ open class MediaHandler : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
-                put("call_id", session.callId)
+                put("call_id", session.mediaControl.callId)
                 put("codec_names", session.codecNames.toList())
                 put("duration", session.duration)
 

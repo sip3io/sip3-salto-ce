@@ -35,11 +35,11 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     val callId: String?
         get() = report.callId
 
-    val mos: Float?
-        get() = report.mos.takeIf { it != 1F }
+    val mos: Double?
+        get() = report.mos.takeIf { it != 1F }?.toDouble()
 
-    val rFactor: Float?
-        get() = report.rFactor.takeIf { it != 0F }
+    val rFactor: Double?
+        get() = report.rFactor.takeIf { it != 0F }?.toDouble()
 
     var reportCount = 0
     var badReportCount = 0
