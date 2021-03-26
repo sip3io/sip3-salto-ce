@@ -201,7 +201,8 @@ open class SipCallHandler : AbstractVerticle() {
             } else {
                 // In case of SIP Proxy we'll check and terminate all legs related to the call
                 sessions.forEach { (_, session) ->
-                    if (session.caller == transaction.caller && session.callee == transaction.callee) {
+                    if ((session.caller == transaction.caller && session.callee == transaction.callee)
+                        || (session.caller == transaction.callee && session.callee == transaction.caller)) {
                         session.addByeTransaction(transaction)
                     }
                 }
@@ -528,7 +529,7 @@ open class SipCallHandler : AbstractVerticle() {
                     duration = transaction.createdAt - answeredAt
                 }
 
-                terminatedBy = if (srcAddr.addr == transaction.srcAddr.addr) "caller" else "callee"
+                terminatedBy = if (caller == transaction.caller) "caller" else "callee"
 
                 transaction.attributes.forEach { (name, value) -> attributes[name] = value }
             }
