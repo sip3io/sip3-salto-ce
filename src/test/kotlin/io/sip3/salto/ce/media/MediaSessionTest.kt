@@ -214,7 +214,7 @@ class MediaSessionTest {
 
     @Test
     fun `Create MediaSession from RtprSession`() {
-        val session = MediaSession(PACKET_1.srcAddr, PACKET_1.dstAddr, RTPR_1.callId!!)
+        val session = MediaSession(PACKET_1.srcAddr, PACKET_1.dstAddr, MEDIA_CONTROL)
 
         // Add Rtpr Session for forward RTP Stream
         session.add(RTPR_SESSION_1)
@@ -232,8 +232,8 @@ class MediaSessionTest {
         assertTrue(session.isOneWay)
         assertFalse(session.hasUndefinedCodec)
 
-        assertEquals(RTPR_SESSION_1.mos, session.mos.toFloat())
-        assertEquals(RTPR_SESSION_1.rFactor, session.rFactor.toFloat())
+        assertEquals(RTPR_SESSION_1.mos, session.mos)
+        assertEquals(RTPR_SESSION_1.rFactor, session.rFactor)
 
         assertEquals(1, session.reportCount)
         assertEquals(0, session.badReportCount)
@@ -255,8 +255,8 @@ class MediaSessionTest {
         assertFalse(session.isOneWay)
         assertFalse(session.hasUndefinedCodec)
 
-        assertEquals(RTPR_SESSION_1.mos, session.mos.toFloat())
-        assertEquals(RTPR_SESSION_1.rFactor, session.rFactor.toFloat())
+        assertEquals(RTPR_SESSION_1.mos, session.mos)
+        assertEquals(RTPR_SESSION_1.rFactor, session.rFactor)
 
         assertEquals(2, session.reportCount)
         assertEquals(0, session.badReportCount)
