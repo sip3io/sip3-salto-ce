@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.text.DateFormat
 import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * Manages MongoDB collections
@@ -44,7 +45,9 @@ class MongoCollectionManager : CoroutineVerticle() {
         const val DEFAULT_MAX_COLLECTIONS = 30
     }
 
-    private var timeSuffix: DateFormat = SimpleDateFormat("yyyyMMdd")
+    private var timeSuffix: DateFormat = SimpleDateFormat("yyyyMMdd").apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
     private var timeSuffixInterval: Long = 0
 
     private lateinit var client: io.vertx.ext.mongo.MongoClient
