@@ -176,7 +176,7 @@ open class Router : AbstractVerticle() {
                 addr as String
                 put(addr, name)
                 if (addr.contains("/")) {
-                    SubnetUtils(addr).info
+                    SubnetUtils(addr).apply { isInclusiveHostCount = true }.info
                         .allAddresses
                         .forEach { put(it, name) }
                 }
