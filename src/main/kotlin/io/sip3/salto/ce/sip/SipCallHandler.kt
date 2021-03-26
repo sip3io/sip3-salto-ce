@@ -202,7 +202,8 @@ open class SipCallHandler : AbstractVerticle() {
                 // In case of SIP Proxy we'll check and terminate all legs related to the call
                 sessions.forEach { (_, session) ->
                     if ((session.caller == transaction.caller && session.callee == transaction.callee)
-                        || (session.caller == transaction.callee && session.callee == transaction.caller)) {
+                        || (session.caller == transaction.callee && session.callee == transaction.caller)
+                    ) {
                         session.addByeTransaction(transaction)
                     }
                 }

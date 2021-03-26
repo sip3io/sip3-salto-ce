@@ -28,9 +28,7 @@ import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.sip.SipTransactionHandlerTest
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 

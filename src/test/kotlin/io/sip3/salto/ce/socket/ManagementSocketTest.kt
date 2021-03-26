@@ -16,11 +16,7 @@
 
 package io.sip3.salto.ce.socket
 
-import io.sip3.commons.domain.media.Codec
-import io.sip3.commons.domain.media.MediaAddress
-import io.sip3.commons.domain.media.MediaControl
-import io.sip3.commons.domain.media.Recording
-import io.sip3.commons.domain.media.SdpSession
+import io.sip3.commons.domain.media.*
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic

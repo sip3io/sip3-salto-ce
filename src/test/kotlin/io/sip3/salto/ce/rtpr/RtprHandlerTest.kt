@@ -20,11 +20,7 @@ import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.MockClock
 import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.sip3.commons.domain.media.Codec
-import io.sip3.commons.domain.media.MediaAddress
-import io.sip3.commons.domain.media.MediaControl
-import io.sip3.commons.domain.media.Recording
-import io.sip3.commons.domain.media.SdpSession
+import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localPublish
@@ -34,9 +30,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 
@@ -530,7 +524,7 @@ class RtprHandlerTest : VertxTest() {
                         assertEquals("rtcp", prefix)
                         assertEquals(2, attributes.size)
                         assertEquals(93.2F, attributes[Attributes.r_factor])
-                        assertEquals(4.4092855F , attributes[Attributes.mos])
+                        assertEquals(4.4092855F, attributes[Attributes.mos])
                     }
                     context.completeNow()
                 }

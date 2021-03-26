@@ -65,7 +65,7 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
         badReportCount += other.badReportCount
     }
 
-    private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1 ) {
+    private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1) {
         report.apply {
             if (codecName == null) {
                 payload.codecName?.let { codecName = it }

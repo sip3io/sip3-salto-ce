@@ -20,11 +20,7 @@ import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.MockClock
 import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.sip3.commons.domain.media.Codec
-import io.sip3.commons.domain.media.MediaAddress
-import io.sip3.commons.domain.media.MediaControl
-import io.sip3.commons.domain.media.Recording
-import io.sip3.commons.domain.media.SdpSession
+import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
@@ -211,7 +207,7 @@ class MediaHandlerTest : VertxTest() {
                         assertEquals(MEDIA_CONTROL.callId, document.getString("call_id"))
                         document.getJsonArray("codec_names").toList().let { codecNames ->
                             assertTrue(codecNames.isNotEmpty())
-                            assertEquals(RTPR_1.codecName, codecNames.first() as String )
+                            assertEquals(RTPR_1.codecName, codecNames.first() as String)
                         }
 
                         document.getJsonObject("forward_rtp").let { forwardRtp ->

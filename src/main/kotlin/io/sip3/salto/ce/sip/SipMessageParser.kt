@@ -128,7 +128,7 @@ class SipMessageParser(val supportedMethods: Set<String>, val extensionHeaders: 
             val hdr = when (name.toLowerCase()) {
                 // These headers may or will be used in the SIP3 aggregation logic
                 "content-length", "l" -> ContentLengthParser(header + "\n").parse()
-                "cseq" ->  {
+                "cseq" -> {
                     CSeqParser(header + "\n").parse().also { cseq ->
                         skipMessage = !supportedMethods.contains((cseq as CSeq).method)
                     }

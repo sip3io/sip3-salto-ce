@@ -100,7 +100,7 @@ open class RecordingHandler : AbstractVerticle() {
         GlobalScope.launch(vertx.dispatcher()) {
             val index = vertx.sharedData().getLocalCounter(RoutesCE.rec).await()
             vertx.eventBus()
-                .localConsumer<Pair<Packet, RecordingPayload>>( RoutesCE.rec + "_${index.andIncrement.await()}") { event ->
+                .localConsumer<Pair<Packet, RecordingPayload>>(RoutesCE.rec + "_${index.andIncrement.await()}") { event ->
                     try {
                         val (packet, recording) = event.body()
                         handleRecording(packet, recording)
@@ -137,7 +137,7 @@ open class RecordingHandler : AbstractVerticle() {
         val key = "${recordingPayload.callId}:${packet.srcAddr.addr}:${packet.srcAddr.port}:${packet.dstAddr.addr}:${packet.dstAddr.port}"
         val recording = recordings.getOrPut(key) { Recording() }
         recording.apply {
-            if(createdAt == 0L) {
+            if (createdAt == 0L) {
                 createdAt = packet.createdAt
                 srcAddr = packet.srcAddr
                 dstAddr = packet.dstAddr

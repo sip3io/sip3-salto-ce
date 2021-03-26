@@ -79,7 +79,7 @@ class ManagementSocket : AbstractVerticle() {
             sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
         }
 
-    vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
+        vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
             if (sendSdpSessions) {
                 val mediaControl = event.body()
                 publishMediaControl(mediaControl)
