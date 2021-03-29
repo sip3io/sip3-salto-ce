@@ -329,6 +329,91 @@ class SipRegisterHandlerTest : VertxTest() {
     }
 
     @Test
+    fun `Validate 'synced' flag for Registration SipSession`() {
+        val transaction1 = SipTransaction().apply {
+            addPacket(PACKET_3)
+            addPacket(PACKET_4)
+        }
+
+        val transaction2 = SipTransaction().apply {
+            addPacket(PACKET_5)
+            addPacket(PACKET_6)
+        }
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("register", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 1000)
+                            put("duration-timeout", 3000)
+                            put("update-period", 200)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setTimer(400) {
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction1)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction2)
+                }
+            },
+            assert = {
+                var createdAt: Long? = null
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_register_index_"))
+
+                        if (createdAt == null) {
+                            // Assert first write to DB for Registration SipSession
+                            createdAt = System.currentTimeMillis()
+                            document.apply {
+                                assertEquals(PACKET_3.timestamp.time, getLong("created_at"))
+                                assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
+                                assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
+                                assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
+                                assertEquals(PACKET_3.dstAddr.port, getInteger("dst_port"))
+                                assertNotNull(getString("call_id"))
+                                assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
+                                assertEquals(PACKET_5.timestamp.time + 120000, getLong("terminated_at"))
+                                assertNull(getLong("duration"))
+                                assertEquals(30000L, getLong("overlapped_interval"))
+                                assertEquals(0.25, getDouble("overlapped_fraction"))
+                            }
+                        } else {
+                            // Ensure no writes were performed without session updates in at least 3 update periods
+                            assertTrue(System.currentTimeMillis() - createdAt!! > 700)
+
+                            // Assert update session in DB
+                            document.getJsonObject("\$setOnInsert").apply {
+                                assertEquals(PACKET_3.timestamp.time, getLong("created_at"))
+                                assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
+                                assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
+                                assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
+                                assertEquals(PACKET_3.dstAddr.port, getInteger("dst_port"))
+                                assertNotNull(getString("call_id"))
+                            }
+
+                            document.getJsonObject("\$set").apply {
+                                assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
+                                assertEquals(PACKET_5.timestamp.time + 120000, getLong("terminated_at"))
+                                assertEquals(PACKET_5.timestamp.time + 120000 - PACKET_3.timestamp.time, getLong("duration"))
+                                assertEquals(30000L, getLong("overlapped_interval"))
+                                assertEquals(0.25, getDouble("overlapped_fraction"))
+                            }
+                            context.completeNow()
+                        }
+                    }
+
+                }
+            }
+        )
+    }
+
+    @Test
     fun `Aggregate and check 'unauthorized' session`() {
         val transaction401 = SipTransaction().apply {
             addPacket(PACKET_1)

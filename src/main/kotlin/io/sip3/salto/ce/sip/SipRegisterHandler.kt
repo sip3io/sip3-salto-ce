@@ -220,10 +220,11 @@ open class SipRegisterHandler : AbstractVerticle() {
             if (expiresAt + aggregationTimeout >= now) {
                 // Check `updated_at` and write to database if needed
                 val updatedAt = session.updatedAt
-                if (updatedAt == null || updatedAt + updatePeriod < now) {
+                if (!session.synced && (updatedAt == null || updatedAt + updatePeriod < now)) {
                     session.updatedAt = now
                     writeAttributes(session)
                     writeToDatabase(PREFIX, session, updatedAt != null)
+                    session.synced = true
                 }
 
                 // Calculate `active` registrations
@@ -390,6 +391,8 @@ open class SipRegisterHandler : AbstractVerticle() {
         var overlappedInterval: Long? = null
         var overlappedFraction: Double? = null
 
+        var synced: Boolean = false
+
         val registrations = mutableListOf<Pair<Long, Long>>()
 
         fun addSipRegistration(registration: SipRegistration) {
@@ -402,6 +405,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 caller = registration.caller
                 state = registration.state
             } else {
+                synced = false
                 overlappedInterval = expiresAt!! - registration.createdAt
 
                 if (registration.expires > 0L) {
