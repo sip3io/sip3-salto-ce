@@ -201,7 +201,7 @@ open class RtcpHandler : AbstractVerticle() {
                                 cumulativePacketLost = blockReport.getLong("packets_lost")
                                 extendedSeqNumber = blockReport.getLong("highest_seq_no")
                                 interarrivalJitter = blockReport.getLong("ia_jitter")
-                                lsrTimestamp = blockReport.getLong("lsr")
+                                lsrTimestamp = blockReport.getString("lsr")?.toLongOrNull() ?: 0L
                             })
                         }
                 }

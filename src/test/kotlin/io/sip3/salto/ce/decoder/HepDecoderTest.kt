@@ -23,6 +23,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.buffer.Buffer
+import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.nio.charset.Charset
@@ -242,7 +243,15 @@ class HepDecoderTest : VertxTest() {
     @Test
     fun `Decode HEPv3 RTCP packet`() {
         runTest(
-            deploy = { vertx.deployTestVerticle(HepDecoder::class) },
+            deploy = {
+                vertx.deployTestVerticle(HepDecoder::class, JsonObject().apply {
+                    put("hep", JsonObject().apply {
+                        put("rtcp", JsonObject().apply {
+                            put("enabled", true)
+                        })
+                    })
+                })
+            },
             execute = {
                 val sender = Address().apply {
                     addr = "127.0.0.1"

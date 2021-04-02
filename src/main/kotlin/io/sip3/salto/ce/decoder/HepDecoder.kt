@@ -44,9 +44,15 @@ class HepDecoder : AbstractVerticle() {
         const val HEP3_TYPE_RTCP: Byte = 5
     }
 
+    private var rtcpEnabled = false
+
     private val packetsDecoded = Metrics.counter("packets_decoded", mapOf("proto" to "hep"))
 
     override fun start() {
+        config().getJsonObject("hep")?.getJsonObject("rtcp")?.getBoolean("enabled")?.let {
+            rtcpEnabled = it
+        }
+
         vertx.eventBus().localConsumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->
             try {
                 val (sender, buffer) = event.body()
@@ -131,6 +137,9 @@ class HepDecoder : AbstractVerticle() {
             }
             offset += length
         }
+
+        // Skip RTCP if disabled
+        if (!rtcpEnabled && protocolType == HEP3_TYPE_RTCP) return
 
         val packet = Packet().apply {
             this.timestamp = Timestamp(seconds!! * 1000 + uSeconds!! / 1000).apply { nanos += (uSeconds % 1000).toInt() }
