@@ -214,6 +214,8 @@ open class MediaHandler : AbstractVerticle() {
             put(Attributes.r_factor, session.rFactor)
             put(Attributes.one_way, session.isOneWay)
             put(Attributes.undefined_codec, session.hasUndefinedCodec)
+            put(Attributes.missed_peer, session.missedPeer)
+
             put(Attributes.bad_report_fraction, session.badReportFraction)
         }
 
@@ -248,6 +250,7 @@ open class MediaHandler : AbstractVerticle() {
 
                 put("one_way", session.isOneWay)
                 put("undefined_codec", session.hasUndefinedCodec)
+                put("missed_peer", session.missedPeer)
 
                 put("mos", session.mos)
                 put("r_factor", session.rFactor)
@@ -264,8 +267,8 @@ open class MediaHandler : AbstractVerticle() {
 
     private fun RtprSession.toJson(): JsonObject {
         return JsonObject().apply {
-            put("created_at", report.startedAt)
-            put("terminated_at", report.startedAt + report.duration)
+            put("created_at", createdAt)
+            put("terminated_at", createdAt + report.duration)
 
             put("src_addr", srcAddr.addr)
             put("src_port", srcAddr.port)
@@ -298,6 +301,8 @@ open class MediaHandler : AbstractVerticle() {
             put("r_factor", report.rFactor.toDouble())
             put("mos", report.mos.toDouble())
             put("fraction_lost", report.fractionLost.toDouble())
+
+            put("missed_peer", missedPeer)
         }
     }
 }
