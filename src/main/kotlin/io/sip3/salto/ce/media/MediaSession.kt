@@ -45,6 +45,9 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl:
     val hasUndefinedCodec: Boolean
         get() = codecNames.any { it.contains("UNDEFINED") }
 
+    val missedPeer: Boolean
+        get() = forward.missedPeer || reverse.missedPeer
+
     val mos: Double
         get() {
             return if (forward.mos == null) {
@@ -152,6 +155,9 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl:
 
         val rFactor: Double?
             get() = rtp?.rFactor ?: rtcp?.rFactor
+
+        val missedPeer: Boolean
+            get() = rtp?.missedPeer ?: false
 
         fun addRtp(session: RtprSession) {
             if (rtp == null) {

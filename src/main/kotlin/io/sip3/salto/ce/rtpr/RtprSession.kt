@@ -26,8 +26,8 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     var createdAt: Long = 0L
     var terminatedAt: Long = 0L
 
-    val srcAddr = packet.srcAddr
-    val dstAddr = packet.dstAddr
+    var srcAddr = packet.srcAddr
+    var dstAddr = packet.dstAddr
     lateinit var report: RtpReportPayload
 
     var mediaControl: MediaControl? = null
@@ -43,6 +43,8 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
 
     var reportCount = 0
     var badReportCount = 0
+
+    var missedPeer = false
 
     fun add(payload: RtpReportPayload) {
         if (reportCount == 0) {
@@ -63,6 +65,16 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
 
         reportCount += other.reportCount
         badReportCount += other.badReportCount
+
+        if (srcAddr != other.srcAddr) {
+            missedPeer = true
+            srcAddr = other.srcAddr
+        }
+
+        if (dstAddr != other.dstAddr) {
+            missedPeer = true
+            dstAddr = other.dstAddr
+        }
     }
 
     private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1) {
@@ -111,6 +123,7 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
 
         if (createdAt > payload.startedAt) {
             createdAt = payload.startedAt
+            report.startedAt = payload.startedAt
         }
 
         if (payload.startedAt + payload.duration > terminatedAt) {

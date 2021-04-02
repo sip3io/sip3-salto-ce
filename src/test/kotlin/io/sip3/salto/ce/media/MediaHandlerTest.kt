@@ -160,6 +160,7 @@ class MediaHandlerTest : VertxTest() {
         val RTPR_SESSION_1 = RtprSession(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_1)
+            missedPeer = true
         }
 
         val RTPR_SESSION_2 = RtprSession(PACKET_2).apply {
@@ -203,6 +204,7 @@ class MediaHandlerTest : VertxTest() {
 
                         assertEquals(false, document.getBoolean("one_way"))
                         assertEquals(false, document.getBoolean("undefined_codec"))
+                        assertEquals(true, document.getBoolean("missed_peer"))
 
                         assertEquals(MEDIA_CONTROL.callId, document.getString("call_id"))
                         document.getJsonArray("codec_names").toList().let { codecNames ->
@@ -222,6 +224,8 @@ class MediaHandlerTest : VertxTest() {
                             assertEquals(RTPR_1.rFactor, forwardRtp.getFloat("r_factor"))
                             assertEquals(RTPR_1.mos, forwardRtp.getFloat("mos"))
                             assertEquals(RTPR_1.fractionLost, forwardRtp.getFloat("fraction_lost"))
+
+                            assertEquals(true, document.getBoolean("missed_peer"))
                         }
 
                         document.getJsonObject("reverse_rtp").let { reverseRtp ->
@@ -308,11 +312,12 @@ class MediaHandlerTest : VertxTest() {
 
                     context.verify {
                         assertEquals("media", prefix)
-                        assertEquals(5, attributes.size)
+                        assertEquals(6, attributes.size)
                         assertEquals(12.0, attributes[Attributes.r_factor])
                         assertEquals(13.0, attributes[Attributes.mos])
                         assertEquals(false, attributes[Attributes.one_way])
                         assertEquals(false, attributes[Attributes.undefined_codec])
+                        assertEquals(true, attributes[Attributes.missed_peer])
                         assertEquals(0.0, attributes[Attributes.bad_report_fraction])
                     }
                     context.completeNow()

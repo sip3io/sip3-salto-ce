@@ -226,6 +226,36 @@ class RtprSessionTest {
     }
 
     @Test
+    fun `Validate RtprSession 'merge()' method from RTP with address change`() {
+        val session = RtprSession(PACKET_1).apply {
+            mediaControl = MEDIA_CONTROL
+            RtpReportPayload().apply {
+                decode(RTPR_1.encode())
+            }.let { add(it) }
+        }
+
+        val modifiedPacker = Packet().apply {
+            srcAddr = MEDIA_CONTROL.sdpSession.src.rtpAddress()
+            dstAddr = MediaAddress().apply {
+                addr = "10.20.20.20"
+                rtpPort = 20510
+            }.rtpAddress()
+        }
+        val session2 = RtprSession(modifiedPacker).apply {
+            mediaControl = MEDIA_CONTROL
+            add(RTPR_2)
+        }
+
+        session.merge(session2)
+
+        assertEquals(2, session.reportCount)
+
+        assertTrue(session.missedPeer)
+        assertEquals(session.dstAddr, modifiedPacker.dstAddr)
+        assertEquals(session.dstAddr, modifiedPacker.dstAddr)
+    }
+
+    @Test
     fun `Validate RtprSession R-Factor threshold`() {
         val session = RtprSession(PACKET_1, 50F).apply {
             mediaControl = MEDIA_CONTROL

@@ -194,6 +194,7 @@ class MediaSessionTest {
         val RTPR_SESSION_1 = RtprSession(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_1)
+            missedPeer = true
         }
 
         val RTPR_SESSION_1_RTCP = RtprSession(PACKET_1_RTCP).apply {
@@ -254,6 +255,7 @@ class MediaSessionTest {
         assertEquals(1, session.codecNames.size)
         assertFalse(session.isOneWay)
         assertFalse(session.hasUndefinedCodec)
+        assertTrue(session.missedPeer)
 
         assertEquals(RTPR_SESSION_1.mos, session.mos)
         assertEquals(RTPR_SESSION_1.rFactor, session.rFactor)
