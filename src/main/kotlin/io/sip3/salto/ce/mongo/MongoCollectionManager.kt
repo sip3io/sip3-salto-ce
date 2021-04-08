@@ -56,7 +56,9 @@ class MongoCollectionManager : CoroutineVerticle() {
 
     override suspend fun start() {
         config.getString("time-suffix")?.let {
-            timeSuffix = SimpleDateFormat(it)
+            timeSuffix = SimpleDateFormat(it).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
         }
 
         config.getJsonObject("mongo").let { config ->
