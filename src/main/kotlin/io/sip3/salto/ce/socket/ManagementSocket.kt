@@ -76,7 +76,7 @@ class ManagementSocket : AbstractVerticle() {
                     remoteHosts.remove(name)
                 }
 
-            sendSdpSessions = remoteHosts.any { it.value.rtpEnabled }
+            sendSdpSessions = remoteHosts.any { it.value.mediaEnabled }
         }
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
@@ -129,10 +129,11 @@ class ManagementSocket : AbstractVerticle() {
                     logger.info { "Registered: $remoteHost, Timestamp: $timestamp, Config:\n${config?.encodePrettily()}" }
 
                     config?.getJsonObject("host")?.let { updateHost(it) }
-                    config?.getJsonObject("rtp")?.getBoolean("enabled")?.let { rtpEnabled ->
-                        remoteHost.rtpEnabled = rtpEnabled
-                        sendSdpSessions = sendSdpSessions || rtpEnabled
-                    }
+
+                    val rtpEnabled = config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false
+                    val rtcpEnabled = config?.getJsonObject("rtcp")?.getBoolean("enabled") ?: false
+                    remoteHost.mediaEnabled = rtpEnabled || rtcpEnabled
+                    sendSdpSessions = sendSdpSessions || remoteHost.mediaEnabled
 
                     return@computeIfAbsent remoteHost
                 }.apply {
@@ -163,7 +164,7 @@ class ManagementSocket : AbstractVerticle() {
         }.toBuffer()
 
         remoteHosts.forEach { (_, remoteHost) ->
-            if (remoteHost.rtpEnabled) {
+            if (remoteHost.mediaEnabled) {
                 try {
                     socket.send(buffer, remoteHost.uri.port, remoteHost.uri.host) {}
                 } catch (e: Exception) {
@@ -176,6 +177,6 @@ class ManagementSocket : AbstractVerticle() {
     data class RemoteHost(val name: String, val uri: URI) {
 
         var lastUpdate: Long = Long.MIN_VALUE
-        var rtpEnabled = false
+        var mediaEnabled = false
     }
 }
