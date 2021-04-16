@@ -191,7 +191,7 @@ class RtcpHandlerTest : VertxTest() {
                         assertEquals(PacketTypes.RTCP, packet.protocolCode)
                         when (packetCount) {
                             1 -> {
-                                assertEquals(196, report.expectedPacketCount)
+                                assertEquals(195, report.expectedPacketCount)
                                 assertEquals(1, report.lostPacketCount)
                                 assertEquals(28F, report.lastJitter)
                                 assertEquals(28F, report.minJitter)
@@ -259,7 +259,7 @@ class RtcpHandlerTest : VertxTest() {
                     context.verify {
                         val (packet, report) = event.body()
                         assertEquals(PacketTypes.RTCP, packet.protocolCode)
-                        assertEquals(596, report.expectedPacketCount)
+                        assertEquals(595, report.expectedPacketCount)
                         assertEquals(1, report.lostPacketCount)
                         assertEquals(42F, report.lastJitter)
                         assertEquals(42F, report.minJitter)
