@@ -77,7 +77,7 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl:
             return if (reportCount > 0) {
                 badReportCount / reportCount.toDouble()
             } else {
-                1.0
+                0.0
             }
         }
 
