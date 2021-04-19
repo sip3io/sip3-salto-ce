@@ -50,6 +50,7 @@ open class RtcpHandler : AbstractVerticle() {
     companion object {
 
         const val MAX_VALID_JITTER = 10000
+        const val THRESHOLD_COEFFICIENT = 2
     }
 
     private var trimToSizeDelay: Long = 3600000
@@ -270,6 +271,8 @@ open class RtcpHandler : AbstractVerticle() {
             if (report.interarrivalJitter < MAX_VALID_JITTER) {
                 session.lastJitter = report.interarrivalJitter.toFloat()
             }
+            
+            val packetCount = senderReport.senderPacketCount.toInt()
 
             val payload = RtpReportPayload().apply {
                 createdAt = System.currentTimeMillis()
@@ -290,15 +293,20 @@ open class RtcpHandler : AbstractVerticle() {
                 if (session.previousReport == null) {
                     lostPacketCount = report.cumulativePacketLost.toInt()
 
-                    val packetCount = senderReport.senderPacketCount.toInt()
-                    expectedPacketCount = packetCount + lostPacketCount
-                    receivedPacketCount = packetCount
+                    expectedPacketCount = packetCount
+                    receivedPacketCount = packetCount - lostPacketCount
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                 } else {
                     lostPacketCount = (report.cumulativePacketLost - session.previousReport!!.cumulativePacketLost).toInt()
 
                     expectedPacketCount = (report.extendedSeqNumber - session.previousReport!!.extendedSeqNumber).toInt()
+                    // Validate expected packet count
+                    if (expectedPacketCount > (packetCount - session.previousPacketCount!!) * THRESHOLD_COEFFICIENT
+                            || expectedPacketCount <= 0) {
+                        expectedPacketCount = (packetCount - session.previousPacketCount!!)
+                    }
+
                     receivedPacketCount = expectedPacketCount - lostPacketCount
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
@@ -306,6 +314,7 @@ open class RtcpHandler : AbstractVerticle() {
             }
 
             session.previousReport = report
+            session.previousPacketCount = packetCount
             vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
         }
 
@@ -323,6 +332,7 @@ open class RtcpHandler : AbstractVerticle() {
         var lastJitter = 0F
 
         var previousReport: RtcpReportBlock? = null
+        var previousPacketCount: Int? = null
         var lastPacketTimestamp: Long = 0
     }
 
