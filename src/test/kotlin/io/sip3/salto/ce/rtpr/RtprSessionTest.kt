@@ -197,6 +197,9 @@ class RtprSessionTest {
 
         assertTrue(session.codecNames.contains(RTPR_1.codecName))
         assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), session.rFactor)
+
+        assertEquals(RTPR_2.mos.toDouble(), session.lastMos)
+        assertEquals(RTPR_2.rFactor.toDouble(), session.lastRFactor)
     }
 
     @Test

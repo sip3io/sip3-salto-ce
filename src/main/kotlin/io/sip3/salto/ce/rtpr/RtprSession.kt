@@ -41,6 +41,9 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     val rFactor: Double?
         get() = report.rFactor.takeIf { it != 0F }?.toDouble()
 
+    var lastMos: Double? = null
+    var lastRFactor: Double? = null
+
     var reportCount = 0
     var badReportCount = 0
 
@@ -58,6 +61,9 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
 
         reportCount++
         rFactorThreshold?.let { if (report.rFactor in 0F..rFactorThreshold) badReportCount++ }
+
+        lastMos = payload.mos.toDouble()
+        lastRFactor = payload.rFactor.toDouble()
     }
 
     fun merge(other: RtprSession) {
