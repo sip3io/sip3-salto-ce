@@ -23,6 +23,7 @@ import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.datagram.DatagramSocket
+import io.vertx.core.datagram.DatagramSocketOptions
 import io.vertx.core.json.JsonObject
 import io.vertx.core.net.SocketAddress
 import io.vertx.kotlin.ext.mongo.updateOptionsOf
@@ -88,7 +89,11 @@ class ManagementSocket : AbstractVerticle() {
     }
 
     private fun startUdpServer() {
-        socket = vertx.createDatagramSocket()
+        val options = DatagramSocketOptions().apply {
+            isIpV6 = uri.host.matches(Regex("\\[.*]"))
+        }
+
+        socket = vertx.createDatagramSocket(options)
 
         socket.handler { packet ->
             val buffer = packet.data()
