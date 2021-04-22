@@ -34,7 +34,7 @@ import java.net.URI
  */
 @Instance(singleton = true)
 @ConditionalOnProperty("/management")
-class ManagementSocket : AbstractVerticle() {
+open class ManagementSocket : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
@@ -52,7 +52,7 @@ class ManagementSocket : AbstractVerticle() {
 
     private val remoteHosts = mutableMapOf<String, RemoteHost>()
     private lateinit var socket: DatagramSocket
-    private var sendSdpSessions = false
+    protected var sendSdpSessions = false
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
@@ -80,14 +80,16 @@ class ManagementSocket : AbstractVerticle() {
         }
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
-            if (sendSdpSessions) {
+            try {
                 val mediaControl = event.body()
                 publishMediaControl(mediaControl)
+            } catch (e: Exception) {
+                logger.error(e) { "ManagementSocket 'publishMediaControl()' failed." }
             }
         }
     }
 
-    private fun startUdpServer() {
+    open fun startUdpServer() {
         socket = vertx.createDatagramSocket()
 
         socket.handler { packet ->
@@ -110,7 +112,7 @@ class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    private fun handle(message: JsonObject, socketAddress: SocketAddress) {
+    open fun handle(message: JsonObject, socketAddress: SocketAddress) {
         val type = message.getString("type")
         val payload = message.getJsonObject("payload")
 
@@ -144,7 +146,7 @@ class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    private fun updateHost(host: JsonObject) {
+    open fun updateHost(host: JsonObject) {
         if (client != null) {
             val query = JsonObject().apply {
                 put("name", host.getString("name"))
@@ -157,7 +159,9 @@ class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    private fun publishMediaControl(mediaControl: MediaControl) {
+    open fun publishMediaControl(mediaControl: MediaControl) {
+        if (!sendSdpSessions) return
+
         val buffer = JsonObject().apply {
             put("type", TYPE_MEDIA_CONTROL)
             put("payload", JsonObject.mapFrom(mediaControl))
