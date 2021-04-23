@@ -69,6 +69,7 @@ class Server : AbstractVerticle() {
 
     private fun startUdpServer() {
         val options = DatagramSocketOptions().apply {
+            isIpV6 = uri.host.matches(Regex("\\[.*]"))
             bufferSize?.let { receiveBufferSize = it }
         }
 
