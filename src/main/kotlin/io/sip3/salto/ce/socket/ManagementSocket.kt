@@ -52,7 +52,7 @@ open class ManagementSocket : AbstractVerticle() {
 
     private val remoteHosts = mutableMapOf<String, RemoteHost>()
     private lateinit var socket: DatagramSocket
-    protected var sendSdpSessions = false
+    private var sendSdpSessions = false
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
