@@ -43,6 +43,7 @@ class MongoCollectionManager : CoroutineVerticle() {
     companion object {
 
         const val DEFAULT_MAX_COLLECTIONS = 30
+        const val COLLECTIONS_AHEAD: Int = 4
     }
 
     private var timeSuffix: DateFormat = SimpleDateFormat("yyyyMMdd").apply {
@@ -94,8 +95,7 @@ class MongoCollectionManager : CoroutineVerticle() {
     private suspend fun manageCollections() {
         val now = System.currentTimeMillis()
 
-        val currentTimeSuffix = timeSuffix.format(now)
-        val followingTimeSuffix = timeSuffix.format(now + timeSuffixInterval)
+        val timeSuffixes = (0..COLLECTIONS_AHEAD).map { timeSuffix.format(now + timeSuffixInterval * it) }
 
         // Drop and create collections
         collections.forEach { collection ->
@@ -104,8 +104,9 @@ class MongoCollectionManager : CoroutineVerticle() {
                 dropOldCollections(collection as JsonObject)
 
                 // Create new collections if needed
-                createCollectionIfNeeded(collection.getString("prefix") + "_$currentTimeSuffix", collection.getJsonObject("indexes"))
-                createCollectionIfNeeded(collection.getString("prefix") + "_$followingTimeSuffix", collection.getJsonObject("indexes"))
+                timeSuffixes.forEach {
+                    createCollectionIfNeeded(collection.getString("prefix") + "_$it", collection.getJsonObject("indexes"))
+                }
             } catch (e: Exception) {
                 logger.error(e) { "MongoCollectionManager 'manageCollections()' failed." }
             }
@@ -116,7 +117,7 @@ class MongoCollectionManager : CoroutineVerticle() {
         client.collections.await()
             .filter { name -> name.startsWith(collection.getString("prefix")) }
             .sortedDescending()
-            .drop(collection.getInteger("max-collections") ?: DEFAULT_MAX_COLLECTIONS)
+            .drop((collection.getInteger("max-collections") ?: DEFAULT_MAX_COLLECTIONS) + COLLECTIONS_AHEAD)
             .forEach { name -> client.dropCollection(name).await() }
     }
 
@@ -133,7 +134,7 @@ class MongoCollectionManager : CoroutineVerticle() {
         // Create collection indexes
         if (indexes != null) {
             val indexCount = client.listIndexes(name).await().count()
-            if (indexCount <= 1) {
+            if (indexCount < 2) {
                 createIndexes(name, indexes)
             }
         }
