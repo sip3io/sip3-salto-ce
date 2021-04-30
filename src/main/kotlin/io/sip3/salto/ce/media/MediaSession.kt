@@ -24,7 +24,7 @@ import kotlin.math.min
 
 class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl: MediaControl) {
 
-    var createdAt: Long = System.currentTimeMillis()
+    var createdAt: Long = 0L
     var terminatedAt: Long = 0L
     var updatedAt: Long = System.currentTimeMillis()
 
@@ -90,7 +90,7 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl:
             RtpReportPayload.SOURCE_RTCP -> addRtcpSession(session)
         }
 
-        if (createdAt > session.createdAt) createdAt = session.createdAt
+        if (createdAt > session.createdAt || createdAt == 0L) createdAt = session.createdAt
         if (terminatedAt < session.terminatedAt) terminatedAt = session.terminatedAt
 
         if (srcAddr.host == null) updateHost(srcAddr, session)
