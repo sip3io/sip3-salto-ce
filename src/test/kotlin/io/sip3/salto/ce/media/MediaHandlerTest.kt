@@ -362,7 +362,9 @@ class MediaHandlerTest : VertxTest() {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.key == "src_host" })
-                                assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
+                                assertTrue(tags.any { tag ->
+                                    tag.key == "codec" && tag.value == MEDIA_CONTROL.sdpSession.codecs.first().name
+                                })
                             }
                             context.completeNow()
                         }
