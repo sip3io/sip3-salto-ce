@@ -37,7 +37,7 @@ server:
 #    expiration-delay: 1000
 #    response-timeout: 3000
 #    aggregation-timeout: 60000
-#    termination-timeout: 2000
+#    termination-timeout: 4500
 #    transaction-exclusions: [exclude-me]
 #    save-sip-message-payload-mode: 0
 #  call:
