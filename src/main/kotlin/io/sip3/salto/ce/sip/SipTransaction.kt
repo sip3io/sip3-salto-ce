@@ -125,9 +125,11 @@ class SipTransaction {
                 when (statusCode) {
                     100 -> {
                         if (tryingAt == null) {
-                            if (extend) response = message
                             tryingAt = packet.createdAt
-                            if (state == UNKNOWN) state = TRYING
+                            if (terminatedAt == null) {
+                                if (extend) response = message
+                                if (state == UNKNOWN) state = TRYING
+                            }
                         }
                     }
                     in 180..183 -> {
@@ -143,84 +145,84 @@ class SipTransaction {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
-                        } else {
-                            if (extend) response = message
-                            terminatedAt = packet.createdAt
-                            state = SUCCEED
+                        }
 
-                            if (cseqMethod == "REGISTER") {
-                                message.expires()?.let { expires = it }
-                            }
+                        terminatedAt = packet.createdAt
+                        if (extend) response = message
+                        state = SUCCEED
+
+                        if (cseqMethod == "REGISTER") {
+                            message.expires()?.let { expires = it }
                         }
                     }
                     in 300..399 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
-                        } else {
-                            if (extend) response = message
-                            terminatedAt = packet.createdAt
-                            state = REDIRECTED
                         }
+
+                        terminatedAt = packet.createdAt
+                        if (extend) response = message
+                        state = REDIRECTED
                     }
                     401, 407 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
-                        } else {
-                            if (extend) response = message
-                            terminatedAt = packet.createdAt
-                            state = UNAUTHORIZED
                         }
+
+                        terminatedAt = packet.createdAt
+                        if (extend) response = message
+                        state = UNAUTHORIZED
                     }
                     487 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
-                        } else {
-                            if (extend) response = message
-                            terminatedAt = packet.createdAt
-                            state = CANCELED
                         }
+
+                        terminatedAt = packet.createdAt
+                        if (extend) response = message
+                        state = CANCELED
                     }
                     in 400..499 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
-                        } else {
-                            if (extend) response = message
-                            terminatedAt = packet.createdAt
-
-                            attributes[Attributes.error_code] = statusCode.toString()
-                            attributes[Attributes.error_type] = "client"
-                            state = FAILED
                         }
+
+                        terminatedAt = packet.createdAt
+                        if (extend) response = message
+                        state = FAILED
+
+                        attributes[Attributes.error_code] = statusCode.toString()
+                        attributes[Attributes.error_type] = "client"
                     }
                     in 500..599 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
-                        } else {
-                            if (extend) response = message
-                            terminatedAt = packet.createdAt
-
-                            attributes[Attributes.error_code] = statusCode.toString()
-                            attributes[Attributes.error_type] = "server"
-                            state = FAILED
                         }
+
+                        terminatedAt = packet.createdAt
+                        if (extend) response = message
+                        state = FAILED
+
+                        attributes[Attributes.error_code] = statusCode.toString()
+                        attributes[Attributes.error_type] = "server"
                     }
                     in 600..699 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             attributes[Attributes.retransmits] = true
-                        } else {
-                            if (extend) response = message
-                            terminatedAt = packet.createdAt
-
-                            attributes[Attributes.error_code] = statusCode.toString()
-                            attributes[Attributes.error_type] = "global"
-                            state = FAILED
                         }
+
+                        terminatedAt = packet.createdAt
+                        if (extend) response = message
+                        state = FAILED
+
+                        attributes[Attributes.error_code] = statusCode.toString()
+                        attributes[Attributes.error_type] = "global"
                     }
                 }
             }

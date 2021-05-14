@@ -23,6 +23,7 @@ import io.sip3.commons.util.toIntRange
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localReply
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.address
 import io.sip3.salto.ce.util.defineRtcpPort
@@ -41,9 +42,15 @@ class SdpHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
+    private var replaceMediaAddress = false
+
     private var codecs = mapOf<String, Codec>()
 
     override fun start() {
+        config().getJsonObject("sdp")?.getBoolean("replace-media-address")?.let {
+            replaceMediaAddress = it
+        }
+
         readCodecs(config())
         vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
             try {
@@ -98,6 +105,8 @@ class SdpHandler : AbstractVerticle() {
     private fun handle(transaction: SipTransaction): SdpSession? {
         logger.debug { "Execute handle(). TransactionId: ${transaction.id}" }
         val session = SdpSessionDescription().apply {
+            srcAddr = transaction.srcAddr
+            dstAddr = transaction.dstAddr
             callId = transaction.callId
             try {
                 request = transaction.request?.sessionDescription()?.getMediaDescription("audio")
@@ -117,7 +126,7 @@ class SdpHandler : AbstractVerticle() {
         }
 
         defineCodecs(session)
-        return session.sdpSession()
+        return session.sdpSession(replaceMediaAddress)
     }
 
     private fun defineCodecs(session: SdpSessionDescription) {
@@ -158,6 +167,9 @@ class SdpHandler : AbstractVerticle() {
             const val DEFAULT_PTIME = 20
         }
 
+        lateinit var srcAddr: Address
+        lateinit var dstAddr: Address
+
         lateinit var callId: String
         lateinit var codecs: List<Codec>
 
@@ -174,16 +186,16 @@ class SdpHandler : AbstractVerticle() {
                 ?: DEFAULT_PTIME
         }
 
-        fun sdpSession(): SdpSession {
+        fun sdpSession(replaceMediaAddress: Boolean): SdpSession {
             return SdpSession().apply {
                 src = MediaAddress().apply {
-                    addr = request!!.address()
+                    addr = if (replaceMediaAddress) srcAddr.addr else request!!.address()
                     rtpPort = request!!.port
                     rtcpPort = request!!.defineRtcpPort(isRtcpMux)
                 }
 
                 dst = MediaAddress().apply {
-                    addr = response!!.address()
+                    addr = if (replaceMediaAddress) dstAddr.addr else response!!.address()
                     rtpPort = response!!.port
                     rtcpPort = response!!.defineRtcpPort(isRtcpMux)
                 }

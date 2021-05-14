@@ -41,6 +41,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
@@ -73,6 +74,7 @@ open class RtprHandler : AbstractVerticle() {
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
     private var rFactorThreshold: Float = 85F
+    private var rFactorDistributions = TreeSet<Int>()
 
     private var instances: Int = 1
 
@@ -98,9 +100,11 @@ open class RtprHandler : AbstractVerticle() {
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
             }
-
             config.getFloat("r-factor-threshold")?.let {
                 rFactorThreshold = it
+            }
+            config.getJsonArray("r-factor-distributions")?.forEach {
+                rFactorDistributions.add(it as Int)
             }
         }
 
@@ -294,12 +298,13 @@ open class RtprHandler : AbstractVerticle() {
             Metrics.summary(prefix + REJECTED_PACKETS, attributes).record(rejectedPacketCount.toDouble())
 
             if (callId != null && codecName != null) {
+                Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
                 Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
-
-                Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
                 Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
 
-                Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
+                rFactorDistributions.ceiling(rFactor.toInt())
+                    ?.let { attributes[Attributes.distribution] = it }
+                Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
             } else {
                 Metrics.counter(prefix + UNDEFINED, attributes).increment()
             }
