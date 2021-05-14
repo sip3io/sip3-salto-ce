@@ -197,7 +197,7 @@ open class MediaHandler : AbstractVerticle() {
             val attributes = mutableMapOf<String, Any>().apply {
                 srcAddr.host?.let { put("src_host", it) }
                 dstAddr.host?.let { put("dst_host", it) }
-                codecNames.firstOrNull()?.let { put("codec_name", it) }
+                codecNames.firstOrNull()?.let { put("codec", it) }
             }
 
             Metrics.summary(REPORTS, attributes).record(reportCount.toDouble())
