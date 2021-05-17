@@ -337,7 +337,7 @@ open class SipCallHandler : AbstractVerticle() {
 
         session.duration?.let { duration ->
             durationDistributions.ceilingKey(duration)
-                ?.let { attributes[Attributes.distribution] = it }
+                ?.let { attributes[Attributes.distribution] = durationDistributions[it]!! }
 
             Metrics.summary(DURATION, attributes).record(duration.toDouble())
         }
