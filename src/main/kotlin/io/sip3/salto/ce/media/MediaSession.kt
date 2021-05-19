@@ -85,7 +85,7 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl:
         get() = terminatedAt - createdAt
 
     fun add(session: RtprSession) {
-        when (session.report.source) {
+        when (session.source) {
             RtpReportPayload.SOURCE_RTP -> addRtpSession(session)
             RtpReportPayload.SOURCE_RTCP -> addRtcpSession(session)
         }

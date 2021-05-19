@@ -144,7 +144,7 @@ open class MediaHandler : AbstractVerticle() {
                 mediaSession.updatedAt = System.currentTimeMillis()
 
                 if (mediaSession.mediaControl.recording == null
-                    && rtprSession.report.source == RtpReportPayload.SOURCE_RTP) {
+                    && rtprSession.source == RtpReportPayload.SOURCE_RTP) {
 
                     vertx.eventBus().localSend(RoutesCE.media + "_update", Pair(rtprSession, mediaSession.mediaControl))
                 }
@@ -161,7 +161,7 @@ open class MediaHandler : AbstractVerticle() {
             val callId = rtprSession.callId!!
             val mediaSession = media.getOrPut(callId) { mutableMapOf() }
                 .getOrPut(legId) {
-                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${rtprSession.report.source}" }
+                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${rtprSession.source}" }
                     MediaSession(srcAddr, dstAddr, rtprSession.mediaControl!!)
                 }
             mediaSession.add(rtprSession)
