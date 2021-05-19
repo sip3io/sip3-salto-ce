@@ -276,10 +276,10 @@ open class RtprHandler : AbstractVerticle() {
         writeAttributes(session)
 
         if (cumulativeMetrics) {
-            val prefix = when (session.report.source) {
+            val prefix = when (session.source) {
                 RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
                 RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp"
-                else -> throw IllegalArgumentException("Unsupported RTP Report source: '${session.report.source}'")
+                else -> throw IllegalArgumentException("Unsupported RTP Report source: '${session.source}'")
             }
             calculateMetrics(prefix, session.srcAddr, session.dstAddr, session.report)
         }

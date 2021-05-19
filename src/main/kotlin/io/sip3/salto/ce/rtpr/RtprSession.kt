@@ -30,6 +30,9 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     var dstAddr = packet.dstAddr
     lateinit var report: RtpReportPayload
 
+    val source: Byte
+        get() = report.source
+
     var mediaControl: MediaControl? = null
     val codecNames = mutableSetOf<String>()
     val callId: String?
