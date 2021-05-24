@@ -78,7 +78,7 @@ open class RtprHandler : AbstractVerticle() {
 
     private var instances: Int = 1
 
-    private var mediaControls = mutableMapOf<Long, MediaControl>()
+    private var mediaControls = mutableMapOf<String, MediaControl>()
     private var rtp = mutableMapOf<Long, RtprSession>()
     private var rtcp = mutableMapOf<Long, RtprSession>()
 
@@ -373,7 +373,7 @@ open class RtprHandler : AbstractVerticle() {
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
-    private fun Address.sdpSessionId(): Long {
+    private fun Address.sdpSessionId(): String {
         return sdpSessionId(addr, port)
     }
 }
