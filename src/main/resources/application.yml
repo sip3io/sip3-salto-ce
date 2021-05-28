@@ -27,6 +27,7 @@ server:
 #attributes:
 #  record-ip-addresses: true
 #  record-call-users: true
+#  check-period: 5000
 #sip:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]

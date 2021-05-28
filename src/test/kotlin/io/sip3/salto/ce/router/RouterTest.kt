@@ -79,49 +79,6 @@ class RouterTest : VertxTest() {
     }
 
     @Test
-    fun `Send packet attributes without host mapping`() {
-        runTest(
-            deploy = {
-                vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                    put("attributes", JsonObject().apply {
-                        put("record-ip-addresses", true)
-                    })
-                })
-            },
-            execute = {
-                val sender = Address().apply {
-                    addr = "127.0.0.1"
-                    port = 5060
-                }
-                val packet = Packet().apply {
-                    this.srcAddr = Address().apply {
-                        addr = "29.11.19.88"
-                        port = 30
-                    }
-                    this.dstAddr = Address().apply {
-                        addr = "23.08.20.15"
-                        port = 3
-                    }
-                    protocolCode = 3
-                }
-                vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet)))
-            },
-            assert = {
-                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
-                    val (prefix, attributes) = event.body()
-                    context.verify {
-                        assertEquals("ip", prefix)
-                        assertEquals(2, attributes.size)
-                        assertEquals("29.11.19.88", attributes["src_addr"])
-                        assertEquals("23.08.20.15", attributes["dst_addr"])
-                    }
-                    context.completeNow()
-                }
-            }
-        )
-    }
-
-    @Test
     fun `Route SIP packet with host mapping`() {
         val host = JsonObject().apply {
             put("name", "test")
@@ -174,67 +131,6 @@ class RouterTest : VertxTest() {
                             context.completeNow()
                         }
                     }
-                }
-            }
-        )
-    }
-
-    @Test
-    fun `Send packet attributes with host mapping`() {
-        val host = JsonObject().apply {
-            put("name", "test")
-            put("sip", JsonArray().apply {
-                add("29.11.19.88")
-            })
-        }
-
-        runTest(
-            deploy = {
-                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                    put("db_name", "sip3")
-                })
-                mongo.save("hosts", host).await()
-
-                vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                    put("mongo", JsonObject().apply {
-                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db", "sip3")
-                    })
-                    put("attributes", JsonObject().apply {
-                        put("record-ip-addresses", true)
-                    })
-                })
-            },
-            execute = {
-                val sender = Address().apply {
-                    addr = "127.0.0.1"
-                    port = 5060
-                }
-                val packet = Packet().apply {
-                    this.srcAddr = Address().apply {
-                        addr = "29.11.19.88"
-                        port = 30
-                    }
-                    this.dstAddr = Address().apply {
-                        addr = "23.08.20.15"
-                        port = 3
-                    }
-                    protocolCode = 3
-                }
-                vertx.setPeriodic(100) { vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet))) }
-            },
-            assert = {
-                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
-                    val (prefix, attributes) = event.body()
-                    context.verify {
-                        assertEquals("ip", prefix)
-                        assertEquals(3, attributes.size)
-                        assertEquals("29.11.19.88", attributes["src_addr"])
-                        assertEquals("test", attributes["src_host"])
-                        assertEquals("23.08.20.15", attributes["dst_addr"])
-                    }
-                    context.completeNow()
                 }
             }
         )

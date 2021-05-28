@@ -18,20 +18,27 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
+import io.mockk.*
+import io.mockk.junit5.MockKExtension
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
 
+@ExtendWith(MockKExtension::class)
 class SipTransactionHandlerTest : VertxTest() {
 
     companion object {
@@ -235,6 +242,14 @@ class SipTransactionHandlerTest : VertxTest() {
         }
     }
 
+    @BeforeEach
+    fun `Mock all`() {
+        mockkConstructor(AttributesRegistry::class)
+        every {
+            anyConstructed<AttributesRegistry>().handle(any(), any())
+        } just Runs
+    }
+
     @Test
     fun `Deploy multiple 'SipTransactionHandler' instances`() {
         runTest(
@@ -380,5 +395,11 @@ class SipTransactionHandlerTest : VertxTest() {
     private fun handlerMessage(packet: Packet): Pair<Packet, SIPMessage> {
         val message = StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         return Pair(packet, message)
+    }
+
+
+    @AfterEach
+    fun `Unmock all`() {
+        unmockkAll()
     }
 }

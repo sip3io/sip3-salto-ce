@@ -17,19 +17,26 @@
 package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.parser.StringMsgParser
+import io.mockk.*
+import io.mockk.junit5.MockKExtension
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
 
+@ExtendWith(MockKExtension::class)
 class SipCallHandlerTest : VertxTest() {
 
     companion object {
@@ -365,6 +372,14 @@ class SipCallHandlerTest : VertxTest() {
         }
     }
 
+    @BeforeEach
+    fun `Mock all`() {
+        mockkConstructor(AttributesRegistry::class)
+        every {
+            anyConstructed<AttributesRegistry>().handle(any(), any())
+        } just Runs
+    }
+
     @Test
     fun `Deploy multiple 'SipCallHandler' instances`() {
         runTest(
@@ -413,7 +428,7 @@ class SipCallHandlerTest : VertxTest() {
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                    var (collection, operation) = event.body()
+                    val (collection, operation) = event.body()
 
                     val document = operation.getJsonObject("document")
 
@@ -460,7 +475,7 @@ class SipCallHandlerTest : VertxTest() {
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                    var (collection, operation) = event.body()
+                    val (collection, operation) = event.body()
 
                     val document = operation.getJsonObject("document")
 
@@ -611,5 +626,10 @@ class SipCallHandlerTest : VertxTest() {
     private fun SipTransaction.addPacket(packet: Packet) {
         val message = StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         addMessage(packet, message)
+    }
+
+    @AfterEach
+    fun `Unmock all`() {
+        unmockkAll()
     }
 }

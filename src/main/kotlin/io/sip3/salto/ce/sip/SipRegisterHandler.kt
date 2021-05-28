@@ -23,6 +23,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -74,6 +75,8 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var activeRegistrations = mutableMapOf<String, SipRegistration>()
     private var activeSessions = mutableMapOf<String, SipSession>()
 
+    private lateinit var attributesRegistry: AttributesRegistry
+
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
@@ -101,6 +104,8 @@ open class SipRegisterHandler : AbstractVerticle() {
         config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
             recordCallUsersAttributes = it
         }
+
+        attributesRegistry = AttributesRegistry(vertx)
 
         vertx.setPeriodic(trimToSizeDelay) {
             activeRegistrations = MutableMapUtil.mutableMapOf(activeRegistrations)
@@ -285,7 +290,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 }
             }
 
-        vertx.eventBus().localSend(RoutesCE.attributes, Pair("sip", attributes))
+        attributesRegistry.handle("sip", attributes)
     }
 
     open fun writeToDatabase(prefix: String, registration: SipRegistration, upsert: Boolean = false) {
