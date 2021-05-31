@@ -57,7 +57,7 @@ class RtprHandlerTest : VertxTest() {
             callId = "callId_uuid@domain.io"
             codecName = "PCMA"
 
-            expectedPacketCount = 3
+            expectedPacketCount = 40
             receivedPacketCount = 4
             lostPacketCount = 5
             rejectedPacketCount = 6
@@ -84,7 +84,7 @@ class RtprHandlerTest : VertxTest() {
             payloadType = 0
             ssrc = 2
 
-            expectedPacketCount = 3
+            expectedPacketCount = 40
             receivedPacketCount = 4
             lostPacketCount = 5
             rejectedPacketCount = 6
@@ -425,6 +425,59 @@ class RtprHandlerTest : VertxTest() {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
+                            }
+                            context.completeNow()
+                        }
+                }
+            }
+        )
+    }
+
+
+    @Test
+    fun `Validate min expected packets for QoS metrics`() {
+        val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
+        Metrics.addRegistry(registry)
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
+                    put("media", JsonObject().apply {
+                        put("rtp-r", JsonObject().apply {
+                            put("expiration-delay", 100L)
+                            put("aggregation-timeout", 200L)
+                            put("min-expected-packets", 41)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
+                vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_2)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, _) = event.body()
+
+                    context.verify {
+                        assertTrue(collection.startsWith("rtpr_rtcp_raw"))
+                    }
+                }
+
+                vertx.setPeriodic(200L) {
+                    registry.find("rtpr_rtcp_expected-packets").summaries()
+                        .firstOrNull {
+                            it.totalAmount() == 40.0
+                        }
+                        ?.let { summary ->
+                            context.verify {
+                                val tags = summary.id.tags
+                                assertTrue(tags.isNotEmpty())
+                                assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
+
+                                assertTrue(registry.find("rtpr_rtcp_r-factor")
+                                    .summaries()
+                                    .none { it.mean() > 90 })
                             }
                             context.completeNow()
                         }

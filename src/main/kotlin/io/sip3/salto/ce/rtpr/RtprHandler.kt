@@ -69,10 +69,11 @@ open class RtprHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
-    private var cumulativeMetrics = true
     private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
+    private var cumulativeMetrics = true
+    private var minExpectedPackets = 10
     private var rFactorThreshold: Float = 85F
     private var rFactorDistributions = TreeSet<Int>()
 
@@ -88,9 +89,6 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         config().getJsonObject("media")?.getJsonObject("rtp-r")?.let { config ->
-            config.getBoolean("cumulative-metrics")?.let {
-                cumulativeMetrics = it
-            }
             config.getLong("trim-to-size-delay")?.let {
                 trimToSizeDelay = it
             }
@@ -99,6 +97,12 @@ open class RtprHandler : AbstractVerticle() {
             }
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
+            }
+            config.getBoolean("cumulative-metrics")?.let {
+                cumulativeMetrics = it
+            }
+            config.getInteger("min-expected-packets")?.let {
+                minExpectedPackets = it
             }
             config.getFloat("r-factor-threshold")?.let {
                 rFactorThreshold = it
@@ -300,11 +304,14 @@ open class RtprHandler : AbstractVerticle() {
             if (callId != null && codecName != null) {
                 Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
                 Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
-                Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
 
-                rFactorDistributions.ceiling(rFactor.toInt())
-                    ?.let { attributes[Attributes.distribution] = it }
-                Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
+                if(report.expectedPacketCount >= minExpectedPackets) {
+                    Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
+
+                    rFactorDistributions.ceiling(rFactor.toInt())
+                        ?.let { attributes[Attributes.distribution] = it }
+                    Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
+                }
             } else {
                 Metrics.counter(prefix + UNDEFINED, attributes).increment()
             }

@@ -70,6 +70,7 @@ server:
 #    expiration-delay: 4000
 #    aggregation-timeout: 30000
 #    cumulative-metrics: true
+#    min-expected-packets: 10
 #    r-factor-distributions: [30, 50, 75, 95]
 
 #! Metrics
