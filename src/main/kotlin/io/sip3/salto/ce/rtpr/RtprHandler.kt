@@ -73,7 +73,7 @@ open class RtprHandler : AbstractVerticle() {
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
     private var cumulativeMetrics = true
-    private var minExpectedPackets = 10
+    private var minExpectedPackets = 100
     private var rFactorThreshold: Float = 85F
     private var rFactorDistributions = TreeSet<Int>()
 
@@ -294,6 +294,10 @@ open class RtprHandler : AbstractVerticle() {
             src.host?.let { put("src_host", it) }
             dst.host?.let { put("dst_host", it) }
             report.codecName?.let { put("codec", it) }
+
+            if(cumulativeMetrics && report.expectedPacketCount < minExpectedPackets) {
+                put(Attributes.short, true)
+            }
         }
 
         report.apply {
@@ -304,14 +308,11 @@ open class RtprHandler : AbstractVerticle() {
             if (callId != null && codecName != null) {
                 Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
                 Metrics.summary(prefix + JITTER, attributes).record(avgJitter.toDouble())
+                Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
 
-                if(report.expectedPacketCount >= minExpectedPackets) {
-                    Metrics.summary(prefix + MOS, attributes).record(mos.toDouble())
-
-                    rFactorDistributions.ceiling(rFactor.toInt())
-                        ?.let { attributes[Attributes.distribution] = it }
-                    Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
-                }
+                rFactorDistributions.ceiling(rFactor.toInt())
+                    ?.let { attributes[Attributes.distribution] = it }
+                Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
             } else {
                 Metrics.counter(prefix + UNDEFINED, attributes).increment()
             }
@@ -323,6 +324,10 @@ open class RtprHandler : AbstractVerticle() {
         val attributes = mutableMapOf<String, Any>().apply {
             put(Attributes.mos, report.mos)
             put(Attributes.r_factor, report.rFactor)
+
+            if(cumulativeMetrics && report.expectedPacketCount < minExpectedPackets) {
+                put(Attributes.short, true)
+            }
         }
 
         val prefix = when (report.source) {

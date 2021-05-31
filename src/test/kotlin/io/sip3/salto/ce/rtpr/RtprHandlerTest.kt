@@ -57,7 +57,7 @@ class RtprHandlerTest : VertxTest() {
             callId = "callId_uuid@domain.io"
             codecName = "PCMA"
 
-            expectedPacketCount = 40
+            expectedPacketCount = 100
             receivedPacketCount = 4
             lostPacketCount = 5
             rejectedPacketCount = 6
@@ -84,7 +84,7 @@ class RtprHandlerTest : VertxTest() {
             payloadType = 0
             ssrc = 2
 
-            expectedPacketCount = 40
+            expectedPacketCount = 100
             receivedPacketCount = 4
             lostPacketCount = 5
             rejectedPacketCount = 6
@@ -446,7 +446,7 @@ class RtprHandlerTest : VertxTest() {
                         put("rtp-r", JsonObject().apply {
                             put("expiration-delay", 100L)
                             put("aggregation-timeout", 200L)
-                            put("min-expected-packets", 41)
+                            put("min-expected-packets", 101)
                         })
                     })
                 })
@@ -465,19 +465,14 @@ class RtprHandlerTest : VertxTest() {
                 }
 
                 vertx.setPeriodic(200L) {
-                    registry.find("rtpr_rtcp_expected-packets").summaries()
-                        .firstOrNull {
-                            it.totalAmount() == 40.0
-                        }
+                    registry.find("rtpr_rtcp_r-factor").summaries()
+                        .firstOrNull { it.mean().toFloat() == 93.2F }
                         ?.let { summary ->
                             context.verify {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
-
-                                assertTrue(registry.find("rtpr_rtcp_r-factor")
-                                    .summaries()
-                                    .none { it.mean() > 90 })
+                                assertTrue(tags.any { it.key == Attributes.short && it.value == "true"})
                             }
                             context.completeNow()
                         }
