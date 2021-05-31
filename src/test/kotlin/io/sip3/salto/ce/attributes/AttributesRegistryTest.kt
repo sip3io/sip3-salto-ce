@@ -18,27 +18,27 @@ package io.sip3.salto.ce.attributes
 
 import io.sip3.commons.domain.Attribute
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
-class AttributesHandlerTest : VertxTest() {
+class AttributesRegistryTest : VertxTest() {
 
     @Test
     fun `Write STRING attribute`() {
+        var attributesRegistry: AttributesRegistry? = null
         runTest(
             deploy = {
-                vertx.deployTestVerticle(AttributesHandler::class)
+                attributesRegistry = AttributesRegistry(vertx)
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to "string")
-                vertx.eventBus().localSend(RoutesCE.attributes, Pair(Attribute.TYPE_STRING, attributes))
+                attributesRegistry?.handle(Attribute.TYPE_STRING, attributes)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                    var (collection, operation) = event.body()
+                    val (collection, operation) = event.body()
 
                     val filter = operation.getJsonObject("filter")
                     val document = operation.getJsonObject("document")
@@ -58,17 +58,18 @@ class AttributesHandlerTest : VertxTest() {
 
     @Test
     fun `Write NUMBER attribute`() {
+        var attributesRegistry: AttributesRegistry? = null
         runTest(
             deploy = {
-                vertx.deployTestVerticle(AttributesHandler::class)
+                attributesRegistry = AttributesRegistry(vertx)
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to 42)
-                vertx.eventBus().localSend(RoutesCE.attributes, Pair(Attribute.TYPE_NUMBER, attributes))
+                attributesRegistry?.handle(Attribute.TYPE_NUMBER, attributes)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                    var (collection, operation) = event.body()
+                    val (collection, operation) = event.body()
 
                     val filter = operation.getJsonObject("filter")
                     val document = operation.getJsonObject("document")
@@ -87,17 +88,18 @@ class AttributesHandlerTest : VertxTest() {
 
     @Test
     fun `Write BOOLEAN attribute`() {
+        var attributesRegistry: AttributesRegistry? = null
         runTest(
             deploy = {
-                vertx.deployTestVerticle(AttributesHandler::class)
+                attributesRegistry = AttributesRegistry(vertx)
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to true)
-                vertx.eventBus().localSend(RoutesCE.attributes, Pair(Attribute.TYPE_BOOLEAN, attributes))
+                attributesRegistry?.handle(Attribute.TYPE_BOOLEAN, attributes)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                    var (collection, operation) = event.body()
+                    val (collection, operation) = event.body()
 
                     val filter = operation.getJsonObject("filter")
                     val document = operation.getJsonObject("document")

@@ -23,6 +23,7 @@ import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.udf.UdfExecutor
@@ -48,6 +49,7 @@ open class Router : AbstractVerticle() {
     val packetsRouted = Metrics.counter("packets_routed")
 
     lateinit var udfExecutor: UdfExecutor
+    private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
@@ -66,6 +68,7 @@ open class Router : AbstractVerticle() {
         }
 
         udfExecutor = UdfExecutor(vertx)
+        attributesRegistry = AttributesRegistry(vertx)
 
         vertx.eventBus().localConsumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
             val (sender, packets) = event.body()
@@ -146,7 +149,7 @@ open class Router : AbstractVerticle() {
             dst.host?.let { put(Attributes.dst_host, it) }
         }
 
-        vertx.eventBus().localSend(RoutesCE.attributes, Pair("ip", attributes))
+        attributesRegistry.handle("ip", attributes)
     }
 
     open fun updateHostMap() {

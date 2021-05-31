@@ -25,6 +25,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.rtpr.RtprSession
 import io.sip3.salto.ce.util.rtpAddress
 import io.vertx.core.AbstractVerticle
@@ -66,6 +67,8 @@ open class MediaHandler : AbstractVerticle() {
 
     private var media = mutableMapOf<String, MutableMap<String, MediaSession>>()
 
+    private lateinit var attributesRegistry: AttributesRegistry
+
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
@@ -82,10 +85,11 @@ open class MediaHandler : AbstractVerticle() {
                 aggregationTimeout = it
             }
         }
-
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
         }
+
+        attributesRegistry = AttributesRegistry(vertx)
 
         vertx.setPeriodic(trimToSizeDelay) {
             media = MutableMapUtil.mutableMapOf(media)
@@ -219,7 +223,7 @@ open class MediaHandler : AbstractVerticle() {
             put(Attributes.bad_report_fraction, session.badReportFraction)
         }
 
-        vertx.eventBus().localSend(RoutesCE.attributes, Pair(PREFIX, attributes))
+        attributesRegistry.handle(PREFIX, attributes)
     }
 
     open fun writeToDatabase(prefix: String, session: MediaSession) {

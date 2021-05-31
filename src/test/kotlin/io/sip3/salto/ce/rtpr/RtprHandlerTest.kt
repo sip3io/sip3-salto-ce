@@ -20,20 +20,26 @@ import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.MockClock
 import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.mockk.*
+import io.mockk.junit5.MockKExtension
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
-import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
 
+@ExtendWith(MockKExtension::class)
 class RtprHandlerTest : VertxTest() {
 
     companion object {
@@ -146,6 +152,14 @@ class RtprHandlerTest : VertxTest() {
 
             recording = Recording()
         }
+    }
+
+    @BeforeEach
+    fun `Mock all`() {
+        mockkConstructor(AttributesRegistry::class)
+        every {
+            anyConstructed<AttributesRegistry>().handle(any(), any())
+        } just Runs
     }
 
     @Test
@@ -466,69 +480,8 @@ class RtprHandlerTest : VertxTest() {
         )
     }
 
-    @Test
-    fun `Update RTP attributes`() {
-        runTest(
-            deploy = {
-                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
-                    put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("expiration-delay", 100L)
-                            put("aggregation-timeout", 200L)
-                        })
-                    })
-                })
-            },
-            execute = {
-                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
-                vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
-            },
-            assert = {
-                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
-                    val (prefix, attributes) = event.body()
-
-                    context.verify {
-                        assertEquals("rtp", prefix)
-                        assertEquals(2, attributes.size)
-                        assertEquals(12.0F, attributes[Attributes.r_factor])
-                        assertEquals(13.0F, attributes[Attributes.mos])
-                    }
-                    context.completeNow()
-                }
-            }
-        )
-    }
-
-    @Test
-    fun `Update RTCP attributes`() {
-        runTest(
-            deploy = {
-                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
-                    put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("expiration-delay", 100L)
-                            put("aggregation-timeout", 200L)
-                        })
-                    })
-                })
-            },
-            execute = {
-                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
-                vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_2))
-            },
-            assert = {
-                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
-                    val (prefix, attributes) = event.body()
-
-                    context.verify {
-                        assertEquals("rtcp", prefix)
-                        assertEquals(2, attributes.size)
-                        assertEquals(93.2F, attributes[Attributes.r_factor])
-                        assertEquals(4.4092855F, attributes[Attributes.mos])
-                    }
-                    context.completeNow()
-                }
-            }
-        )
+    @AfterEach
+    fun `Unmock all`() {
+        unmockkAll()
     }
 }
