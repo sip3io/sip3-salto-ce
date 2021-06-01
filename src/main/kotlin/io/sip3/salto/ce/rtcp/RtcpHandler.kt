@@ -271,7 +271,7 @@ open class RtcpHandler : AbstractVerticle() {
             if (report.interarrivalJitter < MAX_VALID_JITTER) {
                 session.lastJitter = report.interarrivalJitter.toFloat()
             }
-            
+
             val packetCount = senderReport.senderPacketCount.toInt()
 
             val payload = RtpReportPayload().apply {
@@ -303,7 +303,8 @@ open class RtcpHandler : AbstractVerticle() {
                     expectedPacketCount = (report.extendedSeqNumber - session.previousReport!!.extendedSeqNumber).toInt()
                     // Validate expected packet count
                     if (expectedPacketCount > (packetCount - session.previousPacketCount!!) * THRESHOLD_COEFFICIENT
-                            || expectedPacketCount <= 0) {
+                        || expectedPacketCount <= 0
+                    ) {
                         expectedPacketCount = (packetCount - session.previousPacketCount!!)
                     }
 

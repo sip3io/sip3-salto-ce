@@ -395,7 +395,7 @@ class RtprHandlerTest : VertxTest() {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == RTPR_1.codecName })
-                                assertTrue(tags.any { it.key == Attributes.ranked && it.value == "true"})
+                                assertTrue(tags.any { it.key == Attributes.ranked && it.value == "true" })
                             }
                             context.completeNow()
                         }
@@ -441,7 +441,7 @@ class RtprHandlerTest : VertxTest() {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
-                                assertTrue(tags.any { it.key == Attributes.ranked})
+                                assertTrue(tags.any { it.key == Attributes.ranked })
                             }
                             context.completeNow()
                         }
@@ -489,7 +489,7 @@ class RtprHandlerTest : VertxTest() {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
-                                assertTrue(tags.none { it.key == Attributes.ranked})
+                                assertTrue(tags.none { it.key == Attributes.ranked })
                             }
                             context.completeNow()
                         }
