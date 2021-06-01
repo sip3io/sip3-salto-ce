@@ -40,7 +40,7 @@ object Attributes {
     const val terminated_by = "terminated_by"
     const val mos = "mos"
     const val r_factor = "r_factor"
-    const val short = "short"
+    const val ranked = "ranked"
     const val one_way = "one_way"
     const val undefined_codec = "undefined_codec"
     const val missed_peer = "missed_peer"

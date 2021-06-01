@@ -295,8 +295,8 @@ open class RtprHandler : AbstractVerticle() {
             dst.host?.let { put("dst_host", it) }
             report.codecName?.let { put("codec", it) }
 
-            if(cumulativeMetrics && report.expectedPacketCount < minExpectedPackets) {
-                put(Attributes.short, true)
+            if(report.expectedPacketCount >= minExpectedPackets) {
+                put(Attributes.ranked, true)
             }
         }
 
@@ -325,8 +325,8 @@ open class RtprHandler : AbstractVerticle() {
             put(Attributes.mos, report.mos)
             put(Attributes.r_factor, report.rFactor)
 
-            if(cumulativeMetrics && report.expectedPacketCount < minExpectedPackets) {
-                put(Attributes.short, true)
+            if(report.expectedPacketCount >= minExpectedPackets) {
+                put(Attributes.ranked, true)
             }
         }
 

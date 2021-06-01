@@ -380,6 +380,7 @@ class RtprHandlerTest : VertxTest() {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == RTPR_1.codecName })
+                                assertTrue(tags.any { it.key == Attributes.ranked && it.value == "true"})
                             }
                             context.completeNow()
                         }
@@ -425,6 +426,7 @@ class RtprHandlerTest : VertxTest() {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
+                                assertTrue(tags.any { it.key == Attributes.ranked})
                             }
                             context.completeNow()
                         }
@@ -472,7 +474,7 @@ class RtprHandlerTest : VertxTest() {
                                 val tags = summary.id.tags
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
-                                assertTrue(tags.any { it.key == Attributes.short && it.value == "true"})
+                                assertTrue(tags.none { it.key == Attributes.ranked})
                             }
                             context.completeNow()
                         }
@@ -537,9 +539,10 @@ class RtprHandlerTest : VertxTest() {
 
                     context.verify {
                         assertEquals("rtp", prefix)
-                        assertEquals(2, attributes.size)
+                        assertEquals(3, attributes.size)
                         assertEquals(12.0F, attributes[Attributes.r_factor])
                         assertEquals(13.0F, attributes[Attributes.mos])
+                        assertEquals(true, attributes[Attributes.ranked])
                     }
                     context.completeNow()
                 }
@@ -570,9 +573,10 @@ class RtprHandlerTest : VertxTest() {
 
                     context.verify {
                         assertEquals("rtcp", prefix)
-                        assertEquals(2, attributes.size)
+                        assertEquals(3, attributes.size)
                         assertEquals(93.2F, attributes[Attributes.r_factor])
                         assertEquals(4.4092855F, attributes[Attributes.mos])
+                        assertEquals(true, attributes[Attributes.ranked])
                     }
                     context.completeNow()
                 }
