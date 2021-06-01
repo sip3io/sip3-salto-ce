@@ -70,10 +70,11 @@ open class RtprHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
-    private var cumulativeMetrics = true
     private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
+    private var cumulativeMetrics = true
+    private var minExpectedPackets = 100
     private var rFactorThreshold: Float = 85F
     private var rFactorDistributions = TreeSet<Int>()
 
@@ -91,9 +92,6 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         config().getJsonObject("media")?.getJsonObject("rtp-r")?.let { config ->
-            config.getBoolean("cumulative-metrics")?.let {
-                cumulativeMetrics = it
-            }
             config.getLong("trim-to-size-delay")?.let {
                 trimToSizeDelay = it
             }
@@ -102,6 +100,12 @@ open class RtprHandler : AbstractVerticle() {
             }
             config.getLong("aggregation-timeout")?.let {
                 aggregationTimeout = it
+            }
+            config.getBoolean("cumulative-metrics")?.let {
+                cumulativeMetrics = it
+            }
+            config.getInteger("min-expected-packets")?.let {
+                minExpectedPackets = it
             }
             config.getFloat("r-factor-threshold")?.let {
                 rFactorThreshold = it
@@ -294,6 +298,10 @@ open class RtprHandler : AbstractVerticle() {
             src.host?.let { put("src_host", it) }
             dst.host?.let { put("dst_host", it) }
             report.codecName?.let { put("codec", it) }
+
+            if (report.expectedPacketCount >= minExpectedPackets) {
+                put(Attributes.ranked, true)
+            }
         }
 
         report.apply {
@@ -320,6 +328,10 @@ open class RtprHandler : AbstractVerticle() {
         val attributes = mutableMapOf<String, Any>().apply {
             put(Attributes.mos, report.mos)
             put(Attributes.r_factor, report.rFactor)
+
+            if (report.expectedPacketCount >= minExpectedPackets) {
+                put(Attributes.ranked, true)
+            }
         }
 
         val prefix = when (report.source) {
