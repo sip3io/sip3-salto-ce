@@ -490,7 +490,7 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals("caller", document.getString("caller"))
                         assertEquals("321", document.getString("callee"))
                         assertEquals("failed", document.getString("state"))
-                        assertEquals("503", document.getString("error_code"))
+                        assertEquals(503, document.getLong("error_code"))
                         assertEquals(true, document.getBoolean("include-me"))
                     }
                     context.completeNow()

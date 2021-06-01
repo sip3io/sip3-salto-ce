@@ -29,8 +29,6 @@ object Attributes {
     const val caller = "caller"
     const val callee = "callee"
     const val expired = "expired"
-    const val error_code = "error_code"
-    const val error_type = "error_type"
     const val duration = "duration"
     const val distribution = "distribution"
     const val setup_time = "setup_time"

@@ -151,15 +151,14 @@ open class SipRegisterHandler : AbstractVerticle() {
                 activeRegistrations.remove(id)
 
                 session.overlappedInterval?.let { interval ->
-                    val attributes = excludeRegistrationAttributes(registration.attributes)
-                        .apply {
-                            registration.srcAddr.host?.let { put("src_host", it) }
-                            registration.dstAddr.host?.let { put("dst_host", it) }
-                        }
-
+                    val attributes = excludeRegistrationAttributes(registration.attributes).apply {
+                        registration.srcAddr.host?.let { put("src_host", it) }
+                        registration.dstAddr.host?.let { put("dst_host", it) }
+                    }
                     Metrics.timer(OVERLAPPED_INTERVAL, attributes).record(interval, TimeUnit.MILLISECONDS)
-
-                    session.overlappedFraction?.let { Metrics.summary(OVERLAPPED_FRACTION, attributes).record(it) }
+                    session.overlappedFraction?.let {
+                        Metrics.summary(OVERLAPPED_FRACTION, attributes).record(it)
+                    }
                 }
             }
             else -> {
@@ -234,11 +233,10 @@ open class SipRegisterHandler : AbstractVerticle() {
 
                 // Calculate `active` registrations
                 if (expiresAt >= now) {
-                    val attributes = excludeRegistrationAttributes(session.attributes)
-                        .apply {
-                            session.srcAddr.host?.let { put("src_host", it) }
-                            session.dstAddr.host?.let { put("dst_host", it) }
-                        }
+                    val attributes = excludeRegistrationAttributes(session.attributes).apply {
+                        session.srcAddr.host?.let { put("src_host", it) }
+                        session.dstAddr.host?.let { put("dst_host", it) }
+                    }
                     Metrics.counter(ACTIVE, attributes).increment()
                 }
 
@@ -380,8 +378,6 @@ open class SipRegisterHandler : AbstractVerticle() {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
-            remove(Attributes.error_code)
-            remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
             excludedAttributes.forEach { remove(it) }

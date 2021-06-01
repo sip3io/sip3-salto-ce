@@ -60,6 +60,8 @@ open class SipCallHandler : AbstractVerticle() {
         const val UNAUTHORIZED = "unauthorized"
 
         // Metric
+        const val TRANSACTIONS = PREFIX + "_transactions"
+        const val RETRANSMITS = PREFIX + "_retransmits"
         const val ATTEMPTS = PREFIX + "_attempts"
         const val DURATION = PREFIX + "_duration"
         const val TRYING_DELAY = PREFIX + "_trying-delay"
@@ -170,11 +172,10 @@ open class SipCallHandler : AbstractVerticle() {
     open fun calculateInviteTransactionMetrics(transaction: SipTransaction) {
         val createdAt = transaction.createdAt
 
-        val attributes = excludeSessionAttributes(transaction.attributes)
-            .apply {
-                transaction.srcAddr.host?.let { put("src_host", it) }
-                transaction.dstAddr.host?.let { put("dst_host", it) }
-            }
+        val attributes = excludeSessionAttributes(transaction.attributes).apply {
+            transaction.srcAddr.host?.let { put("src_host", it) }
+            transaction.dstAddr.host?.let { put("dst_host", it) }
+        }
 
         transaction.tryingAt?.let { tryingAt ->
             if (createdAt < tryingAt) {
@@ -219,11 +220,10 @@ open class SipCallHandler : AbstractVerticle() {
     open fun calculateByeTransactionMetrics(transaction: SipTransaction) {
         val createdAt = transaction.createdAt
 
-        val attributes = excludeSessionAttributes(transaction.attributes)
-            .apply {
-                transaction.srcAddr.host?.let { put("src_host", it) }
-                transaction.dstAddr.host?.let { put("dst_host", it) }
-            }
+        val attributes = excludeSessionAttributes(transaction.attributes).apply {
+            transaction.srcAddr.host?.let { put("src_host", it) }
+            transaction.dstAddr.host?.let { put("dst_host", it) }
+        }
 
         transaction.terminatedAt?.let { terminatedAt ->
             if (createdAt < terminatedAt) {
@@ -247,11 +247,10 @@ open class SipCallHandler : AbstractVerticle() {
                 val isExpired = expiresAt < now
 
                 if (!isExpired && session.state == ANSWERED) {
-                    val attributes = excludeSessionAttributes(session.attributes)
-                        .apply {
-                            session.srcAddr.host?.let { put("src_host", it) }
-                            session.dstAddr.host?.let { put("dst_host", it) }
-                        }
+                    val attributes = excludeSessionAttributes(session.attributes).apply {
+                        session.srcAddr.host?.let { put("src_host", it) }
+                        session.dstAddr.host?.let { put("dst_host", it) }
+                    }
 
                     Metrics.counter(ESTABLISHED, attributes).increment()
                 }
@@ -306,7 +305,13 @@ open class SipCallHandler : AbstractVerticle() {
                         session.cancelTime?.let { put("cancel_time", it) }
                         session.terminatedBy?.let { put("terminated_by", it) }
 
-                        session.attributes.forEach { k, v -> put(k, v) }
+                        session.errorCode?.let { put("error_code", it) }
+                        session.errorType?.let { put("error_type", it) }
+
+                        put("transactions", session.transactions)
+                        put("retransmits", session.retransmits)
+
+                        session.attributes.forEach { (k, v) -> put(k, v) }
                     })
                 }
             },
@@ -324,17 +329,14 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
-        val attributes = session.attributes
-            .toMutableMap()
-            .apply {
-                put(Attributes.state, session.state)
-                session.srcAddr.host?.let { put("src_host", it) }
-                session.dstAddr.host?.let { put("dst_host", it) }
-                remove(Attributes.caller)
-                remove(Attributes.callee)
-                remove(Attributes.x_call_id)
-                remove(Attributes.recording_mode)
-            }
+        val attributes = excludeSessionAttributes(session.attributes).apply {
+            put(Attributes.state, session.state)
+            session.srcAddr.host?.let { put("src_host", it) }
+            session.dstAddr.host?.let { put("dst_host", it) }
+        }
+
+        Metrics.counter(TRANSACTIONS, attributes).increment(session.transactions.toDouble())
+        Metrics.counter(RETRANSMITS, attributes).increment(session.retransmits.toDouble())
 
         Metrics.counter(ATTEMPTS, attributes).increment()
 
@@ -431,6 +433,12 @@ open class SipCallHandler : AbstractVerticle() {
                     session.cancelTime?.let { put("cancel_time", it) }
                     session.terminatedBy?.let { put("terminated_by", it) }
 
+                    session.errorCode?.let { put("error_code", it) }
+                    session.errorType?.let { put("error_type", it) }
+
+                    put("transactions", session.transactions)
+                    put("retransmits", session.retransmits)
+
                     session.attributes.forEach { (name, value) -> put(name, value) }
                 }
             })
@@ -443,8 +451,6 @@ open class SipCallHandler : AbstractVerticle() {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
-            remove(Attributes.error_code)
-            remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
             excludedAttributes.forEach { remove(it) }
@@ -472,9 +478,18 @@ open class SipCallHandler : AbstractVerticle() {
         var cancelTime: Long? = null
         var terminatedBy: String? = null
 
+        var errorCode: Int? = null
+        var errorType: String? = null
+
+        var transactions = 0
+        var retransmits = 0
+
         var attributes = mutableMapOf<String, Any>()
 
         fun addInviteTransaction(transaction: SipTransaction) {
+            transactions++
+            retransmits += transaction.retransmits
+
             if (createdAt == 0L) {
                 createdAt = transaction.createdAt
                 srcAddr = transaction.srcAddr
@@ -521,10 +536,16 @@ open class SipCallHandler : AbstractVerticle() {
                 }
             }
 
+            errorCode = transaction.errorCode
+            errorType = transaction.errorType
+
             transaction.attributes.forEach { (name, value) -> attributes[name] = value }
         }
 
         fun addByeTransaction(transaction: SipTransaction) {
+            transactions++
+            retransmits += transaction.retransmits
+
             if (terminatedAt == null) {
                 terminatedAt = transaction.terminatedAt ?: transaction.createdAt
 
@@ -533,9 +554,12 @@ open class SipCallHandler : AbstractVerticle() {
                 }
 
                 terminatedBy = if (caller == transaction.caller) "caller" else "callee"
-
-                transaction.attributes.forEach { (name, value) -> attributes[name] = value }
             }
+
+            errorCode = transaction.errorCode
+            errorType = transaction.errorType
+
+            transaction.attributes.forEach { (name, value) -> attributes[name] = value }
         }
     }
 }

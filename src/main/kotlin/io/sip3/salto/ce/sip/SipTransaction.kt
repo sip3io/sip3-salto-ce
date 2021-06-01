@@ -19,7 +19,6 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
-import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.*
@@ -61,10 +60,13 @@ class SipTransaction {
     lateinit var callee: String
     lateinit var caller: String
 
-    var request: SIPRequest? = null
-    var response: SIPResponse? = null
+    var errorCode: Int? = null
+    var errorType: String? = null
 
     var retransmits = 0
+
+    var request: SIPRequest? = null
+    var response: SIPResponse? = null
 
     var attributes = mutableMapOf<String, Any>()
 
@@ -197,8 +199,8 @@ class SipTransaction {
                         if (extend) response = message
                         state = FAILED
 
-                        attributes[Attributes.error_code] = statusCode.toString()
-                        attributes[Attributes.error_type] = "client"
+                        errorCode = statusCode
+                        errorType = "client"
                     }
                     in 500..599 -> {
                         // Received message is a retransmit
@@ -210,8 +212,8 @@ class SipTransaction {
                         if (extend) response = message
                         state = FAILED
 
-                        attributes[Attributes.error_code] = statusCode.toString()
-                        attributes[Attributes.error_type] = "server"
+                        errorCode = statusCode
+                        errorType = "server"
                     }
                     in 600..699 -> {
                         // Received message is a retransmit
@@ -223,8 +225,8 @@ class SipTransaction {
                         if (extend) response = message
                         state = FAILED
 
-                        attributes[Attributes.error_code] = statusCode.toString()
-                        attributes[Attributes.error_type] = "global"
+                        errorCode = statusCode
+                        errorType = "global"
                     }
                 }
             }

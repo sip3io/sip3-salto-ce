@@ -198,8 +198,6 @@ open class SipTransactionHandler : AbstractVerticle() {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
-            remove(Attributes.error_code)
-            remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
             excludedAttributes.forEach { remove(it) }
