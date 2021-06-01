@@ -20,21 +20,27 @@ import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.MockClock
 import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.mockk.*
+import io.mockk.junit5.MockKExtension
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
-import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.rtpr.RtprSession
 import io.vertx.core.json.JsonObject
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
 
+@ExtendWith(MockKExtension::class)
 class MediaHandlerTest : VertxTest() {
 
     companion object {
@@ -169,6 +175,14 @@ class MediaHandlerTest : VertxTest() {
         }
     }
 
+    @BeforeEach
+    fun `Mock all`() {
+        mockkConstructor(AttributesRegistry::class)
+        every {
+            anyConstructed<AttributesRegistry>().handle(any(), any())
+        } just Runs
+    }
+
     @Test
     fun `Write MediaSession to database`() {
         runTest(
@@ -296,37 +310,6 @@ class MediaHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Update Media Session attributes`() {
-        runTest(
-            deploy = {
-                vertx.deployTestVerticle(MediaHandler::class, TEST_CONFIG)
-            },
-            execute = {
-                vertx.eventBus().localSend(RoutesCE.media + "_control", MEDIA_CONTROL)
-                vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_1)
-                vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_2)
-            },
-            assert = {
-                vertx.eventBus().consumer<Pair<String, Map<String, Any>>>(RoutesCE.attributes) { event ->
-                    val (prefix, attributes) = event.body()
-
-                    context.verify {
-                        assertEquals("media", prefix)
-                        assertEquals(6, attributes.size)
-                        assertEquals(12.0, attributes[Attributes.r_factor])
-                        assertEquals(13.0, attributes[Attributes.mos])
-                        assertEquals(false, attributes[Attributes.one_way])
-                        assertEquals(false, attributes[Attributes.undefined_codec])
-                        assertEquals(true, attributes[Attributes.missed_peer])
-                        assertEquals(0.0, attributes[Attributes.bad_report_fraction])
-                    }
-                    context.completeNow()
-                }
-            }
-        )
-    }
-
-    @Test
     fun `Calculate metrics for Media Session`() {
         val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
         Metrics.addRegistry(registry)
@@ -392,5 +375,10 @@ class MediaHandlerTest : VertxTest() {
         assertEquals(rtpr.avgJitter, jitter.getDouble("avg").toFloat())
         assertEquals(rtpr.minJitter, jitter.getDouble("min").toFloat())
         assertEquals(rtpr.maxJitter, jitter.getDouble("max").toFloat())
+    }
+
+    @AfterEach
+    fun `Unmock all`() {
+        unmockkAll()
     }
 }

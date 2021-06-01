@@ -22,9 +22,6 @@ interface RoutesCE : Routes {
 
     companion object : RoutesCE
 
-    // Attributes
-    val attributes get() = "attributes"
-
     // UDF
     val packet_udf get() = "packet_udf"
     val sip_message_udf get() = "sip_message_udf"

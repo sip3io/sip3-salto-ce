@@ -29,6 +29,7 @@ import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil.R0
@@ -83,6 +84,8 @@ open class RtprHandler : AbstractVerticle() {
     private var rtp = mutableMapOf<Long, RtprSession>()
     private var rtcp = mutableMapOf<Long, RtprSession>()
 
+    private lateinit var attributesRegistry: AttributesRegistry
+
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
@@ -111,10 +114,11 @@ open class RtprHandler : AbstractVerticle() {
                 rFactorDistributions.add(it as Int)
             }
         }
-
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
         }
+
+        attributesRegistry = AttributesRegistry(vertx)
 
         vertx.setPeriodic(trimToSizeDelay) {
             mediaControls = MutableMapUtil.mutableMapOf(mediaControls)
@@ -335,7 +339,7 @@ open class RtprHandler : AbstractVerticle() {
             RtpReportPayload.SOURCE_RTCP -> "rtcp"
             else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
         }
-        vertx.eventBus().localSend(RoutesCE.attributes, Pair(prefix, attributes))
+        attributesRegistry.handle(prefix, attributes)
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {

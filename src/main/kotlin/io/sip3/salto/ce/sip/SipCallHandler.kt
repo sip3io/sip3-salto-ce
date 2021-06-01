@@ -23,6 +23,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.sip3.salto.ce.util.DurationUtil
@@ -81,6 +82,7 @@ open class SipCallHandler : AbstractVerticle() {
     private var activeSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
 
     private lateinit var udfExecutor: UdfExecutor
+    private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
         config().getString("time-suffix")?.let {
@@ -114,6 +116,7 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         udfExecutor = UdfExecutor(vertx)
+        attributesRegistry = AttributesRegistry(vertx)
 
         vertx.setPeriodic(trimToSizeDelay) {
             activeSessions = MutableMapUtil.mutableMapOf(activeSessions)
@@ -370,7 +373,7 @@ open class SipCallHandler : AbstractVerticle() {
                 session.terminatedBy?.let { put(Attributes.terminated_by, it) }
             }
 
-        vertx.eventBus().localSend(RoutesCE.attributes, Pair("sip", attributes))
+        attributesRegistry.handle("sip", attributes)
     }
 
     open fun writeToDatabase(prefix: String, session: SipSession, upsert: Boolean = false) {

@@ -25,6 +25,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.hasSdp
@@ -73,6 +74,8 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     private var transactions = mutableMapOf<String, SipTransaction>()
 
+    private lateinit var attributesRegistry: AttributesRegistry
+
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
@@ -106,6 +109,8 @@ open class SipTransactionHandler : AbstractVerticle() {
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
         }
+
+        attributesRegistry = AttributesRegistry(vertx)
 
         vertx.setPeriodic(trimToSizeDelay) {
             transactions = MutableMapUtil.mutableMapOf(transactions)
@@ -222,8 +227,7 @@ open class SipTransactionHandler : AbstractVerticle() {
                 put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
             }
 
-        vertx.eventBus().localSend(RoutesCE.attributes, Pair("sip", attributes))
-
+        attributesRegistry.handle("sip", attributes)
     }
 
     open fun writeToDatabase(prefix: String, transaction: SipTransaction) {
