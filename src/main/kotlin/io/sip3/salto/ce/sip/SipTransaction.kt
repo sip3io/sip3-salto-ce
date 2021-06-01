@@ -64,6 +64,8 @@ class SipTransaction {
     var request: SIPRequest? = null
     var response: SIPResponse? = null
 
+    var retransmits = 0
+
     var attributes = mutableMapOf<String, Any>()
 
     val legId: String by lazy {
@@ -93,7 +95,7 @@ class SipTransaction {
 
                 // Received message is a retransmit
                 if (originatedAt != null) {
-                    attributes[Attributes.retransmits] = true
+                    retransmits++
                 } else {
                     originatedAt = packet.createdAt
                     if (extend) request = message
@@ -144,7 +146,7 @@ class SipTransaction {
                     200 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -158,7 +160,7 @@ class SipTransaction {
                     in 300..399 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -168,7 +170,7 @@ class SipTransaction {
                     401, 407 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -178,7 +180,7 @@ class SipTransaction {
                     487 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -188,7 +190,7 @@ class SipTransaction {
                     in 400..499 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -201,7 +203,7 @@ class SipTransaction {
                     in 500..599 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -214,7 +216,7 @@ class SipTransaction {
                     in 600..699 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt

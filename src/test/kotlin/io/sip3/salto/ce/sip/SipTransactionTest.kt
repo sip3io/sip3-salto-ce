@@ -160,12 +160,13 @@ class SipTransactionTest {
         assertEquals("000260971282", transaction.caller)
         assertEquals("000155917690", transaction.callee)
         assertEquals("caller", transaction.attributes[Attributes.caller])
+        assertEquals(0, transaction.retransmits)
         assertTrue(transaction.attributes["invite"] as Boolean)
         assertNull(transaction.attributes["retransmits"])
 
         // Retransmit PACKET_1
         transaction.addMessage(PACKET_1, message1)
-        assertTrue(transaction.attributes["retransmits"] as Boolean)
+        assertEquals(1, transaction.retransmits)
 
         //  Add PACKET_2
         transaction.addMessage(PACKET_2, message2)
@@ -177,9 +178,9 @@ class SipTransactionTest {
         assertNull(transaction.terminatedAt)
         assertEquals("000260971282", transaction.caller)
         assertEquals("000155917690", transaction.callee)
+        assertEquals(1, transaction.retransmits)
         assertTrue(transaction.attributes["invite"] as Boolean)
         assertTrue(transaction.attributes["ringing"] as Boolean)
-        assertTrue(transaction.attributes["retransmits"] as Boolean)
     }
 
     @Test
