@@ -66,7 +66,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 4500
-    private var transactionExclusions = emptyList<String>()
+    private var excludedAttributes = emptyList<String>()
     private var saveSipMessagePayloadMode = 0
 
     private var recordCallUsersAttributes = false
@@ -96,8 +96,8 @@ open class SipTransactionHandler : AbstractVerticle() {
             config.getLong("termination-timeout")?.let {
                 terminationTimeout = it
             }
-            config.getJsonArray("transaction-exclusions")?.let {
-                transactionExclusions = it.map(Any::toString)
+            config.getJsonArray("excluded-attributes")?.let {
+                excludedAttributes = it.map(Any::toString)
             }
             config.getInteger("save-sip-message-payload-mode")?.let {
                 saveSipMessagePayloadMode = it
@@ -202,7 +202,7 @@ open class SipTransactionHandler : AbstractVerticle() {
             remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
-            transactionExclusions.forEach { remove(it) }
+            excludedAttributes.forEach { remove(it) }
         }
     }
 

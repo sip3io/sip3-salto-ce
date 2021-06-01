@@ -69,7 +69,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var aggregationTimeout: Long = 10000
     private var updatePeriod: Long = 60000
     private var durationTimeout: Long = 900000
-    private var transactionExclusions = emptyList<String>()
+    private var excludedAttributes = emptyList<String>()
     private var recordCallUsersAttributes = false
 
     private var activeRegistrations = mutableMapOf<String, SipRegistration>()
@@ -97,8 +97,8 @@ open class SipRegisterHandler : AbstractVerticle() {
             config.getLong("duration-timeout")?.let {
                 durationTimeout = it
             }
-            config.getJsonArray("transaction-exclusions")?.let {
-                transactionExclusions = it.map(Any::toString)
+            config.getJsonArray("excluded-attributes")?.let {
+                excludedAttributes = it.map(Any::toString)
             }
         }
         config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
@@ -384,7 +384,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
-            transactionExclusions.forEach { remove(it) }
+            excludedAttributes.forEach { remove(it) }
         }
     }
 

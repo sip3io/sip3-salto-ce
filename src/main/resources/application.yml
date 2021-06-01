@@ -39,7 +39,7 @@ server:
 #    response-timeout: 3000
 #    aggregation-timeout: 60000
 #    termination-timeout: 4500
-#    transaction-exclusions: [exclude-me]
+#    excluded-attributes: [exclude-me]
 #    save-sip-message-payload-mode: 0
 #  call:
 #    trim-to-size-delay: 3600000
@@ -48,14 +48,14 @@ server:
 #    termination-timeout: 2000
 #    duration-timeout: 3600000
 #    duration-distributions: [10s, 30s, 1m, 5m, 1h]
-#    transaction-exclusions: [exclude-me]
+#    excluded-attributes: [exclude-me]
 #  register:
 #    trim-to-size-delay: 3600000
 #    expiration-delay: 1000
 #    aggregation-timeout: 10000
 #    update-period: 60000
 #    duration-timeout: 900000
-#    transaction-exclusions: [exclude-me]
+#    excluded-attributes: [exclude-me]
 #sdp:
 #  replace-media-address: false
 #media:

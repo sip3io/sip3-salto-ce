@@ -76,7 +76,7 @@ open class SipCallHandler : AbstractVerticle() {
     private var terminationTimeout: Long = 2000
     private var durationTimeout: Long = 3600000
     private var durationDistributions = TreeMap<Long, String>()
-    private var transactionExclusions = emptyList<String>()
+    private var excludedAttributes = emptyList<String>()
     private var recordCallUsersAttributes = false
 
     private var activeSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
@@ -107,8 +107,8 @@ open class SipCallHandler : AbstractVerticle() {
             config.getJsonArray("duration-distributions")?.forEach {
                 durationDistributions[DurationUtil.parseDuration(it as String).toMillis()] = it
             }
-            config.getJsonArray("transaction-exclusions")?.let {
-                transactionExclusions = it.map(Any::toString)
+            config.getJsonArray("excluded-attributes")?.let {
+                excludedAttributes = it.map(Any::toString)
             }
         }
         config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
@@ -447,7 +447,7 @@ open class SipCallHandler : AbstractVerticle() {
             remove(Attributes.error_type)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
-            transactionExclusions.forEach { remove(it) }
+            excludedAttributes.forEach { remove(it) }
         }
     }
 
