@@ -328,10 +328,6 @@ open class RtprHandler : AbstractVerticle() {
         val attributes = mutableMapOf<String, Any>().apply {
             put(Attributes.mos, report.mos)
             put(Attributes.r_factor, report.rFactor)
-
-            if (report.expectedPacketCount >= minExpectedPackets) {
-                put(Attributes.ranked, true)
-            }
         }
 
         val prefix = when (report.source) {
