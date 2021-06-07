@@ -69,6 +69,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var excludedAttributes = emptyList<String>()
     private var saveSipMessagePayloadMode = 0
 
+    private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
     private var instances = 1
 
@@ -103,8 +104,13 @@ open class SipTransactionHandler : AbstractVerticle() {
                 saveSipMessagePayloadMode = it
             }
         }
-        config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
-            recordCallUsersAttributes = it
+        config().getJsonObject("attributes")?.let { config ->
+            config.getBoolean("record-ip-addresses")?.let {
+                recordIpAddressesAttributes = it
+            }
+            config.getBoolean("record-call-users")?.let {
+                recordCallUsersAttributes = it
+            }
         }
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
@@ -208,20 +214,31 @@ open class SipTransactionHandler : AbstractVerticle() {
         val attributes = transaction.attributes
             .toMutableMap()
             .apply {
-                remove(Attributes.src_host)
-                remove(Attributes.dst_host)
+                put(Attributes.state, transaction.state)
 
-                put(Attributes.method, transaction.cseqMethod)
+                val src = transaction.srcAddr
+                put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
+                (get(Attributes.src_host) ?: src.host)?.let { put(Attributes.src_host, it) }
 
-                put(Attributes.call_id, "")
-                remove(Attributes.x_call_id)
-                remove(Attributes.recording_mode)
+                val dst = transaction.dstAddr
+                put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
+                (get(Attributes.dst_host) ?: dst.host)?.let { put(Attributes.dst_host, it) }
 
                 val caller = get(Attributes.caller) ?: transaction.caller
                 put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
 
                 val callee = get(Attributes.callee) ?: transaction.callee
                 put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
+
+                put(Attributes.call_id, "")
+
+                transaction.errorCode?.let { put(Attributes.error_code, it) }
+                transaction.errorType?.let { put(Attributes.error_type, it) }
+
+                put(Attributes.retransmits, transaction.retransmits)
+
+                remove(Attributes.x_call_id)
+                remove(Attributes.recording_mode)
             }
 
         attributesRegistry.handle("sip", attributes)
@@ -250,6 +267,11 @@ open class SipTransactionHandler : AbstractVerticle() {
                 put("caller", transaction.caller)
                 put("callee", transaction.callee)
                 put("call_id", transaction.callId)
+
+                transaction.errorCode?.let { put("error_code", it) }
+                transaction.errorType?.let { put("error_type", it) }
+
+                put("retransmits", transaction.retransmits)
 
                 transaction.attributes.forEach { (name, value) -> put(name, value) }
             })

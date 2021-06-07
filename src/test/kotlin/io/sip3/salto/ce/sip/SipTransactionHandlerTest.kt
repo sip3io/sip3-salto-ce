@@ -31,8 +31,7 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -86,7 +85,7 @@ class SipTransactionHandlerTest : VertxTest() {
                 port = 5060
             }
             payload = """
-                        SIP/2.0 200 OK
+                        SIP/2.0 503 Service Unavailable
                         Via: SIP/2.0/UDP 192.168.10.5:5060;rport=5060;branch=z9hG4bKPj5464cb3a-5b18-4e5d-97b1-1cbbd70cb879
                         Contact: <sip:192.168.10.123:61540>
                         To: <sip:1010@192.168.10.123;rinstance=afd8f6ae9bf996b2>;tag=4a2be263
@@ -276,7 +275,7 @@ class SipTransactionHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Aggregate valid OPTIONS transaction`() {
+    fun `Aggregate failed OPTIONS transaction`() {
         runTest(
             deploy = {
                 vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
@@ -308,7 +307,9 @@ class SipTransactionHandlerTest : VertxTest() {
                         assertEquals(PACKET_OPTIONS_1.dstAddr.addr, document.getString("dst_addr"))
                         assertEquals(PACKET_OPTIONS_1.dstAddr.port, document.getInteger("dst_port"))
                         assertEquals("caller", document.getString("caller"))
-                        assertEquals("succeed", document.getString("state"))
+                        assertEquals("failed", document.getString("state"))
+                        assertEquals(503, document.getInteger("error_code"))
+                        assertEquals("server", document.getString("error_type"))
                     }
                     context.completeNow()
                 }
@@ -385,6 +386,57 @@ class SipTransactionHandlerTest : VertxTest() {
                     context.verify {
                         assertEquals("INVITE", transaction.cseqMethod)
                         assertEquals(SipTransaction.FAILED, transaction.state)
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Handle transaction attributes`() {
+        val prefixSlot = slot<String>()
+        val attributesSlot = slot<Map<String, Any>>()
+        every {
+            anyConstructed<AttributesRegistry>().handle(capture(prefixSlot), capture(attributesSlot))
+        } just Runs
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
+                    put("attributes", JsonObject().apply {
+                        put("record-ip-addresses", true)
+                    })
+                    put("sip", JsonObject().apply {
+                        put("transaction", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("termination-timeout", 100)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 100) {
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_1))
+                    vertx.eventBus().localSend(SipTransactionHandler.PREFIX + "_0", handlerMessage(PACKET_OPTIONS_2))
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) {
+                    context.verify {
+                        assertEquals("sip", prefixSlot.captured)
+
+                        val attributes = attributesSlot.captured
+                        assertEquals(9, attributes.size)
+                        assertEquals("failed", attributes["state"])
+                        assertEquals("127.0.0.1", attributes["src_addr"])
+                        assertEquals("127.0.0.2", attributes["dst_addr"])
+                        assertEquals("", attributes["caller"])
+                        assertEquals("", attributes["callee"])
+                        assertEquals("", attributes["call_id"])
+                        assertEquals(503, attributes["error_code"])
+                        assertEquals("server", attributes["error_type"])
+                        assertNotNull(attributes["retransmits"])
                     }
                     context.completeNow()
                 }
