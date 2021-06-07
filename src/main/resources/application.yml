@@ -106,7 +106,7 @@ server:
 #      max-collections: 30
 #    - prefix: sip_call_index
 #      indexes:
-#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type, duration, setup_time, establish_time]
+#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type, duration, trying_delay, setup_time, establish_time, disconnect_time, transactions, retransmits, terminated_by]
 #        hashed: [call_id, x_call_id]
 #      max-collections: 30
 #    - prefix: sip_call_raw
