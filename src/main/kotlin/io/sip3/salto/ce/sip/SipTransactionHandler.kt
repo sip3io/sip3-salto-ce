@@ -218,11 +218,11 @@ open class SipTransactionHandler : AbstractVerticle() {
 
                 val src = transaction.srcAddr
                 put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
-                (get(Attributes.src_host) ?: src.host)?.let { put(Attributes.src_host, it) }
+                src.host?.let { put(Attributes.src_host, it) }
 
                 val dst = transaction.dstAddr
                 put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
-                (get(Attributes.dst_host) ?: dst.host)?.let { put(Attributes.dst_host, it) }
+                dst.host?.let { put(Attributes.dst_host, it) }
 
                 val caller = get(Attributes.caller) ?: transaction.caller
                 put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
@@ -264,8 +264,8 @@ open class SipTransactionHandler : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
-                put("caller", transaction.caller)
-                put("callee", transaction.callee)
+                put("caller", transaction.attributes.remove(Attributes.caller) ?: transaction.caller)
+                put("callee", transaction.attributes.remove(Attributes.callee) ?: transaction.callee)
                 put("call_id", transaction.callId)
 
                 transaction.errorCode?.let { put("error_code", it) }
