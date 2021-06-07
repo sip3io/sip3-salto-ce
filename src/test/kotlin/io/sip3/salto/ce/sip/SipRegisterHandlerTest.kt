@@ -335,6 +335,7 @@ class SipRegisterHandlerTest : VertxTest() {
                             assertEquals(PACKET_5.timestamp.time + 120000 - PACKET_3.timestamp.time, getLong("duration"))
                             assertEquals(30000L, getLong("overlapped_interval"))
                             assertEquals(0.25, getDouble("overlapped_fraction"))
+                            assertEquals(2, getInteger("transactions"))
                         }
                     }
                     context.completeNow()
@@ -478,7 +479,58 @@ class SipRegisterHandlerTest : VertxTest() {
                 }
             }
         )
+    }
 
+    @Test
+    fun `Handle registration attributes`() {
+        val prefixSlot = slot<String>()
+        val attributesSlot = slot<Map<String, Any>>()
+        every {
+            anyConstructed<AttributesRegistry>().handle(capture(prefixSlot), capture(attributesSlot))
+        } just Runs
+
+        val transaction401 = SipTransaction().apply {
+            addPacket(PACKET_1)
+            addPacket(PACKET_2)
+        }
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("register", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 200)
+                            put("duration-timeout", 200)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 10000) {
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction401)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) {
+                    context.verify {
+                        assertEquals("sip", prefixSlot.captured)
+
+                        val attributes = attributesSlot.captured
+                        assertEquals(8, attributes.size)
+                        assertEquals("unauthorized", attributes["state"])
+                        assertEquals("", attributes["src_addr"])
+                        assertEquals("", attributes["dst_addr"])
+                        assertEquals("", attributes["caller"])
+                        assertEquals("", attributes["callee"])
+                        assertEquals("", attributes["call_id"])
+                        assertEquals(1, attributes["transactions"])
+                        assertNotNull(attributes["retransmits"])
+                    }
+                    context.completeNow()
+                }
+            }
+        )
     }
 
     private fun SipTransaction.addPacket(packet: Packet) {

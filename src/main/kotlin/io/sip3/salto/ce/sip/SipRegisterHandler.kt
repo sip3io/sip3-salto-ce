@@ -70,6 +70,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var updatePeriod: Long = 60000
     private var durationTimeout: Long = 900000
     private var excludedAttributes = emptyList<String>()
+    private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
     private var activeRegistrations = mutableMapOf<String, SipRegistration>()
@@ -101,8 +102,13 @@ open class SipRegisterHandler : AbstractVerticle() {
                 excludedAttributes = it.map(Any::toString)
             }
         }
-        config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
-            recordCallUsersAttributes = it
+        config().getJsonObject("attributes")?.let { config ->
+            config.getBoolean("record-ip-addresses")?.let {
+                recordIpAddressesAttributes = it
+            }
+            config.getBoolean("record-call-users")?.let {
+                recordCallUsersAttributes = it
+            }
         }
 
         attributesRegistry = AttributesRegistry(vertx)
@@ -267,14 +273,15 @@ open class SipRegisterHandler : AbstractVerticle() {
         val attributes = registration.attributes
             .toMutableMap()
             .apply {
-                remove(Attributes.src_host)
-                remove(Attributes.dst_host)
-
-                put(Attributes.method, "REGISTER")
                 put(Attributes.state, registration.state)
 
-                put(Attributes.call_id, "")
-                remove(Attributes.x_call_id)
+                val src = registration.srcAddr
+                put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
+                src.host?.let { put(Attributes.src_host, it) }
+
+                val dst = registration.dstAddr
+                put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
+                dst.host?.let { put(Attributes.dst_host, it) }
 
                 val caller = get(Attributes.caller) ?: registration.caller
                 put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
@@ -282,10 +289,18 @@ open class SipRegisterHandler : AbstractVerticle() {
                 val callee = get(Attributes.callee) ?: registration.callee
                 put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
 
+                put(Attributes.call_id, "")
+
+                put(Attributes.transactions, registration.transactions)
+                put(Attributes.retransmits, registration.retransmits)
+
                 (registration as? SipSession)?.let { session ->
                     session.overlappedInterval?.let { put(Attributes.overlapped_interval, it) }
                     session.overlappedFraction?.let { put(Attributes.overlapped_fraction, it) }
                 }
+
+                remove(Attributes.x_call_id)
+                remove(Attributes.recording_mode)
             }
 
         attributesRegistry.handle("sip", attributes)
@@ -340,6 +355,9 @@ open class SipRegisterHandler : AbstractVerticle() {
 
                     put("caller", registration.caller)
                     put("callee", registration.callee)
+
+                    put("transactions", registration.transactions)
+                    put("retransmits", registration.retransmits)
 
                     registration.attributes.forEach { (name, value) -> put(name, value) }
                 }
@@ -396,6 +414,9 @@ open class SipRegisterHandler : AbstractVerticle() {
         val registrations = mutableListOf<Pair<Long, Long>>()
 
         fun addSipRegistration(registration: SipRegistration) {
+            transactions += registration.transactions
+            retransmits += registration.retransmits
+
             if (createdAt == 0L) {
                 createdAt = registration.createdAt
                 srcAddr = registration.srcAddr
@@ -440,11 +461,17 @@ open class SipRegisterHandler : AbstractVerticle() {
         lateinit var callee: String
         lateinit var caller: String
 
+        var transactions = 0
+        var retransmits = 0
+
         var expires: Long = 0L
 
         var attributes = mutableMapOf<String, Any>()
 
         fun addRegisterTransaction(transaction: SipTransaction) {
+            transactions++
+            retransmits += transaction.retransmits
+
             if (createdAt == 0L) {
                 createdAt = transaction.createdAt
                 srcAddr = transaction.srcAddr
