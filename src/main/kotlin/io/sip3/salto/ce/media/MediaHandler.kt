@@ -89,7 +89,7 @@ open class MediaHandler : AbstractVerticle() {
             instances = it
         }
 
-        attributesRegistry = AttributesRegistry(vertx)
+        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.setPeriodic(trimToSizeDelay) {
             media = MutableMapUtil.mutableMapOf(media)

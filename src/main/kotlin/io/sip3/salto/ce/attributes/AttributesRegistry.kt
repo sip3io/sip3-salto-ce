@@ -27,7 +27,7 @@ import java.time.format.DateTimeFormatter
 /**
  * Handles attributes
  */
-class AttributesRegistry(val vertx: Vertx) {
+class AttributesRegistry(val vertx: Vertx, config: JsonObject) {
 
     companion object {
 
@@ -42,7 +42,6 @@ class AttributesRegistry(val vertx: Vertx) {
     private val registry = mutableMapOf<String, Attribute>()
 
     init {
-        val config = vertx.orCreateContext.config()
         config.getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }

@@ -118,7 +118,7 @@ open class RtprHandler : AbstractVerticle() {
             instances = it
         }
 
-        attributesRegistry = AttributesRegistry(vertx)
+        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.setPeriodic(trimToSizeDelay) {
             mediaControls = MutableMapUtil.mutableMapOf(mediaControls)

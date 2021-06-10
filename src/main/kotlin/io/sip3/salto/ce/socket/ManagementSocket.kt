@@ -21,12 +21,12 @@ import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.hosts.HostRegistry
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.datagram.DatagramSocketOptions
 import io.vertx.core.json.JsonObject
 import io.vertx.core.net.SocketAddress
-import io.vertx.kotlin.ext.mongo.updateOptionsOf
 import mu.KotlinLogging
 import java.net.URI
 
@@ -47,6 +47,8 @@ open class ManagementSocket : AbstractVerticle() {
 
     private var client: io.vertx.ext.mongo.MongoClient? = null
 
+    private lateinit var hostRegistry: HostRegistry
+
     private lateinit var uri: URI
     private var expirationDelay: Long = 60000
     private var expirationTimeout: Long = 120000
@@ -59,6 +61,8 @@ open class ManagementSocket : AbstractVerticle() {
         config().getJsonObject("mongo")?.let { config ->
             client = MongoClient.createShared(vertx, config)
         }
+
+        hostRegistry = HostRegistry.getInstance(vertx, config())
 
         config().getJsonObject("management").let { config ->
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
@@ -135,7 +139,7 @@ open class ManagementSocket : AbstractVerticle() {
                     val remoteHost = RemoteHost(name, uri)
                     logger.info { "Registered: $remoteHost, Timestamp: $timestamp, Config:\n${config?.encodePrettily()}" }
 
-                    config?.getJsonObject("host")?.let { updateHost(it) }
+                    config?.getJsonObject("host")?.let { hostRegistry.save(it) }
 
                     val rtpEnabled = config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false
                     val rtcpEnabled = config?.getJsonObject("rtcp")?.getBoolean("enabled") ?: false
@@ -148,19 +152,6 @@ open class ManagementSocket : AbstractVerticle() {
                 }
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
-        }
-    }
-
-    open fun updateHost(host: JsonObject) {
-        if (client != null) {
-            val query = JsonObject().apply {
-                put("name", host.getString("name"))
-            }
-            client!!.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true)) { asr ->
-                if (asr.failed()) {
-                    logger.error(asr.cause()) { "MongoClient 'replaceDocuments()' failed." }
-                }
-            }
         }
     }
 

@@ -105,7 +105,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             recordCallUsersAttributes = it
         }
 
-        attributesRegistry = AttributesRegistry(vertx)
+        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.setPeriodic(trimToSizeDelay) {
             activeRegistrations = MutableMapUtil.mutableMapOf(activeRegistrations)
