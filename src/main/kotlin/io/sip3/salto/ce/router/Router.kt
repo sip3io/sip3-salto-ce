@@ -104,7 +104,7 @@ open class Router : AbstractVerticle() {
     }
 
     open fun assignHost(address: Address) {
-        hostRegistry.get(address.addr, address.port)?.let { address.host = it }
+        hostRegistry.getHostName(address.addr, address.port)?.let { address.host = it }
     }
 
     open fun route(packet: Packet) {

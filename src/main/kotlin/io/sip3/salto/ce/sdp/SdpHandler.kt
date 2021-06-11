@@ -45,16 +45,10 @@ class SdpHandler : AbstractVerticle() {
 
     private lateinit var hostRegistry: HostRegistry
 
-    private var replaceMediaAddress = false
-
     private var codecs = mapOf<String, Codec>()
 
     override fun start() {
         hostRegistry = HostRegistry.getInstance(vertx, config())
-
-        config().getJsonObject("sdp")?.getBoolean("replace-media-address")?.let {
-            replaceMediaAddress = it
-        }
 
         readCodecs(config())
         vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
@@ -132,8 +126,8 @@ class SdpHandler : AbstractVerticle() {
 
         defineCodecs(session)
         return session.sdpSession().apply {
-            hostRegistry.getMappedAddr(src.addr)?.let { src.addr = it }
-            hostRegistry.getMappedAddr(dst.addr)?.let { dst.addr = it }
+            hostRegistry.getAddrMapping(src.addr)?.let { src.addr = it }
+            hostRegistry.getAddrMapping(dst.addr)?.let { dst.addr = it }
         }
     }
 

@@ -90,7 +90,7 @@ class RouterTest : VertxTest() {
         }
 
         every {
-            HostRegistry.get(eq(host.getJsonArray("addr")[0]), any())
+            HostRegistry.getHostName(eq(host.getJsonArray("addr")[0]), any())
         } returns host["name"]
 
         runTest(

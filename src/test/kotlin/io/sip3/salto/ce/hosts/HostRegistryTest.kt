@@ -103,14 +103,14 @@ class HostRegistryTest : VertxTest() {
             execute = {},
             assert = {
                 vertx.setPeriodic(100L) {
-                    if (hostRegistry?.get("1.1.1.1", 5060) != null) {
+                    if (hostRegistry?.getHostName("1.1.1.1", 5060) != null) {
                         context.verify {
-                            assertEquals(HOST_1.getString("name"), hostRegistry?.get("1.1.1.1", 5060), "1")
-                            assertEquals(HOST_1.getString("name"), hostRegistry?.get("2.2.2.0/30", 5060), "2")
-                            assertEquals(HOST_1.getString("name"), hostRegistry?.get("2.2.2.1", 5060), "3")
+                            assertEquals(HOST_1.getString("name"), hostRegistry?.getHostName("1.1.1.1", 5060), "1")
+                            assertEquals(HOST_1.getString("name"), hostRegistry?.getHostName("2.2.2.0/30", 5060), "2")
+                            assertEquals(HOST_1.getString("name"), hostRegistry?.getHostName("2.2.2.1", 5060), "3")
 
-                            assertEquals(HOST_2.getString("name"), hostRegistry?.get("4.4.4.4", 15053), "4")
-                            assertEquals("5.5.5.5", hostRegistry?.getMappedAddr("2.2.2.2"), "5")
+                            assertEquals(HOST_2.getString("name"), hostRegistry?.getHostName("4.4.4.4", 15053), "4")
+                            assertEquals("5.5.5.5", hostRegistry?.getAddrMapping("2.2.2.2"), "5")
                         }
                         context.completeNow()
                     }

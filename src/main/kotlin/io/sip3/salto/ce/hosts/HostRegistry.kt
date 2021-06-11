@@ -39,7 +39,6 @@ object HostRegistry {
     @Synchronized
     fun getInstance(vertx: Vertx, config: JsonObject): HostRegistry {
         if (this.vertx == null) {
-            logger.info { "CREATED!!! in ${vertx}"}
             this.vertx = vertx
             this.config = config
             init()
@@ -49,9 +48,8 @@ object HostRegistry {
     }
 
     private fun init() {
-        config.getJsonObject("mongo")?.let { mongo ->
-            logger.info { "mongo config: ${mongo.encodePrettily()}" }
-            client = MongoClient.createShared(vertx!!, mongo)
+        config.getJsonObject("mongo")?.let {
+            client = MongoClient.createShared(vertx!!, it)
         }
 
         if (client != null) {
@@ -67,11 +65,11 @@ object HostRegistry {
         }
     }
 
-    fun get(addr: String, port: Int): String? {
+    fun getHostName(addr: String, port: Int): String? {
         return hosts[addr] ?: hosts["${addr}:${port}"]
     }
 
-    fun getMappedAddr(addr: String): String? {
+    fun getAddrMapping(addr: String): String? {
         return mapping[addr]
     }
 
@@ -80,7 +78,7 @@ object HostRegistry {
             val query = JsonObject().apply {
                 put("name", host.getString("name"))
             }
-            client!!.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true, returningNewDocument = true)) { asr ->
+            client!!.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true)) { asr ->
                 if (asr.failed()) {
                     logger.error(asr.cause()) { "MongoClient 'replaceDocuments()' failed." }
                 }

@@ -379,7 +379,7 @@ class SdpHandlerTest : VertxTest() {
     @Test
     fun `Handle INVITE transaction`() {
         every {
-            HostRegistry.getMappedAddr(eq("10.177.116.41"))
+            HostRegistry.getAddrMapping(eq("10.177.116.41"))
         } returns "41.116.177.10"
 
         val transaction = SipTransaction().apply {
