@@ -16,15 +16,18 @@
 
 package io.sip3.salto.ce.socket
 
+import io.mockk.*
+import io.mockk.junit5.MockKExtension
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
-import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.MockKSingletonExtension
+import io.sip3.salto.ce.hosts.HostRegistry
 import io.vertx.core.datagram.DatagramSocket
+import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -32,14 +35,17 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.util.*
 
-@ExtendWith(MongoExtension::class)
+@ExtendWith(MockKExtension::class, MockKSingletonExtension::class)
 class ManagementSocketTest : VertxTest() {
 
     companion object {
 
         private val HOST = JsonObject().apply {
             put("name", "sbc1")
-            put("sip", arrayListOf("10.10.10.10", "10.10.20.10:5060"))
+            put("addr", JsonArray().apply {
+                add("10.10.10.10")
+                add("10.10.20.10:5060")
+            })
         }
 
         private val CONFIG = JsonObject().apply {
@@ -74,11 +80,6 @@ class ManagementSocketTest : VertxTest() {
         localPort = findRandomPort()
         remotePort = findRandomPort()
         config = JsonObject().apply {
-            put("mongo", JsonObject().apply {
-                put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                put("db", "sip3")
-                put("bulk-size", 1)
-            })
             put("management", JsonObject().apply {
                 put("uri", "udp://127.0.0.1:$localPort")
                 put("expiration-timeout", 1500L)
@@ -89,6 +90,10 @@ class ManagementSocketTest : VertxTest() {
 
     @Test
     fun `Receive register from remote host with host information`() {
+        every {
+            HostRegistry.save(any())
+        } just Runs
+
         runTest(
             deploy = {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
@@ -97,16 +102,12 @@ class ManagementSocketTest : VertxTest() {
                 vertx.createDatagramSocket().send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
             },
             assert = {
-                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                    put("db_name", "sip3")
-                })
-
                 vertx.setPeriodic(500, 100) {
-                    mongo.findOne("hosts", HOST, JsonObject()) { asr ->
-                        if (asr.succeeded() && asr.result() != null) {
-                            context.completeNow()
+                    context.verify {
+                        verify(atLeast = 1) {
+                            HostRegistry.save(any())
                         }
+                        context.completeNow()
                     }
                 }
             }
@@ -115,6 +116,10 @@ class ManagementSocketTest : VertxTest() {
 
     @Test
     fun `Send Media Control to registered remote host`() {
+        every {
+            HostRegistry.save(any())
+        } just Runs
+
         // Media Control
         val mediaControl = MediaControl().apply {
             timestamp = System.currentTimeMillis()

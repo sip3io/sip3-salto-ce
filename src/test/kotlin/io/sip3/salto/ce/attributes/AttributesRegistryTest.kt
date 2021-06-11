@@ -30,7 +30,7 @@ class AttributesRegistryTest : VertxTest() {
         var attributesRegistry: AttributesRegistry? = null
         runTest(
             deploy = {
-                attributesRegistry = AttributesRegistry(vertx)
+                attributesRegistry = AttributesRegistry(vertx, JsonObject())
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to "string")
@@ -61,7 +61,7 @@ class AttributesRegistryTest : VertxTest() {
         var attributesRegistry: AttributesRegistry? = null
         runTest(
             deploy = {
-                attributesRegistry = AttributesRegistry(vertx)
+                attributesRegistry = AttributesRegistry(vertx, JsonObject())
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to 42)
@@ -91,7 +91,7 @@ class AttributesRegistryTest : VertxTest() {
         var attributesRegistry: AttributesRegistry? = null
         runTest(
             deploy = {
-                attributesRegistry = AttributesRegistry(vertx)
+                attributesRegistry = AttributesRegistry(vertx, JsonObject())
             },
             execute = {
                 val attributes = mapOf<String, Any>("name" to true)

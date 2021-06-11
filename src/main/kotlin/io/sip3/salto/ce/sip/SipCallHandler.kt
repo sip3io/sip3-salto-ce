@@ -116,7 +116,7 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         udfExecutor = UdfExecutor(vertx)
-        attributesRegistry = AttributesRegistry(vertx)
+        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.setPeriodic(trimToSizeDelay) {
             activeSessions = MutableMapUtil.mutableMapOf(activeSessions)

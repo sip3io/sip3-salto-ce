@@ -16,24 +16,25 @@
 
 package io.sip3.salto.ce.router
 
+import io.mockk.*
+import io.mockk.junit5.MockKExtension
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
 import io.sip3.commons.vertx.util.localSend
-import io.sip3.salto.ce.MongoExtension
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.MockKSingletonExtension
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.hosts.HostRegistry
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.core.json.get
-import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 
-@ExtendWith(MongoExtension::class)
+@ExtendWith(MockKExtension::class, MockKSingletonExtension::class)
 class RouterTest : VertxTest() {
 
     companion object {
@@ -80,27 +81,21 @@ class RouterTest : VertxTest() {
 
     @Test
     fun `Route SIP packet with host mapping`() {
+
         val host = JsonObject().apply {
             put("name", "test")
-            put("sip", JsonArray().apply {
+            put("addr", JsonArray().apply {
                 add("29.11.19.88")
             })
         }
 
+        every {
+            HostRegistry.getHostName(eq(host.getJsonArray("addr")[0]), any())
+        } returns host["name"]
+
         runTest(
             deploy = {
-                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                    put("db_name", "sip3")
-                })
-                mongo.save("hosts", host).await()
-
-                vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                    put("mongo", JsonObject().apply {
-                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db", "sip3")
-                    })
-                })
+                vertx.deployTestVerticle(Router::class)
             },
             execute = {
                 val sender = Address().apply {
