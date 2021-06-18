@@ -20,15 +20,15 @@ import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
-import io.sip3.salto.ce.MongoClient
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.hosts.HostRegistry
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
-import org.apache.commons.net.util.SubnetUtils
 
 /**
  * Routes packets by `protocolCode`
@@ -38,28 +38,22 @@ open class Router : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private var client: io.vertx.ext.mongo.MongoClient? = null
-    private var updatePeriod: Long = 0
+    private var recordIpAddressesAttributes = false
 
-    open var hostMap = emptyMap<String, String>()
+    val packetsRouted = Metrics.counter("packets_routed")
+
     lateinit var udfExecutor: UdfExecutor
-
-    private val packetsRouted = Metrics.counter("packets_routed")
+    private lateinit var hostRegistry: HostRegistry
+    private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
-        config().getJsonObject("mongo")?.let { config ->
-            client = MongoClient.createShared(vertx, config)
-            config.getLong("update-period")?.let { updatePeriod = it }
-        }
-
-        if (client != null) {
-            updateHostMap()
-            if (updatePeriod > 0) {
-                vertx.setPeriodic(updatePeriod) { updateHostMap() }
-            }
+        config().getJsonObject("attributes")?.getBoolean("record-ip-addresses")?.let {
+            recordIpAddressesAttributes = it
         }
 
         udfExecutor = UdfExecutor(vertx)
+        hostRegistry = HostRegistry.getInstance(vertx, config())
+        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.eventBus().localConsumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
             val (sender, packets) = event.body()
@@ -74,10 +68,10 @@ open class Router : AbstractVerticle() {
     }
 
     open fun handle(sender: Address, packet: Packet) {
-        // Map all addresses to host
-        mapAddressToHost(sender)
-        mapAddressToHost(packet.srcAddr)
-        mapAddressToHost(packet.dstAddr)
+        // Assign host to all addresses
+        assignHost(sender)
+        assignHost(packet.srcAddr)
+        assignHost(packet.dstAddr)
 
         udfExecutor.execute(RoutesCE.packet_udf,
             // Prepare UDF payload
@@ -109,8 +103,8 @@ open class Router : AbstractVerticle() {
             })
     }
 
-    open fun mapAddressToHost(address: Address) {
-        (hostMap[address.addr] ?: hostMap["${address.addr}:${address.port}"])?.let { address.host = it }
+    open fun assignHost(address: Address) {
+        hostRegistry.getHostName(address.addr, address.port)?.let { address.host = it }
     }
 
     open fun route(packet: Packet) {
@@ -124,42 +118,22 @@ open class Router : AbstractVerticle() {
 
         if (route != null) {
             packetsRouted.increment()
+            writeAttributes(packet)
             vertx.eventBus().localSend(route, packet)
         }
     }
 
-    open fun updateHostMap() {
-        client?.find("hosts", JsonObject()) { asr ->
-            if (asr.failed()) {
-                logger.error("MongoClient 'find()' failed.", asr.cause())
-                return@find
-            }
-            val tmpHostMap = mutableMapOf<String, String>().apply {
-                asr.result().forEach { host ->
-                    try {
-                        putAll(mapHostToAddr(host, type = "sip"))
-                        putAll(mapHostToAddr(host, type = "media"))
-                    } catch (e: Exception) {
-                        logger.error("Router `mapHostToAddr()` failed. Host: $host")
-                    }
-                }
-            }
-            hostMap = tmpHostMap
-        }
-    }
+    open fun writeAttributes(packet: Packet) {
+        val attributes = mutableMapOf<String, Any>().apply {
+            val src = packet.srcAddr
+            put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
+            src.host?.let { put(Attributes.src_host, it) }
 
-    open fun mapHostToAddr(host: JsonObject, type: String): MutableMap<String, String> {
-        return mutableMapOf<String, String>().apply {
-            val name = host.getString("name")
-            host.getJsonArray(type)?.forEach { addr ->
-                addr as String
-                put(addr, name)
-                if (addr.contains("/")) {
-                    SubnetUtils(addr).apply { isInclusiveHostCount = true }.info
-                        .allAddresses
-                        .forEach { put(it, name) }
-                }
-            }
+            val dst = packet.dstAddr
+            put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
+            dst.host?.let { put(Attributes.dst_host, it) }
         }
+
+        attributesRegistry.handle("ip", attributes)
     }
 }

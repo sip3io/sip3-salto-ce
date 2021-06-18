@@ -111,7 +111,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
         }
 
-        attributesRegistry = AttributesRegistry(vertx)
+        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.setPeriodic(trimToSizeDelay) {
             activeRegistrations = MutableMapUtil.mutableMapOf(activeRegistrations)

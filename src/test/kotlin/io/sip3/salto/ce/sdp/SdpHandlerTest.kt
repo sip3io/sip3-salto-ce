@@ -17,21 +17,27 @@
 package io.sip3.salto.ce.sdp
 
 import gov.nist.javax.sip.parser.StringMsgParser
+import io.mockk.every
+import io.mockk.junit5.MockKExtension
 import io.sip3.commons.domain.media.Codec
 import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.MockKSingletonExtension
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.hosts.HostRegistry
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.sip.SipTransactionHandlerTest
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
 
+@ExtendWith(MockKExtension::class, MockKSingletonExtension::class)
 class SdpHandlerTest : VertxTest() {
 
     companion object {
@@ -372,6 +378,10 @@ class SdpHandlerTest : VertxTest() {
 
     @Test
     fun `Handle INVITE transaction`() {
+        every {
+            HostRegistry.getAddrMapping(eq("10.177.116.41"))
+        } returns "41.116.177.10"
+
         val transaction = SipTransaction().apply {
             addPacket(PACKET_REQUEST_1)
             addPacket(PACKET_RESPONSE_1)
@@ -390,7 +400,7 @@ class SdpHandlerTest : VertxTest() {
                         assertEquals(35176, session.src.rtpPort)
                         assertEquals(35177, session.src.rtcpPort)
 
-                        assertEquals("10.177.116.41", session.dst.addr)
+                        assertEquals("41.116.177.10", session.dst.addr)
                         assertEquals(36046, session.dst.rtpPort)
                         assertEquals(36047, session.dst.rtcpPort)
 

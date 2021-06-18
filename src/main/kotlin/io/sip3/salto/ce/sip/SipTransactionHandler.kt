@@ -116,7 +116,7 @@ open class SipTransactionHandler : AbstractVerticle() {
             instances = it
         }
 
-        attributesRegistry = AttributesRegistry(vertx)
+        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.setPeriodic(trimToSizeDelay) {
             transactions = MutableMapUtil.mutableMapOf(transactions)

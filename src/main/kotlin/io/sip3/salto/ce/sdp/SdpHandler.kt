@@ -24,6 +24,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localReply
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.hosts.HostRegistry
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.address
 import io.sip3.salto.ce.util.defineRtcpPort
@@ -42,14 +43,12 @@ class SdpHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private var replaceMediaAddress = false
+    private lateinit var hostRegistry: HostRegistry
 
     private var codecs = mapOf<String, Codec>()
 
     override fun start() {
-        config().getJsonObject("sdp")?.getBoolean("replace-media-address")?.let {
-            replaceMediaAddress = it
-        }
+        hostRegistry = HostRegistry.getInstance(vertx, config())
 
         readCodecs(config())
         vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
@@ -126,7 +125,10 @@ class SdpHandler : AbstractVerticle() {
         }
 
         defineCodecs(session)
-        return session.sdpSession(replaceMediaAddress)
+        return session.sdpSession().apply {
+            hostRegistry.getAddrMapping(src.addr)?.let { src.addr = it }
+            hostRegistry.getAddrMapping(dst.addr)?.let { dst.addr = it }
+        }
     }
 
     private fun defineCodecs(session: SdpSessionDescription) {
@@ -186,16 +188,16 @@ class SdpHandler : AbstractVerticle() {
                 ?: DEFAULT_PTIME
         }
 
-        fun sdpSession(replaceMediaAddress: Boolean): SdpSession {
+        fun sdpSession(): SdpSession {
             return SdpSession().apply {
                 src = MediaAddress().apply {
-                    addr = if (replaceMediaAddress) srcAddr.addr else request!!.address()
+                    addr = request!!.address()
                     rtpPort = request!!.port
                     rtcpPort = request!!.defineRtcpPort(isRtcpMux)
                 }
 
                 dst = MediaAddress().apply {
-                    addr = if (replaceMediaAddress) dstAddr.addr else response!!.address()
+                    addr = response!!.address()
                     rtpPort = response!!.port
                     rtcpPort = response!!.defineRtcpPort(isRtcpMux)
                 }
