@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.hosts
+package io.sip3.salto.ce.host
 
 import io.sip3.salto.ce.MongoClient
 import io.vertx.core.Vertx

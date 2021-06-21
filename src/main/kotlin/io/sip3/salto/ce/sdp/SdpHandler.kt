@@ -24,7 +24,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localReply
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
-import io.sip3.salto.ce.hosts.HostRegistry
+import io.sip3.salto.ce.host.HostRegistry
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.address
 import io.sip3.salto.ce.util.defineRtcpPort
