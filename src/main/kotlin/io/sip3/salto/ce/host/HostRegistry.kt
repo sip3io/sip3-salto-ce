@@ -34,7 +34,7 @@ object HostRegistry {
     private var checkPeriod: Long = 30000
 
     private var hosts = emptyMap<String, String>()
-    private var mapping = emptyMap<String, String>()
+    private var mappings = emptyMap<String, String>()
 
     @Synchronized
     fun getInstance(vertx: Vertx, config: JsonObject): HostRegistry {
@@ -70,7 +70,7 @@ object HostRegistry {
     }
 
     fun getAddrMapping(addr: String): String? {
-        return mapping[addr]
+        return mappings[addr]
     }
 
     fun save(host: JsonObject) {
@@ -93,19 +93,19 @@ object HostRegistry {
                 return@find
             }
             val tmpHostMap = mutableMapOf<String, String>()
-            val tmpMapping = mutableMapOf<String, String>()
+            val tmpMappings = mutableMapOf<String, String>()
 
             asr.result().forEach { host ->
                 try {
                     tmpHostMap.putAll(mapHostToAddr(host))
-                    hostMapping(host)?.let { tmpMapping.putAll(it) }
+                    hostMapping(host)?.let { tmpMappings.putAll(it) }
                 } catch (e: Exception) {
                     logger.error("Router `mapHostToAddr()` failed. Host: $host")
                 }
             }
 
             hosts = tmpHostMap.toMap()
-            mapping = tmpMapping.toMap()
+            mappings = tmpMappings.toMap()
         }
     }
 
