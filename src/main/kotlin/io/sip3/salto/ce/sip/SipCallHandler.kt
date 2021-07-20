@@ -37,6 +37,7 @@ import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Handles SIP calls
@@ -137,7 +138,7 @@ open class SipCallHandler : AbstractVerticle() {
             terminateExpiredCallSessions()
         }
 
-        GlobalScope.launch(vertx.dispatcher()) {
+        GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(PREFIX).await()
             vertx.eventBus().localConsumer<SipTransaction>(PREFIX + "_${index.andIncrement.await()}") { event ->
                 try {

@@ -30,6 +30,7 @@ import mu.KotlinLogging
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Manages MongoDB collections
@@ -72,7 +73,7 @@ class MongoCollectionManager : CoroutineVerticle() {
 
         manageCollections()
         vertx.setPeriodic(updatePeriod) {
-            GlobalScope.launch(vertx.dispatcher()) {
+            GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
                 manageCollections()
             }
         }

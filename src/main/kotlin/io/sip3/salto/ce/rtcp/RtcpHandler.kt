@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.nio.charset.Charset
 import java.sql.Timestamp
+import kotlin.coroutines.CoroutineContext
 import kotlin.experimental.and
 
 /**
@@ -109,7 +110,7 @@ open class RtcpHandler : AbstractVerticle() {
             }
         }
 
-        GlobalScope.launch(vertx.dispatcher()) {
+        GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(RoutesCE.rtcp).await()
             vertx.eventBus().localConsumer<Pair<Packet, SenderReport>>(RoutesCE.rtcp + "_${index.andIncrement.await()}") { event ->
                 val (packet, senderReport) = event.body()

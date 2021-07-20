@@ -34,6 +34,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.abs
 
 /**
@@ -97,7 +98,7 @@ open class RecordingHandler : AbstractVerticle() {
             }
         }
 
-        GlobalScope.launch(vertx.dispatcher()) {
+        GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(RoutesCE.rec).await()
             vertx.eventBus()
                 .localConsumer<Pair<Packet, RecordingPayload>>(RoutesCE.rec + "_${index.andIncrement.await()}") { event ->
