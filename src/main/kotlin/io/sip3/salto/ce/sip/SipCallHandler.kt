@@ -79,6 +79,7 @@ open class SipCallHandler : AbstractVerticle() {
     private var durationTimeout: Long = 3600000
     private var durationDistributions = TreeMap<Long, String>()
     private var excludedAttributes = emptyList<String>()
+    private var correlationRole: String? = null
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
@@ -112,6 +113,9 @@ open class SipCallHandler : AbstractVerticle() {
             }
             config.getJsonArray("excluded-attributes")?.let {
                 excludedAttributes = it.map(Any::toString)
+            }
+            config.getJsonObject("correlation")?.getString("role")?.let {
+                correlationRole = it
             }
         }
         config().getJsonObject("attributes")?.let { config ->
@@ -155,6 +159,8 @@ open class SipCallHandler : AbstractVerticle() {
 
     open fun terminateInviteTransaction(transaction: SipTransaction) {
         val session = activeSessions.get(transaction.callId)?.get(transaction.legId) ?: SipSession()
+        val previousState = session.state
+
         session.addInviteTransaction(transaction)
 
         when (session.state) {
@@ -163,8 +169,11 @@ open class SipCallHandler : AbstractVerticle() {
                 activeSessions.get(transaction.callId)?.remove(transaction.legId)
             }
             ANSWERED -> {
-                writeAttributes(session)
-                writeToDatabase(PREFIX, session, upsert = true)
+                if (previousState != ANSWERED) {
+                    writeAttributes(session)
+                    writeToDatabase(PREFIX, session, upsert = true)
+                    sendToCorrelationHandlerIfNeeded(session)
+                }
                 activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
             else -> {
@@ -332,6 +341,7 @@ open class SipCallHandler : AbstractVerticle() {
 
                 writeAttributes(session)
                 writeToDatabase(PREFIX, session, upsert = (session.state == ANSWERED))
+                sendToCorrelationHandlerIfNeeded(session)
                 calculateCallSessionMetrics(session)
             }
         )
@@ -398,6 +408,29 @@ open class SipCallHandler : AbstractVerticle() {
             }
 
         attributesRegistry.handle("sip", attributes)
+    }
+
+    open fun sendToCorrelationHandlerIfNeeded(session: SipSession) {
+        if (correlationRole == null) return
+
+        val correlationEvent = JsonObject().apply {
+            put("created_at", session.createdAt)
+            session.terminatedAt?.let { put("terminated_at", it) }
+
+            val src = session.srcAddr
+            put("src_host", src.host ?: src.addr)
+
+            val dst = session.dstAddr
+            put("dst_host", dst.host ?: dst.addr)
+
+            put("caller", session.caller)
+            put("callee", session.callee)
+
+            put("call_id", session.callId)
+            session.attributes[Attributes.x_call_id]?.let { put("x_call_id", it) }
+        }
+
+        vertx.eventBus().send(RoutesCE.sip + "_call_correlation", correlationEvent)
     }
 
     open fun writeToDatabase(prefix: String, session: SipSession, upsert: Boolean = false) {
