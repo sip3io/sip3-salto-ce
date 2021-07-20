@@ -703,6 +703,51 @@ class SipCallHandlerTest : VertxTest() {
         )
     }
 
+    @Test
+    fun `Send correlation event`() {
+        val transaction = SipTransaction().apply {
+            addPacket(FAILED_PACKET_1)
+            addPacket(FAILED_PACKET_2)
+            addPacket(FAILED_PACKET_3)
+        }
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("call", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("termination-timeout", 100)
+                            put("correlation", JsonObject().apply {
+                                put("role", "reporter")
+                            })
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 200) {
+                    vertx.eventBus().localSend(RoutesCE.sip + "_call_0", transaction)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<JsonObject>(RoutesCE.sip + "_call_correlation") { event ->
+                    val correlationEvent = event.body()
+                    context.verify {
+                        assertEquals(NOW, correlationEvent.getLong("created_at"))
+                        assertEquals(NOW + 107 + 342, correlationEvent.getLong("terminated_at"))
+                        assertEquals(FAILED_PACKET_1.srcAddr.addr, correlationEvent.getString("src_host"))
+                        assertEquals(FAILED_PACKET_1.dstAddr.host, correlationEvent.getString("dst_host"))
+                        assertEquals("caller", correlationEvent.getString("caller"))
+                        assertEquals("321", correlationEvent.getString("callee"))
+                        assertEquals("58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117", correlationEvent.getString("call_id"))
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
     private fun SipTransaction.addPacket(packet: Packet) {
         val message = StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         addMessage(packet, message)

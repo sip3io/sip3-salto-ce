@@ -423,8 +423,8 @@ open class SipCallHandler : AbstractVerticle() {
             val dst = session.dstAddr
             put("dst_host", dst.host ?: dst.addr)
 
-            put("caller", session.caller)
-            put("callee", session.callee)
+            put("caller", session.attributes[Attributes.caller] ?: session.caller)
+            put("callee", session.attributes[Attributes.callee] ?: session.callee)
 
             put("call_id", session.callId)
             session.attributes[Attributes.x_call_id]?.let { put("x_call_id", it) }
@@ -469,8 +469,9 @@ open class SipCallHandler : AbstractVerticle() {
                     put("dst_addr", dst.addr)
                     put("dst_port", dst.port)
                     put("call_id", session.callId)
-                    put("caller", session.attributes.remove(Attributes.caller) ?: session.caller)
-                    put("callee", session.attributes.remove(Attributes.callee) ?: session.callee)
+                    session.attributes[Attributes.x_call_id]?.let { put("x_call_id", it) }
+                    put("caller", session.attributes[Attributes.caller] ?: session.caller)
+                    put("callee", session.attributes[Attributes.callee] ?: session.callee)
                 }
 
                 if (upsert) {
@@ -499,7 +500,7 @@ open class SipCallHandler : AbstractVerticle() {
                     put("transactions", session.transactions)
                     put("retransmits", session.retransmits)
 
-                    session.attributes.forEach { (name, value) -> put(name, value) }
+                    excludeSessionAttributes(session.attributes).forEach { (name, value) -> put(name, value) }
                 }
             })
         }
