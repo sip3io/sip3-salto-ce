@@ -430,7 +430,10 @@ open class SipCallHandler : AbstractVerticle() {
             session.attributes[Attributes.x_call_id]?.let { put("x_call_id", it) }
         }
 
-        vertx.eventBus().send(RoutesCE.sip + "_call_correlation", correlationEvent)
+        when (correlationRole) {
+            "aggregator" -> vertx.eventBus().localSend(RoutesCE.sip + "_call_correlation", correlationEvent)
+            "reporter" -> vertx.eventBus().send(RoutesCE.sip + "_call_correlation", correlationEvent)
+        }
     }
 
     open fun writeToDatabase(prefix: String, session: SipSession, upsert: Boolean = false) {
