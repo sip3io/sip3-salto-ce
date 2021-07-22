@@ -424,6 +424,8 @@ open class SipCallHandler : AbstractVerticle() {
             val dst = session.dstAddr
             put("dst_host", dst.host ?: dst.addr)
 
+            put("state", session.state)
+
             put("caller", session.attributes[Attributes.caller] ?: session.caller)
             put("callee", session.attributes[Attributes.callee] ?: session.callee)
 
