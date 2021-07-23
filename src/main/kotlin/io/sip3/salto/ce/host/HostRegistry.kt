@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.hosts
+package io.sip3.salto.ce.host
 
 import io.sip3.salto.ce.MongoClient
 import io.vertx.core.Vertx
@@ -23,18 +23,22 @@ import io.vertx.kotlin.ext.mongo.updateOptionsOf
 import mu.KotlinLogging
 import org.apache.commons.net.util.SubnetUtils
 
+/**
+ * Handles host mappings
+ */
 object HostRegistry {
 
     private val logger = KotlinLogging.logger {}
+
+    private var checkPeriod: Long = 30000
 
     private var vertx: Vertx? = null
     private lateinit var config: JsonObject
     private var client: io.vertx.ext.mongo.MongoClient? = null
 
-    private var checkPeriod: Long = 30000
-
     private var hosts = emptyMap<String, String>()
-    private var mapping = emptyMap<String, String>()
+    private var mappings = emptyMap<String, String>()
+    private var features = emptyMap<String, Set<String>>()
 
     @Synchronized
     fun getInstance(vertx: Vertx, config: JsonObject): HostRegistry {
@@ -48,19 +52,17 @@ object HostRegistry {
     }
 
     private fun init() {
+        config.getJsonObject("hosts")?.getLong("check-period")?.let {
+            checkPeriod = it
+        }
         config.getJsonObject("mongo")?.let {
             client = MongoClient.createShared(vertx!!, it)
         }
 
         if (client != null) {
-            config.getJsonObject("hosts")?.getLong("check-period")?.let {
-                checkPeriod = it
-            }
-
             updateHosts()
-            if (checkPeriod > 0) {
-                vertx!!.setPeriodic(checkPeriod) {
-                    updateHosts() }
+            vertx!!.setPeriodic(checkPeriod) {
+                updateHosts()
             }
         }
     }
@@ -70,7 +72,11 @@ object HostRegistry {
     }
 
     fun getAddrMapping(addr: String): String? {
-        return mapping[addr]
+        return mappings[addr]
+    }
+
+    fun getFeatures(name: String): Set<String>? {
+        return features[name]
     }
 
     fun save(host: JsonObject) {
@@ -92,43 +98,49 @@ object HostRegistry {
                 logger.error("MongoClient 'find()' failed.", asr.cause())
                 return@find
             }
-            val tmpHostMap = mutableMapOf<String, String>()
-            val tmpMapping = mutableMapOf<String, String>()
+
+            val tmpHosts = mutableMapOf<String, String>()
+            val tmpMappings = mutableMapOf<String, String>()
+            val tmpFeatures = mutableMapOf<String, Set<String>>()
 
             asr.result().forEach { host ->
+                val name = host.getString("name")
+
                 try {
-                    tmpHostMap.putAll(mapHostToAddr(host))
-                    hostMapping(host)?.let { tmpMapping.putAll(it) }
+                    // Update `hosts`
+                    host.getJsonArray("addr")
+                        ?.map { it as String }
+                        ?.forEach { addr ->
+                            tmpHosts[addr] = name
+                            if (addr.contains("/")) {
+                                SubnetUtils(addr).apply { isInclusiveHostCount = true }.info
+                                    .allAddresses
+                                    .forEach { tmpHosts[it] = name }
+                            }
+                        }
+
+                    // Update `mappings`
+                    host.getJsonArray("mapping")
+                        ?.map { it as JsonObject }
+                        ?.forEach {
+                            tmpMappings[it.getString("source")] = it.getString("target")
+                        }
+
+                    // Update `features`
+                    host.getJsonArray("feature")
+                        ?.map { it as String }
+                        ?.toSet()
+                        ?.let {
+                            tmpFeatures[name] = it
+                        }
                 } catch (e: Exception) {
                     logger.error("Router `mapHostToAddr()` failed. Host: $host")
                 }
             }
 
-            hosts = tmpHostMap.toMap()
-            mapping = tmpMapping.toMap()
-        }
-    }
-
-    private fun mapHostToAddr(host: JsonObject): Map<String, String> {
-        return mutableMapOf<String, String>().apply {
-            val name = host.getString("name")
-
-            host.getJsonArray("addr")?.forEach { addr ->
-                addr as String
-                put(addr, name)
-                if (addr.contains("/")) {
-                    SubnetUtils(addr).apply { isInclusiveHostCount = true }.info
-                        .allAddresses
-                        .forEach { put(it, name) }
-                }
-            }
-        }
-    }
-
-    private fun hostMapping(host: JsonObject): Map<String, String>? {
-        return host.getJsonArray("mapping")?.associate { addressMapping ->
-            addressMapping as JsonObject
-            Pair(addressMapping.getString("source"), addressMapping.getString("target"))
+            hosts = tmpHosts
+            mappings = tmpMappings
+            features = tmpFeatures
         }
     }
 }

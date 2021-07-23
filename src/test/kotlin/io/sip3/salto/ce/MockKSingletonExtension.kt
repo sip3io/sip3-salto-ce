@@ -19,8 +19,10 @@ package io.sip3.salto.ce
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
-import io.sip3.salto.ce.hosts.HostRegistry
-import org.junit.jupiter.api.extension.*
+import io.sip3.salto.ce.host.HostRegistry
+import org.junit.jupiter.api.extension.AfterEachCallback
+import org.junit.jupiter.api.extension.BeforeEachCallback
+import org.junit.jupiter.api.extension.ExtensionContext
 
 class MockKSingletonExtension : BeforeEachCallback, AfterEachCallback {
 

@@ -16,16 +16,16 @@
 
 package io.sip3.salto.ce.router
 
-import io.mockk.*
+import io.mockk.every
 import io.mockk.junit5.MockKExtension
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
 import io.sip3.commons.vertx.util.localSend
-import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.MockKSingletonExtension
+import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.hosts.HostRegistry
+import io.sip3.salto.ce.host.HostRegistry
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.get

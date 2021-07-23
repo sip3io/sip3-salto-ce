@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.hosts
+package io.sip3.salto.ce.host
 
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.salto.ce.MongoExtension
@@ -54,6 +54,10 @@ class HostRegistryTest : VertxTest() {
                     put("source", "2.2.2.2" )
                     put("target", "5.5.5.5" )
                 })
+                put("feature", JsonArray().apply {
+                    add("feature1")
+                    add("feature2")
+                })
             })
         }
 
@@ -68,6 +72,10 @@ class HostRegistryTest : VertxTest() {
                     put("source", "7.7.7.7" )
                     put("target", "6.6.6.6" )
                 })
+            })
+            put("feature", JsonArray().apply {
+                add("feature1")
+                add("feature2")
             })
         }
 
@@ -100,7 +108,6 @@ class HostRegistryTest : VertxTest() {
                     })
                 })
             },
-            execute = {},
             assert = {
                 vertx.setPeriodic(100L) {
                     if (hostRegistry?.getHostName("1.1.1.1", 5060) != null) {
@@ -111,6 +118,8 @@ class HostRegistryTest : VertxTest() {
 
                             assertEquals(HOST_2.getString("name"), hostRegistry?.getHostName("4.4.4.4", 15053), "4")
                             assertEquals("5.5.5.5", hostRegistry?.getAddrMapping("2.2.2.2"), "5")
+                            assertEquals("feature1", hostRegistry?.getFeatures(HOST_2.getString("name"))?.first())
+                            assertEquals("feature2", hostRegistry?.getFeatures(HOST_2.getString("name"))?.last())
                         }
                         context.completeNow()
                     }
@@ -122,9 +131,6 @@ class HostRegistryTest : VertxTest() {
     @Test
     fun `Validate 'save()'`() {
         runTest(
-            deploy = {
-
-            },
             execute = {
                 val hostRegistry = HostRegistry.getInstance(vertx, JsonObject().apply {
                     put("mongo", JsonObject().apply {
@@ -152,6 +158,7 @@ class HostRegistryTest : VertxTest() {
                                 assertEquals(HOST_3.getString("name"), host.getString("name"))
                                 assertEquals(HOST_3.getString("addr"), host.getString("addr"))
                                 assertEquals(HOST_3.getString("mapping"), host.getString("mapping"))
+                                assertEquals(HOST_3.getString("features"), host.getString("features"))
                             }
                             context.completeNow()
                         }
