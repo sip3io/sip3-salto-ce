@@ -63,8 +63,6 @@ class Decoder : AbstractVerticle() {
         val protocolVersion = buffer.getByte(offset++)
 
         val packets = when (protocolVersion.toInt()) {
-            0 -> decode(buffer = buffer.slice(offset, buffer.length()))
-            1 -> decode(buffer = buffer.slice(offset, buffer.length()), compressedPayload = true)
             2 -> {
                 val compressed = (buffer.getByte(offset++).toInt() == 1)
                 if (compressed) {
@@ -76,14 +74,14 @@ class Decoder : AbstractVerticle() {
                     decode(buffer.slice(offset, buffer.length()))
                 }
             }
-            else -> throw NotImplementedError("Unknown protocol version. Version: $protocolVersion")
+            else -> throw NotImplementedError("Unsupported protocol version. Version: $protocolVersion")
         }
 
         packetsDecoded.increment(packets.size.toDouble())
         vertx.eventBus().localSend(RoutesCE.router, Pair(sender, packets))
     }
 
-    private fun decode(buffer: Buffer, compressedPayload: Boolean = false): List<Packet> {
+    private fun decode(buffer: Buffer): List<Packet> {
         val packets = mutableListOf<Packet>()
 
         var offset = 0
@@ -132,12 +130,6 @@ class Decoder : AbstractVerticle() {
                     8 -> payload = buffer.getBytes(packetOffset, packetOffset + length)
                 }
                 packetOffset += length
-            }
-
-            if (compressedPayload) {
-                InflaterInputStream(ByteArrayInputStream(payload)).use {
-                    payload = it.readBytes()
-                }
             }
 
             val packet = Packet().apply {

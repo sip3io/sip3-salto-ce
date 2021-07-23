@@ -20,12 +20,10 @@ import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
-import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.hosts.HostRegistry
+import io.sip3.salto.ce.host.HostRegistry
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.vertx.core.AbstractVerticle
 import mu.KotlinLogging
@@ -38,22 +36,14 @@ open class Router : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private var recordIpAddressesAttributes = false
-
     val packetsRouted = Metrics.counter("packets_routed")
 
     lateinit var udfExecutor: UdfExecutor
     private lateinit var hostRegistry: HostRegistry
-    private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
-        config().getJsonObject("attributes")?.getBoolean("record-ip-addresses")?.let {
-            recordIpAddressesAttributes = it
-        }
-
         udfExecutor = UdfExecutor(vertx)
         hostRegistry = HostRegistry.getInstance(vertx, config())
-        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.eventBus().localConsumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
             val (sender, packets) = event.body()
@@ -118,22 +108,7 @@ open class Router : AbstractVerticle() {
 
         if (route != null) {
             packetsRouted.increment()
-            writeAttributes(packet)
             vertx.eventBus().localSend(route, packet)
         }
-    }
-
-    open fun writeAttributes(packet: Packet) {
-        val attributes = mutableMapOf<String, Any>().apply {
-            val src = packet.srcAddr
-            put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
-            src.host?.let { put(Attributes.src_host, it) }
-
-            val dst = packet.dstAddr
-            put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
-            dst.host?.let { put(Attributes.dst_host, it) }
-        }
-
-        attributesRegistry.handle("ip", attributes)
     }
 }

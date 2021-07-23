@@ -21,7 +21,7 @@ import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.hosts.HostRegistry
+import io.sip3.salto.ce.host.HostRegistry
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.datagram.DatagramSocketOptions

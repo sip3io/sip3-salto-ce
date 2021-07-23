@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.nio.charset.Charset
 import java.sql.Timestamp
+import kotlin.coroutines.CoroutineContext
 import kotlin.experimental.and
 
 /**
@@ -109,7 +110,7 @@ open class RtcpHandler : AbstractVerticle() {
             }
         }
 
-        GlobalScope.launch(vertx.dispatcher()) {
+        GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(RoutesCE.rtcp).await()
             vertx.eventBus().localConsumer<Pair<Packet, SenderReport>>(RoutesCE.rtcp + "_${index.andIncrement.await()}") { event ->
                 val (packet, senderReport) = event.body()
@@ -271,7 +272,7 @@ open class RtcpHandler : AbstractVerticle() {
             if (report.interarrivalJitter < MAX_VALID_JITTER) {
                 session.lastJitter = report.interarrivalJitter.toFloat()
             }
-            
+
             val packetCount = senderReport.senderPacketCount.toInt()
 
             val payload = RtpReportPayload().apply {
@@ -303,7 +304,8 @@ open class RtcpHandler : AbstractVerticle() {
                     expectedPacketCount = (report.extendedSeqNumber - session.previousReport!!.extendedSeqNumber).toInt()
                     // Validate expected packet count
                     if (expectedPacketCount > (packetCount - session.previousPacketCount!!) * THRESHOLD_COEFFICIENT
-                            || expectedPacketCount <= 0) {
+                        || expectedPacketCount <= 0
+                    ) {
                         expectedPacketCount = (packetCount - session.previousPacketCount!!)
                     }
 

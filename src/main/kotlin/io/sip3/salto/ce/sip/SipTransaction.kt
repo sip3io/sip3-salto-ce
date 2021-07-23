@@ -19,7 +19,6 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
-import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.*
@@ -61,6 +60,11 @@ class SipTransaction {
     lateinit var callee: String
     lateinit var caller: String
 
+    var errorCode: Int? = null
+    var errorType: String? = null
+
+    var retransmits = 0
+
     var request: SIPRequest? = null
     var response: SIPResponse? = null
 
@@ -93,7 +97,7 @@ class SipTransaction {
 
                 // Received message is a retransmit
                 if (originatedAt != null) {
-                    attributes[Attributes.retransmits] = true
+                    retransmits++
                 } else {
                     originatedAt = packet.createdAt
                     if (extend) request = message
@@ -144,7 +148,7 @@ class SipTransaction {
                     200 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -158,7 +162,7 @@ class SipTransaction {
                     in 300..399 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -168,7 +172,7 @@ class SipTransaction {
                     401, 407 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -178,7 +182,7 @@ class SipTransaction {
                     487 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
@@ -188,41 +192,41 @@ class SipTransaction {
                     in 400..499 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
                         if (extend) response = message
                         state = FAILED
 
-                        attributes[Attributes.error_code] = statusCode.toString()
-                        attributes[Attributes.error_type] = "client"
+                        errorCode = statusCode
+                        errorType = "client"
                     }
                     in 500..599 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
                         if (extend) response = message
                         state = FAILED
 
-                        attributes[Attributes.error_code] = statusCode.toString()
-                        attributes[Attributes.error_type] = "server"
+                        errorCode = statusCode
+                        errorType = "server"
                     }
                     in 600..699 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
-                            attributes[Attributes.retransmits] = true
+                            retransmits++
                         }
 
                         terminatedAt = packet.createdAt
                         if (extend) response = message
                         state = FAILED
 
-                        attributes[Attributes.error_code] = statusCode.toString()
-                        attributes[Attributes.error_type] = "global"
+                        errorCode = statusCode
+                        errorType = "global"
                     }
                 }
             }

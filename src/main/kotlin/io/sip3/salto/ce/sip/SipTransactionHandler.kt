@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.abs
 
 /**
@@ -66,9 +67,10 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 4500
-    private var transactionExclusions = emptyList<String>()
+    private var excludedAttributes = emptyList<String>()
     private var saveSipMessagePayloadMode = 0
 
+    private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
     private var instances = 1
 
@@ -96,15 +98,20 @@ open class SipTransactionHandler : AbstractVerticle() {
             config.getLong("termination-timeout")?.let {
                 terminationTimeout = it
             }
-            config.getJsonArray("transaction-exclusions")?.let {
-                transactionExclusions = it.map(Any::toString)
+            config.getJsonArray("excluded-attributes")?.let {
+                excludedAttributes = it.map(Any::toString)
             }
             config.getInteger("save-sip-message-payload-mode")?.let {
                 saveSipMessagePayloadMode = it
             }
         }
-        config().getJsonObject("attributes")?.getBoolean("record-call-users")?.let {
-            recordCallUsersAttributes = it
+        config().getJsonObject("attributes")?.let { config ->
+            config.getBoolean("record-ip-addresses")?.let {
+                recordIpAddressesAttributes = it
+            }
+            config.getBoolean("record-call-users")?.let {
+                recordCallUsersAttributes = it
+            }
         }
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
@@ -119,7 +126,7 @@ open class SipTransactionHandler : AbstractVerticle() {
             terminateExpiredTransactions()
         }
 
-        GlobalScope.launch(vertx.dispatcher()) {
+        GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(PREFIX).await()
             vertx.eventBus().localConsumer<Pair<Packet, SIPMessage>>(PREFIX + "_${index.andIncrement.await()}") { event ->
                 try {
@@ -198,12 +205,9 @@ open class SipTransactionHandler : AbstractVerticle() {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
-            remove(Attributes.error_code)
-            remove(Attributes.error_type)
             remove(Attributes.x_call_id)
-            remove(Attributes.retransmits)
             remove(Attributes.recording_mode)
-            transactionExclusions.forEach { remove(it) }
+            excludedAttributes.forEach { remove(it) }
         }
     }
 
@@ -211,20 +215,31 @@ open class SipTransactionHandler : AbstractVerticle() {
         val attributes = transaction.attributes
             .toMutableMap()
             .apply {
-                remove(Attributes.src_host)
-                remove(Attributes.dst_host)
+                put(Attributes.state, transaction.state)
 
-                put(Attributes.method, transaction.cseqMethod)
+                val src = transaction.srcAddr
+                put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
+                src.host?.let { put(Attributes.src_host, it) }
 
-                put(Attributes.call_id, "")
-                remove(Attributes.x_call_id)
-                remove(Attributes.recording_mode)
+                val dst = transaction.dstAddr
+                put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
+                dst.host?.let { put(Attributes.dst_host, it) }
 
                 val caller = get(Attributes.caller) ?: transaction.caller
                 put(Attributes.caller, if (recordCallUsersAttributes) caller else "")
 
                 val callee = get(Attributes.callee) ?: transaction.callee
                 put(Attributes.callee, if (recordCallUsersAttributes) callee else "")
+
+                put(Attributes.call_id, "")
+
+                transaction.errorCode?.let { put(Attributes.error_code, it) }
+                transaction.errorType?.let { put(Attributes.error_type, it) }
+
+                put(Attributes.retransmits, transaction.retransmits)
+
+                remove(Attributes.x_call_id)
+                remove(Attributes.recording_mode)
             }
 
         attributesRegistry.handle("sip", attributes)
@@ -250,9 +265,14 @@ open class SipTransactionHandler : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
-                put("caller", transaction.caller)
-                put("callee", transaction.callee)
+                put("caller", transaction.attributes.remove(Attributes.caller) ?: transaction.caller)
+                put("callee", transaction.attributes.remove(Attributes.callee) ?: transaction.callee)
                 put("call_id", transaction.callId)
+
+                transaction.errorCode?.let { put("error_code", it) }
+                transaction.errorType?.let { put("error_type", it) }
+
+                put("retransmits", transaction.retransmits)
 
                 transaction.attributes.forEach { (name, value) -> put(name, value) }
             })
