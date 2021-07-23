@@ -71,7 +71,6 @@ class HostRegistryTest : VertxTest() {
             })
         }
 
-        val MONGO_URI = "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}"
         val MONGO_DB = "sip3"
     }
 
@@ -82,7 +81,7 @@ class HostRegistryTest : VertxTest() {
         runTest(
             deploy = {
                 val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", MONGO_URI)
+                    put("connection_string", MongoExtension.MONGO_URI)
                     put("db_name", MONGO_DB)
                 })
 
@@ -92,7 +91,7 @@ class HostRegistryTest : VertxTest() {
 
                 hostRegistry = HostRegistry.getInstance(vertx, JsonObject().apply {
                     put("mongo", JsonObject().apply {
-                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3")
                     })
                     put("hosts", JsonObject().apply {
@@ -128,7 +127,7 @@ class HostRegistryTest : VertxTest() {
             execute = {
                 val hostRegistry = HostRegistry.getInstance(vertx, JsonObject().apply {
                     put("mongo", JsonObject().apply {
-                        put("uri", MONGO_URI)
+                        put("uri", MongoExtension.MONGO_URI)
                         put("db", MONGO_DB)
                     })
                     put("hosts", JsonObject().apply {
@@ -140,7 +139,7 @@ class HostRegistryTest : VertxTest() {
             },
             assert = {
                 val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", MONGO_URI)
+                    put("connection_string", MongoExtension.MONGO_URI)
                     put("db_name", MONGO_DB)
                 })
 

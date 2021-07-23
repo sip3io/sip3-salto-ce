@@ -48,7 +48,7 @@ class MongoCollectionManagerTest : VertxTest() {
                 vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
                     put("time-suffix", "yyyyMMdd")
                     put("mongo", JsonObject().apply {
-                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3")
                         put("collections", JsonArray().apply {
                             add(JsonObject().apply {
@@ -63,7 +63,7 @@ class MongoCollectionManagerTest : VertxTest() {
             },
             assert = {
                 val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("connection_string", MongoExtension.MONGO_URI)
                     put("db_name", "sip3")
                 })
                 vertx.setPeriodic(500, 100) {
@@ -102,7 +102,7 @@ class MongoCollectionManagerTest : VertxTest() {
                 vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
                     put("time-suffix", "yyyyMMdd")
                     put("mongo", JsonObject().apply {
-                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3")
                         put("collections", JsonArray().apply {
                             add(JsonObject().apply {
@@ -117,7 +117,7 @@ class MongoCollectionManagerTest : VertxTest() {
             },
             assert = {
                 mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("connection_string", MongoExtension.MONGO_URI)
                     put("db_name", "sip3")
                 })
 
