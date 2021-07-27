@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class RtprSessionTest {
+class RtprStreamTest {
 
     companion object {
 
@@ -161,26 +161,26 @@ class RtprSessionTest {
 
 
     @Test
-    fun `Validate RtprSession 'add()' method from RTP`() {
-        val session = RtprSession(PACKET_1).apply {
+    fun `Validate RtprStream 'add()' method from RTP`() {
+        val stream = RtprStream(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_1)
         }
 
-        assertEquals(1, session.reportCount)
-        assertEquals(RTPR_1, session.report)
+        assertEquals(1, stream.reportCount)
+        assertEquals(RTPR_1, stream.report)
 
-        assertEquals(RTPR_1.startedAt, session.createdAt)
-        assertEquals(RTPR_1.startedAt + RTPR_1.duration, session.terminatedAt)
+        assertEquals(RTPR_1.startedAt, stream.createdAt)
+        assertEquals(RTPR_1.startedAt + RTPR_1.duration, stream.terminatedAt)
 
-        assertTrue(session.codecNames.contains(RTPR_1.codecName))
-        assertEquals(RTPR_1.mos.toDouble(), session.mos)
-        assertEquals(RTPR_1.rFactor.toDouble(), session.rFactor)
+        assertTrue(stream.codecNames.contains(RTPR_1.codecName))
+        assertEquals(RTPR_1.mos.toDouble(), stream.mos)
+        assertEquals(RTPR_1.rFactor.toDouble(), stream.rFactor)
     }
 
     @Test
-    fun `Validate RtprSession 'add()' method from 2 RTP`() {
-        val session = RtprSession(PACKET_1).apply {
+    fun `Validate RtprStream 'add()' method from 2 RTP`() {
+        val stream = RtprStream(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             RtpReportPayload().apply {
                 decode(RTPR_1.encode())
@@ -189,48 +189,48 @@ class RtprSessionTest {
             add(RTPR_2)
         }
 
-        assertEquals(2, session.reportCount)
+        assertEquals(2, stream.reportCount)
 
 
-        assertEquals(RTPR_1.startedAt, session.createdAt)
-        assertEquals(RTPR_2.startedAt + RTPR_2.duration, session.terminatedAt)
+        assertEquals(RTPR_1.startedAt, stream.createdAt)
+        assertEquals(RTPR_2.startedAt + RTPR_2.duration, stream.terminatedAt)
 
-        assertTrue(session.codecNames.contains(RTPR_1.codecName))
-        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), session.rFactor)
+        assertTrue(stream.codecNames.contains(RTPR_1.codecName))
+        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
 
-        assertEquals(RTPR_2.mos.toDouble(), session.lastMos)
-        assertEquals(RTPR_2.rFactor.toDouble(), session.lastRFactor)
+        assertEquals(RTPR_2.mos.toDouble(), stream.lastMos)
+        assertEquals(RTPR_2.rFactor.toDouble(), stream.lastRFactor)
     }
 
     @Test
-    fun `Validate RtprSession 'merge()' method from RTP`() {
-        val session = RtprSession(PACKET_1).apply {
+    fun `Validate RtprStream 'merge()' method from RTP`() {
+        val stream = RtprStream(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             RtpReportPayload().apply {
                 decode(RTPR_1.encode())
             }.let { add(it) }
         }
 
-        val session2 = RtprSession(PACKET_1).apply {
+        val stream2 = RtprStream(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_2)
         }
 
-        session.merge(session2)
+        stream.merge(stream2)
 
-        assertEquals(2, session.reportCount)
+        assertEquals(2, stream.reportCount)
 
 
-        assertEquals(RTPR_1.startedAt, session.createdAt)
-        assertEquals(RTPR_2.startedAt + RTPR_2.duration, session.terminatedAt)
+        assertEquals(RTPR_1.startedAt, stream.createdAt)
+        assertEquals(RTPR_2.startedAt + RTPR_2.duration, stream.terminatedAt)
 
-        assertTrue(session.codecNames.contains(RTPR_1.codecName))
-        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), session.rFactor)
+        assertTrue(stream.codecNames.contains(RTPR_1.codecName))
+        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
     }
 
     @Test
-    fun `Validate RtprSession 'merge()' method from RTP with address change`() {
-        val session = RtprSession(PACKET_1).apply {
+    fun `Validate RtprStream 'merge()' method from RTP with address change`() {
+        val stream = RtprStream(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             RtpReportPayload().apply {
                 decode(RTPR_1.encode())
@@ -244,46 +244,46 @@ class RtprSessionTest {
                 rtpPort = 20510
             }.rtpAddress()
         }
-        val session2 = RtprSession(modifiedPacker).apply {
+        val stream2 = RtprStream(modifiedPacker).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_2)
         }
 
-        session.merge(session2)
+        stream.merge(stream2)
 
-        assertEquals(2, session.reportCount)
+        assertEquals(2, stream.reportCount)
 
-        assertTrue(session.missedPeer)
-        assertEquals(session.dstAddr, modifiedPacker.dstAddr)
-        assertEquals(session.dstAddr, modifiedPacker.dstAddr)
+        assertTrue(stream.missedPeer)
+        assertEquals(stream.dstAddr, modifiedPacker.dstAddr)
+        assertEquals(stream.dstAddr, modifiedPacker.dstAddr)
     }
 
     @Test
-    fun `Validate RtprSession R-Factor threshold`() {
-        val session = RtprSession(PACKET_1, 50F).apply {
+    fun `Validate RtprStream R-Factor threshold`() {
+        val stream = RtprStream(PACKET_1, 50F).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_1)
         }
 
-        assertEquals(1, session.reportCount)
-        assertEquals(1, session.badReportCount)
+        assertEquals(1, stream.reportCount)
+        assertEquals(1, stream.badReportCount)
     }
 
     @Test
-    fun `Validate RtprSession 'add()' method from RTCP`() {
-        val session = RtprSession(PACKET_1_RTCP).apply {
+    fun `Validate RtprStream 'add()' method from RTCP`() {
+        val stream = RtprStream(PACKET_1_RTCP).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_1_RTCP)
         }
 
-        assertEquals(1, session.reportCount)
-        assertEquals(RTPR_1_RTCP, session.report)
+        assertEquals(1, stream.reportCount)
+        assertEquals(RTPR_1_RTCP, stream.report)
 
-        assertEquals(RTPR_1_RTCP.startedAt, session.createdAt)
-        assertEquals(RTPR_1_RTCP.startedAt + RTPR_1_RTCP.duration, session.terminatedAt)
+        assertEquals(RTPR_1_RTCP.startedAt, stream.createdAt)
+        assertEquals(RTPR_1_RTCP.startedAt + RTPR_1_RTCP.duration, stream.terminatedAt)
 
-        assertTrue(session.codecNames.contains(RTPR_1_RTCP.codecName))
-        assertEquals(RTPR_1_RTCP.mos.toDouble(), session.mos)
-        assertEquals(RTPR_1_RTCP.rFactor.toDouble(), session.rFactor)
+        assertTrue(stream.codecNames.contains(RTPR_1_RTCP.codecName))
+        assertEquals(RTPR_1_RTCP.mos.toDouble(), stream.mos)
+        assertEquals(RTPR_1_RTCP.rFactor.toDouble(), stream.rFactor)
     }
 }

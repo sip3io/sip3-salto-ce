@@ -30,7 +30,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.rtpr.RtprSession
+import io.sip3.salto.ce.rtpr.RtprStream
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -163,13 +163,13 @@ class MediaHandlerTest : VertxTest() {
             recording = Recording()
         }
 
-        val RTPR_SESSION_1 = RtprSession(PACKET_1).apply {
+        val RTPR_SESSION_1 = RtprStream(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_1)
             missedPeer = true
         }
 
-        val RTPR_SESSION_2 = RtprSession(PACKET_2).apply {
+        val RTPR_SESSION_2 = RtprStream(PACKET_2).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_2)
         }

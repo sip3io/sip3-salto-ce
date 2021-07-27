@@ -227,6 +227,7 @@ class RtprHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(RtprHandler::class)
             },
             execute = {
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_2)
             },
             assert = {
@@ -295,11 +296,11 @@ class RtprHandlerTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_2, RTPR_2))
             },
             assert = {
-                vertx.eventBus().consumer<RtprSession>(RoutesCE.media + "_0") { event ->
-                    val session = event.body()
+                vertx.eventBus().consumer<RtprStream>(RoutesCE.media + "_0") { event ->
+                    val stream = event.body()
 
                     context.verify {
-                        session.apply {
+                        stream.apply {
                             assertEquals(1, reportCount)
                             assertEquals(0, badReportCount)
                             assertEquals(MEDIA_CONTROL.callId, callId)
@@ -307,7 +308,7 @@ class RtprHandlerTest : VertxTest() {
                             assertEquals(1, codecNames.size)
                             assertEquals(MEDIA_CONTROL.sdpSession.codecs.first().name, codecNames.first())
 
-                            assertEquals(RTPR_1.startedAt, session.createdAt)
+                            assertEquals(RTPR_1.startedAt, stream.createdAt)
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
 
@@ -324,7 +325,7 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Handle RTP Report from RTCP and generate RtprSession`() {
+    fun `Handle RTP Report from RTCP and generate RtprStream`() {
         runTest(
             deploy = {
                 vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
@@ -341,16 +342,16 @@ class RtprHandlerTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
             },
             assert = {
-                vertx.eventBus().consumer<RtprSession>(RoutesCE.media + "_0") { event ->
-                    val session = event.body()
+                vertx.eventBus().consumer<RtprStream>(RoutesCE.media + "_0") { event ->
+                    val stream = event.body()
 
                     context.verify {
-                        session.apply {
+                        stream.apply {
                             assertEquals(1, reportCount)
-                            assertEquals(RTPR_1.startedAt, session.createdAt)
+                            assertEquals(RTPR_1.startedAt, stream.createdAt)
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
-                            assertEquals(RTPR_1, session.report)
+                            assertEquals(RTPR_1, stream.report)
 
                         }
                     }
@@ -376,6 +377,7 @@ class RtprHandlerTest : VertxTest() {
                 })
             },
             execute = {
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_1)
             },
             assert = {
@@ -516,13 +518,13 @@ class RtprHandlerTest : VertxTest() {
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_1, RTPR_1))
             },
             assert = {
-                vertx.eventBus().consumer<RtprSession>(RoutesCE.media + "_keep-alive") { event ->
-                    val session = event.body()
+                vertx.eventBus().consumer<RtprStream>(RoutesCE.media + "_keep-alive") { event ->
+                    val stream = event.body()
 
                     context.verify {
                         assertFalse(event.isSend)
-                        assertEquals(RTPR_1.callId, session.callId)
-                        assertEquals(RTPR_1.startedAt, session.createdAt)
+                        assertEquals(RTPR_1.callId, stream.callId)
+                        assertEquals(RTPR_1.startedAt, stream.createdAt)
                     }
 
                     context.completeNow()

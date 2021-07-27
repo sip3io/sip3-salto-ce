@@ -26,7 +26,7 @@ import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
-import io.sip3.salto.ce.rtpr.RtprSession
+import io.sip3.salto.ce.rtpr.RtprStream
 import io.sip3.salto.ce.util.rtpAddress
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -108,10 +108,10 @@ open class MediaHandler : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media + "_keep-alive") { event ->
+        vertx.eventBus().localConsumer<RtprStream>(RoutesCE.media + "_keep-alive") { event ->
             try {
-                val rtprSession = event.body()
-                handleKeepAlive(rtprSession)
+                val rtprStream = event.body()
+                handleKeepAlive(rtprStream)
             } catch (e: Exception) {
                 logger.error(e) { "MediaHandler 'handleKeepAlive()' failed." }
             }
@@ -119,7 +119,7 @@ open class MediaHandler : AbstractVerticle() {
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(RoutesCE.media).await()
-            vertx.eventBus().localConsumer<RtprSession>(RoutesCE.media + "_${index.andIncrement.await()}") { event ->
+            vertx.eventBus().localConsumer<RtprStream>(RoutesCE.media + "_${index.andIncrement.await()}") { event ->
                 try {
                     val session = event.body()
                     handle(session)
@@ -139,37 +139,37 @@ open class MediaHandler : AbstractVerticle() {
             .putIfAbsent(dstAddr.compositeAddrKey(srcAddr), MediaSession(srcAddr, dstAddr, mediaControl))
     }
 
-    open fun handleKeepAlive(rtprSession: RtprSession) {
-        rtprSession.mediaControl?.sdpSession?.let { sdpSession ->
+    open fun handleKeepAlive(rtprStream: RtprStream) {
+        rtprStream.mediaControl?.sdpSession?.let { sdpSession ->
             val srcAddr = sdpSession.src.rtpAddress()
             val dstAddr = sdpSession.dst.rtpAddress()
             val legId = srcAddr.compositeAddrKey(dstAddr)
 
-            media.get(rtprSession.callId)?.get(legId)?.let { mediaSession ->
+            media.get(rtprStream.callId)?.get(legId)?.let { mediaSession ->
                 mediaSession.updatedAt = System.currentTimeMillis()
 
                 if (mediaSession.mediaControl.recording == null
-                    && rtprSession.source == RtpReportPayload.SOURCE_RTP) {
+                    && rtprStream.source == RtpReportPayload.SOURCE_RTP) {
 
-                    vertx.eventBus().localSend(RoutesCE.media + "_update", Pair(rtprSession, mediaSession.mediaControl))
+                    vertx.eventBus().localSend(RoutesCE.media + "_update", Pair(rtprStream, mediaSession.mediaControl))
                 }
             }
         }
     }
 
-    open fun handle(rtprSession: RtprSession) {
-        rtprSession.mediaControl?.sdpSession?.let { sdpSession ->
+    open fun handle(rtprStream: RtprStream) {
+        rtprStream.mediaControl?.sdpSession?.let { sdpSession ->
             val srcAddr = sdpSession.src.rtpAddress()
             val dstAddr = sdpSession.dst.rtpAddress()
             val legId = srcAddr.compositeAddrKey(dstAddr)
 
-            val callId = rtprSession.callId!!
+            val callId = rtprStream.callId!!
             val mediaSession = media.getOrPut(callId) { mutableMapOf() }
                 .getOrPut(legId) {
-                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprSession source: ${rtprSession.source}" }
-                    MediaSession(srcAddr, dstAddr, rtprSession.mediaControl!!)
+                    logger.warn { "Media Session not found. Call ID: $callId, Leg ID: $legId, RtprStream source: ${rtprStream.source}" }
+                    MediaSession(srcAddr, dstAddr, rtprStream.mediaControl!!)
                 }
-            mediaSession.add(rtprSession)
+            mediaSession.add(rtprStream)
         }
     }
 
@@ -270,7 +270,7 @@ open class MediaHandler : AbstractVerticle() {
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
-    private fun RtprSession.toJson(): JsonObject {
+    private fun RtprStream.toJson(): JsonObject {
         return JsonObject().apply {
             put("created_at", createdAt)
             put("terminated_at", createdAt + report.duration)

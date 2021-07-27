@@ -19,7 +19,7 @@ package io.sip3.salto.ce.media
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Address
-import io.sip3.salto.ce.rtpr.RtprSession
+import io.sip3.salto.ce.rtpr.RtprStream
 import kotlin.math.min
 
 class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl: MediaControl) {
@@ -84,17 +84,17 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl:
     val duration: Long
         get() = terminatedAt - createdAt
 
-    fun add(session: RtprSession) {
-        when (session.source) {
-            RtpReportPayload.SOURCE_RTP -> addRtpSession(session)
-            RtpReportPayload.SOURCE_RTCP -> addRtcpSession(session)
+    fun add(stream: RtprStream) {
+        when (stream.source) {
+            RtpReportPayload.SOURCE_RTP -> addRtpStream(stream)
+            RtpReportPayload.SOURCE_RTCP -> addRtcpStream(stream)
         }
 
-        if (createdAt > session.createdAt || createdAt == 0L) createdAt = session.createdAt
-        if (terminatedAt < session.terminatedAt) terminatedAt = session.terminatedAt
+        if (createdAt > stream.createdAt || createdAt == 0L) createdAt = stream.createdAt
+        if (terminatedAt < stream.terminatedAt) terminatedAt = stream.terminatedAt
 
-        if (srcAddr.host == null) updateHost(srcAddr, session)
-        if (dstAddr.host == null) updateHost(dstAddr, session)
+        if (srcAddr.host == null) updateHost(srcAddr, stream)
+        if (dstAddr.host == null) updateHost(dstAddr, stream)
 
         updatedAt = System.currentTimeMillis()
     }
@@ -103,36 +103,36 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl:
         return forward.hasMedia() || reverse.hasMedia()
     }
 
-    private fun addRtpSession(session: RtprSession) {
-        if (session.srcAddr == srcAddr || session.dstAddr == dstAddr) {
-            forward.addRtp(session)
+    private fun addRtpStream(stream: RtprStream) {
+        if (stream.srcAddr == srcAddr || stream.dstAddr == dstAddr) {
+            forward.addRtp(stream)
         } else {
-            reverse.addRtp(session)
+            reverse.addRtp(stream)
         }
     }
 
-    private fun addRtcpSession(session: RtprSession) {
-        if (session.dstAddr.addr == srcAddr.addr || session.srcAddr.addr == dstAddr.addr) {
-            forward.addRtcp(session)
+    private fun addRtcpStream(stream: RtprStream) {
+        if (stream.dstAddr.addr == srcAddr.addr || stream.srcAddr.addr == dstAddr.addr) {
+            forward.addRtcp(stream)
         } else {
-            reverse.addRtcp(session)
+            reverse.addRtcp(stream)
         }
     }
 
-    private fun updateHost(addr: Address, session: RtprSession) {
-        session.srcAddr
+    private fun updateHost(addr: Address, stream: RtprStream) {
+        stream.srcAddr
             .takeIf { it == addr && it.host != null }
             ?.let { addr.host = it.host }
 
-        session.dstAddr
+        stream.dstAddr
             .takeIf { it == addr && it.host != null }
             ?.let { addr.host = it.host }
     }
 
     class MediaStream {
 
-        var rtp: RtprSession? = null
-        var rtcp: RtprSession? = null
+        var rtp: RtprStream? = null
+        var rtcp: RtprStream? = null
 
         val reportCount: Int
             get() {
@@ -159,19 +159,19 @@ class MediaSession(val srcAddr: Address, val dstAddr: Address, val mediaControl:
         val missedPeer: Boolean
             get() = rtp?.missedPeer ?: false
 
-        fun addRtp(session: RtprSession) {
+        fun addRtp(stream: RtprStream) {
             if (rtp == null) {
-                rtp = session
+                rtp = stream
             } else {
-                rtp!!.merge(session)
+                rtp!!.merge(stream)
             }
         }
 
-        fun addRtcp(session: RtprSession) {
+        fun addRtcp(stream: RtprStream) {
             if (rtcp == null) {
-                rtcp = session
+                rtcp = stream
             } else {
-                rtcp!!.merge(session)
+                rtcp!!.merge(stream)
             }
         }
 

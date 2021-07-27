@@ -19,7 +19,7 @@ package io.sip3.salto.ce.media
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.rtpr.RtprSession
+import io.sip3.salto.ce.rtpr.RtprStream
 import io.sip3.salto.ce.util.rtcpAddress
 import io.sip3.salto.ce.util.rtpAddress
 import org.junit.jupiter.api.Assertions.*
@@ -191,23 +191,23 @@ class MediaSessionTest {
             dstAddr = MEDIA_CONTROL.sdpSession.src.rtcpAddress()
         }
 
-        val RTPR_SESSION_1 = RtprSession(PACKET_1).apply {
+        val RTPR_SESSION_1 = RtprStream(PACKET_1).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_1)
             missedPeer = true
         }
 
-        val RTPR_SESSION_1_RTCP = RtprSession(PACKET_1_RTCP).apply {
+        val RTPR_SESSION_1_RTCP = RtprStream(PACKET_1_RTCP).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_1_RTCP)
         }
 
-        val RTPR_SESSION_2 = RtprSession(PACKET_2).apply {
+        val RTPR_SESSION_2 = RtprStream(PACKET_2).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_2)
         }
 
-        val RTPR_SESSION_2_RTCP = RtprSession(PACKET_2_RTCP).apply {
+        val RTPR_SESSION_2_RTCP = RtprStream(PACKET_2_RTCP).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_2_RTCP)
         }

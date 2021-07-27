@@ -21,7 +21,7 @@ import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil
 
-class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
+class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
 
     var createdAt: Long = 0L
     var terminatedAt: Long = 0L
@@ -36,7 +36,7 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
     var mediaControl: MediaControl? = null
     val codecNames = mutableSetOf<String>()
     val callId: String?
-        get() = report.callId
+        get() = mediaControl?.callId
 
     val mos: Double?
         get() = report.mos.takeIf { it != 1F }?.toDouble()
@@ -69,7 +69,7 @@ class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
         lastRFactor = payload.rFactor.toDouble()
     }
 
-    fun merge(other: RtprSession) {
+    fun merge(other: RtprStream) {
         mergeReport(other.report, other.reportCount)
 
         reportCount += other.reportCount
