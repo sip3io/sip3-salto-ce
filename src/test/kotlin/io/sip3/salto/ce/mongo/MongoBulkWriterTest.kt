@@ -39,7 +39,7 @@ class MongoBulkWriterTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(MongoBulkWriter::class, JsonObject().apply {
                     put("mongo", JsonObject().apply {
-                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                        put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3")
                         put("bulk-size", 1)
                     })
@@ -50,7 +50,7 @@ class MongoBulkWriterTest : VertxTest() {
             },
             assert = {
                 val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
+                    put("connection_string", MongoExtension.MONGO_URI)
                     put("db_name", "sip3")
                 })
                 vertx.setPeriodic(500, 100) {
