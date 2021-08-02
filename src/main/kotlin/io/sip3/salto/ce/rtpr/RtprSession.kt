@@ -22,17 +22,39 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import okhttp3.internal.format
 
-abstract class RtprSession(val mediaControl: MediaControl) {
+class RtprSession(val mediaControl: MediaControl, val source: Byte) {
 
     companion object {
 
         fun create(source: Byte, mediaControl: MediaControl, packet: Packet, rFactorThreshold: Float): RtprSession {
-            return when (source) {
-                RtpReportPayload.SOURCE_RTP -> RtprRtpSession(mediaControl)
-                RtpReportPayload.SOURCE_RTCP -> RtprRtcpSession(mediaControl)
-                else -> throw IllegalArgumentException("Unsupported source: $source")
-            }.apply {
-                assignAddresses(packet)
+            return RtprSession(mediaControl, source).apply {
+                val sdpSession = mediaControl.sdpSession
+                when (source) {
+                    RtpReportPayload.SOURCE_RTP -> {
+                        if (sdpSession.src.rtpId == packet.srcAddr.sdpSessionId()
+                            || sdpSession.dst.rtpId == packet.dstAddr.sdpSessionId()
+                        ) {
+                            srcAddr = packet.srcAddr
+                            dstAddr = packet.dstAddr
+                        } else {
+                            srcAddr = packet.dstAddr
+                            dstAddr = packet.srcAddr
+                        }
+                    }
+
+                    RtpReportPayload.SOURCE_RTCP -> {
+                        if (sdpSession.src.rtcpId == packet.dstAddr.sdpSessionId()
+                            || sdpSession.dst.rtcpId == packet.srcAddr.sdpSessionId()
+                        ) {
+                            srcAddr = packet.dstAddr
+                            dstAddr = packet.srcAddr
+                        } else {
+                            srcAddr = packet.srcAddr
+                            dstAddr = packet.dstAddr
+                        }
+                    }
+                }
+
                 this.rFactorThreshold = rFactorThreshold
             }
         }
@@ -44,7 +66,6 @@ abstract class RtprSession(val mediaControl: MediaControl) {
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
 
-    abstract val source: Byte
     var rFactorThreshold: Float? = null
 
     var forward: RtprStream? = null
@@ -85,9 +106,7 @@ abstract class RtprSession(val mediaControl: MediaControl) {
     val duration: Long
         get() = terminatedAt - createdAt
 
-    abstract fun assignAddresses(packet: Packet)
-
-    open fun add(packet: Packet, payload: RtpReportPayload) {
+    fun add(packet: Packet, payload: RtpReportPayload) {
         if (packet.srcAddr.equals(srcAddr) || packet.dstAddr.equals(dstAddr)) {
             if (forward == null) forward = RtprStream(packet, rFactorThreshold)
             forward!!.add(payload)
