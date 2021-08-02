@@ -163,7 +163,7 @@ open class SipTransactionHandler : AbstractVerticle() {
             // 2. Wait `response-timeout` if transaction was created but hasn't received any response yet
             // 3. Wait `aggregation-timeout` if transaction was created and has received response with non final status code
             (transaction.terminatedAt?.let { it + terminationTimeout }
-                ?: transaction.createdAt + (transaction.establishedAt?.let { aggregationTimeout } ?: responseTimeout)) < now
+                ?: (transaction.createdAt + (transaction.establishedAt?.let { aggregationTimeout } ?: responseTimeout))) < now
         }.forEach { (tid, transaction) ->
             transactions.remove(tid)
             routeTransaction(transaction)
@@ -172,7 +172,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     open fun routeTransaction(transaction: SipTransaction) {
         val prefix = when (transaction.cseqMethod) {
-            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${transaction.cseqMethod.toLowerCase()}"
+            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${transaction.cseqMethod.lowercase()}"
             else -> RoutesCE.sip + "_call"
         }
 
