@@ -50,8 +50,6 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
     var reportCount = 0
     var badReportCount = 0
 
-    var missedPeer = false
-
     fun add(payload: RtpReportPayload) {
         if (reportCount == 0) {
             report = payload
@@ -74,16 +72,6 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
 
         reportCount += other.reportCount
         badReportCount += other.badReportCount
-
-        if (srcAddr != other.srcAddr) {
-            missedPeer = true
-            srcAddr = other.srcAddr
-        }
-
-        if (dstAddr != other.dstAddr) {
-            missedPeer = true
-            dstAddr = other.dstAddr
-        }
     }
 
     private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1) {

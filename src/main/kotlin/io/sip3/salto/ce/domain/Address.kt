@@ -16,6 +16,8 @@
 
 package io.sip3.salto.ce.domain
 
+import io.sip3.commons.util.MediaUtil
+
 class Address {
 
     lateinit var addr: String
@@ -40,6 +42,10 @@ class Address {
         } else {
             "${other.hostOrAddr}:$hostOrAddr"
         }
+    }
+
+    fun sdpSessionId(): String {
+        return MediaUtil.sdpSessionId(addr, port)
     }
 
     override fun toString(): String {

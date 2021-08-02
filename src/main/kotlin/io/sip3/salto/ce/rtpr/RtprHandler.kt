@@ -20,12 +20,9 @@ import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.MediaUtil.rtpStreamId
-import io.sip3.commons.util.MediaUtil.sdpSessionId
 import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -82,8 +79,8 @@ open class RtprHandler : AbstractVerticle() {
     private var instances: Int = 1
 
     private var mediaControls = mutableMapOf<String, MediaControl>()
-    private var rtp = mutableMapOf<Long, RtprStream>()
-    private var rtcp = mutableMapOf<Long, RtprStream>()
+    private var rtp = mutableMapOf<String, RtprSession>()
+    private var rtcp = mutableMapOf<String, RtprSession>()
 
     private lateinit var attributesRegistry: AttributesRegistry
 
@@ -127,7 +124,7 @@ open class RtprHandler : AbstractVerticle() {
             rtcp = MutableMapUtil.mutableMapOf(rtcp)
         }
         vertx.setPeriodic(expirationDelay) {
-            terminateExpiredStreams()
+            terminateExpiredSessions()
         }
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
@@ -193,21 +190,22 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
-        val streamId = rtpStreamId(packet.srcAddr.port, packet.dstAddr.port, report.ssrc)
-        val stream = if (report.source == RtpReportPayload.SOURCE_RTP) {
-            rtp.getOrPut(streamId) { createRtprStream(packet) }
+        val sessionId = rtprSessionId(packet.srcAddr, packet.dstAddr)
+        val session = if (report.source == RtpReportPayload.SOURCE_RTP) {
+            rtp[sessionId] ?: createRtprSession(packet, RtpReportPayload.SOURCE_RTP)?.let { rtp.put(sessionId, it) }
         } else {
-            rtcp.getOrPut(streamId) { createRtprStream(packet) }
+            rtcp[sessionId] ?: createRtprSession(packet, RtpReportPayload.SOURCE_RTCP)?.let { rtcp.put(sessionId, it) }
         }
-        report.callId = stream.callId
 
-        if (report.codecName == null) {
-            stream.mediaControl?.let { updateWithSdp(report, it) }
-        }
-        stream.add(report)
+        if (session != null) {
+            updateWithMediaControl(report, session.mediaControl)
+            session.add(packet, report)
 
-        if (stream.callId != null) {
-            vertx.eventBus().localPublish(RoutesCE.media + "_keep-alive", stream)
+            if (session.mediaControl.recording == null
+                && session.source == RtpReportPayload.SOURCE_RTP) {
+
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_update", session)
+            }
         }
 
         val prefix = when (report.source) {
@@ -222,15 +220,19 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    open fun createRtprStream(packet: Packet): RtprStream {
-        val stream = RtprStream(packet, rFactorThreshold)
-        (mediaControls[packet.srcAddr.sdpSessionId()] ?: mediaControls[packet.dstAddr.sdpSessionId()])?.let {
-            stream.mediaControl = it
-        }
-        return stream
+    open fun createRtprSession(packet: Packet, source: Byte): RtprSession? {
+        val mediaControl = mediaControls[packet.srcAddr.sdpSessionId()]
+            ?: mediaControls[packet.dstAddr.sdpSessionId()]
+            ?: return null
+
+        return RtprSession.create(source, mediaControl, packet, rFactorThreshold)
     }
 
-    open fun updateWithSdp(report: RtpReportPayload, mediaControl: MediaControl) {
+    open fun updateWithMediaControl(report: RtpReportPayload, mediaControl: MediaControl) {
+        report.callId = mediaControl.callId
+
+        if (report.codecName != null) return
+
         val sdpSession = mediaControl.sdpSession
         if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
             report.duration = report.expectedPacketCount * sdpSession.ptime
@@ -256,31 +258,34 @@ open class RtprHandler : AbstractVerticle() {
         }
     }
 
-    open fun terminateExpiredStreams() {
+    open fun terminateExpiredSessions() {
         val now = System.currentTimeMillis()
 
         rtp.filterValues { it.terminatedAt + aggregationTimeout < now }
-            .forEach { (streamId, stream) ->
-                terminateRtprStream(stream)
-                rtp.remove(streamId)
+            .forEach { (sessionId, session) ->
+                terminateRtprSession(session)
+                rtp.remove(sessionId)
             }
 
         rtcp.filterValues { it.terminatedAt + aggregationTimeout < now }
-            .forEach { (streamId, stream) ->
-                terminateRtprStream(stream)
-                rtcp.remove(streamId)
+            .forEach { (sessionId, session) ->
+                terminateRtprSession(session)
+                rtcp.remove(sessionId)
             }
 
         mediaControls.filterValues { it.timestamp + aggregationTimeout < now }
             .forEach { (key, _) -> mediaControls.remove(key) }
     }
 
-    open fun terminateRtprStream(stream: RtprStream) {
-        stream.callId?.let { callId ->
-            val index = abs(callId.hashCode() % instances)
-            vertx.eventBus().localSend(RoutesCE.media + "_$index", stream)
-        }
+    open fun terminateRtprSession(session: RtprSession) {
+        val index = abs(session.callId.hashCode() % instances)
+        vertx.eventBus().localSend(RoutesCE.media + "_$index", session)
 
+        session.forward?.let { terminateRtprStream(it) }
+        session.reverse?.let { terminateRtprStream(it) }
+    }
+
+    open fun terminateRtprStream(stream: RtprStream) {
         writeAttributes(stream)
 
         if (cumulativeMetrics) {
@@ -385,7 +390,11 @@ open class RtprHandler : AbstractVerticle() {
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
-    private fun Address.sdpSessionId(): String {
-        return sdpSessionId(addr, port)
+    private fun rtprSessionId(srcAddr: Address, dstAddr: Address): String {
+        return if (srcAddr.addr > dstAddr.addr) {
+            "${srcAddr.sdpSessionId()}:${dstAddr.sdpSessionId()}"
+        } else {
+            "${dstAddr.sdpSessionId()}:${srcAddr.sdpSessionId()}"
+        }
     }
 }

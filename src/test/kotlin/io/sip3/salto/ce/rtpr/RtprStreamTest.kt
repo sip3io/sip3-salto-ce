@@ -237,14 +237,14 @@ class RtprStreamTest {
             }.let { add(it) }
         }
 
-        val modifiedPacker = Packet().apply {
+        val modifiedPacket = Packet().apply {
             srcAddr = MEDIA_CONTROL.sdpSession.src.rtpAddress()
             dstAddr = MediaAddress().apply {
                 addr = "10.20.20.20"
                 rtpPort = 20510
             }.rtpAddress()
         }
-        val stream2 = RtprStream(modifiedPacker).apply {
+        val stream2 = RtprStream(modifiedPacket).apply {
             mediaControl = MEDIA_CONTROL
             add(RTPR_2)
         }
@@ -254,8 +254,8 @@ class RtprStreamTest {
         assertEquals(2, stream.reportCount)
 
         assertTrue(stream.missedPeer)
-        assertEquals(stream.dstAddr, modifiedPacker.dstAddr)
-        assertEquals(stream.dstAddr, modifiedPacker.dstAddr)
+        assertEquals(stream.dstAddr, modifiedPacket.dstAddr)
+        assertEquals(stream.dstAddr, modifiedPacket.dstAddr)
     }
 
     @Test
