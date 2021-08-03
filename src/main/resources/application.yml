@@ -59,9 +59,6 @@ server:
 #    duration-timeout: 900000
 #    excluded-attributes: [exclude-me]
 #media:
-#  trim-to-size-delay: 3600000
-#  expiration-delay: 4000
-#  aggregation-timeout: 30000
 #  rtcp:
 #    trim-to-size-delay: 3600000
 #    expiration-delay: 4000

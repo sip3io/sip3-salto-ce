@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.rtpr
 
 import io.sip3.commons.domain.payload.RtpReportPayload
+import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
@@ -27,6 +28,7 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 /**
  * Handles RtprSession
@@ -38,16 +40,13 @@ open class RtprSessionHandler : AbstractVerticle() {
 
     companion object {
 
-        const val JITTER = "_jitter"
-        const val R_FACTOR = "_r-factor"
-        const val MOS = "_mos"
-        const val EXPECTED_PACKETS = "_expected-packets"
-        const val LOST_PACKETS = "_lost-packets"
-        const val REJECTED_PACKETS = "_rejected-packets"
+        const val PREFIX = "rtpr"
 
-        const val DURATION = "_duration"
+        const val REPORTS = PREFIX + "_reports"
+        const val BAD_REPORTS = PREFIX + "_bad-reports"
+        const val BAD_REPORTS_FRACTION = PREFIX + "_bad-reports-fraction"
 
-        const val UNDEFINED = "_undefined"
+        const val DURATION = PREFIX + "_duration"
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
@@ -107,7 +106,19 @@ open class RtprSessionHandler : AbstractVerticle() {
     }
 
     open fun calculateMetrics(prefix: String, session: RtprSession) {
-        //TODO
+        session.apply {
+            val attributes = mutableMapOf<String, Any>().apply {
+                srcAddr.host?.let { put("src_host", it) }
+                dstAddr.host?.let { put("dst_host", it) }
+                codecNames.firstOrNull()?.let { put("codec", it) }
+            }
+
+            Metrics.summary(REPORTS, attributes).record(reportCount.toDouble())
+            Metrics.summary(BAD_REPORTS, attributes).record(badReportCount.toDouble())
+            Metrics.summary(BAD_REPORTS_FRACTION, attributes).record(badReportFraction)
+
+            Metrics.timer(DURATION, attributes).record(duration, TimeUnit.MILLISECONDS)
+        }
     }
 
     open fun writeToDatabase(prefix: String, session: RtprSession) {

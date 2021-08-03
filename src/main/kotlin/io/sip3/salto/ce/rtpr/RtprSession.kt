@@ -20,7 +20,6 @@ import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import okhttp3.internal.format
 
 class RtprSession(val mediaControl: MediaControl, val source: Byte) {
 
@@ -94,11 +93,7 @@ class RtprSession(val mediaControl: MediaControl, val source: Byte) {
         }
 
     val isOneWay: Boolean
-        get() {
-            if (source != RtpReportPayload.SOURCE_RTP) return false
-
-            return (forward != null) xor (reverse != null)
-        }
+        get() = (source == RtpReportPayload.SOURCE_RTP) && ((forward != null) xor (reverse != null))
 
     val hasUndefinedCodec: Boolean
         get() = codecNames.any { it.contains("UNDEFINED") }
