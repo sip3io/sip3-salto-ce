@@ -103,10 +103,10 @@ class RtprSession(val mediaControl: MediaControl, val source: Byte) {
 
     fun add(packet: Packet, payload: RtpReportPayload) {
         if (packet.srcAddr.equals(srcAddr) || packet.dstAddr.equals(dstAddr)) {
-            if (forward == null) forward = RtprStream(packet, rFactorThreshold)
+            if (forward == null) forward = RtprStream(packet, true, rFactorThreshold)
             forward!!.add(payload)
         } else {
-            if (reverse == null) reverse = RtprStream(packet, rFactorThreshold)
+            if (reverse == null) reverse = RtprStream(packet, false, rFactorThreshold)
             reverse!!.add(payload)
         }
 

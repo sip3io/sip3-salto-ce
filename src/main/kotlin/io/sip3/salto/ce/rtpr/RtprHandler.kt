@@ -278,11 +278,10 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun terminateRtprSession(session: RtprSession) {
-        val index = abs(session.callId.hashCode() % instances)
-        vertx.eventBus().localSend(RoutesCE.media + "_$index", session)
-
         session.forward?.let { terminateRtprStream(it) }
         session.reverse?.let { terminateRtprStream(it) }
+
+        vertx.eventBus().localSend(RoutesCE.rtpr + "_session", session)
     }
 
     open fun terminateRtprStream(stream: RtprStream) {

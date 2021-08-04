@@ -40,13 +40,11 @@ open class RtprSessionHandler : AbstractVerticle() {
 
     companion object {
 
-        const val PREFIX = "rtpr"
+        const val REPORTS =  "_reports"
+        const val BAD_REPORTS = "_bad-reports"
+        const val BAD_REPORTS_FRACTION = "_bad-reports-fraction"
 
-        const val REPORTS = PREFIX + "_reports"
-        const val BAD_REPORTS = PREFIX + "_bad-reports"
-        const val BAD_REPORTS_FRACTION = PREFIX + "_bad-reports-fraction"
-
-        const val DURATION = PREFIX + "_duration"
+        const val DURATION = "_duration"
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
@@ -113,11 +111,11 @@ open class RtprSessionHandler : AbstractVerticle() {
                 codecNames.firstOrNull()?.let { put("codec", it) }
             }
 
-            Metrics.summary(REPORTS, attributes).record(reportCount.toDouble())
-            Metrics.summary(BAD_REPORTS, attributes).record(badReportCount.toDouble())
-            Metrics.summary(BAD_REPORTS_FRACTION, attributes).record(badReportFraction)
+            Metrics.summary(prefix + REPORTS, attributes).record(reportCount.toDouble())
+            Metrics.summary(prefix + BAD_REPORTS, attributes).record(badReportCount.toDouble())
+            Metrics.summary(prefix + BAD_REPORTS_FRACTION, attributes).record(badReportFraction)
 
-            Metrics.timer(DURATION, attributes).record(duration, TimeUnit.MILLISECONDS)
+            Metrics.timer(prefix + DURATION, attributes).record(duration, TimeUnit.MILLISECONDS)
         }
     }
 
@@ -152,6 +150,7 @@ open class RtprSessionHandler : AbstractVerticle() {
 
                 val reports = listOfNotNull(session.forward?.report, session.reverse?.report)
 
+                put("is_forward", listOfNotNull(session.forward?.isForward, session.reverse?.isForward))
                 put("mos", reports.map { it.mos.toDouble() })
                 put("r_factor", reports.map { it.rFactor.toDouble() })
 
