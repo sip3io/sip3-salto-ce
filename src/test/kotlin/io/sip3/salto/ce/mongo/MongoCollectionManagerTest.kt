@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.coroutines.await
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -48,8 +47,8 @@ class MongoCollectionManagerTest : VertxTest() {
                 vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
                     put("time-suffix", "yyyyMMdd")
                     put("mongo", JsonObject().apply {
-                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db", "sip3")
+                        put("uri", MongoExtension.MONGO_URI)
+                        put("db", "sip3-create")
                         put("collections", JsonArray().apply {
                             add(JsonObject().apply {
                                 put("prefix", "test_create")
@@ -63,13 +62,16 @@ class MongoCollectionManagerTest : VertxTest() {
             },
             assert = {
                 val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                    put("db_name", "sip3")
+                    put("connection_string", MongoExtension.MONGO_URI)
+                    put("db_name", "sip3-create")
                 })
                 vertx.setPeriodic(500, 100) {
                     mongo.getCollections { asr ->
-                        if (asr.succeeded() && asr.result().contains(collection1) && asr.result().contains(collection2)) {
-                            assertEquals(5, asr.result().size)
+                        if (asr.succeeded()
+                            && asr.result().size == 5
+                            && asr.result().contains(collection1)
+                            && asr.result().contains(collection2)
+                        ) {
                             mongo.listIndexes(collection1) { asr2 ->
                                 if (asr2.succeeded()) {
                                     context.verify {
@@ -102,8 +104,8 @@ class MongoCollectionManagerTest : VertxTest() {
                 vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
                     put("time-suffix", "yyyyMMdd")
                     put("mongo", JsonObject().apply {
-                        put("uri", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                        put("db", "sip3")
+                        put("uri", MongoExtension.MONGO_URI)
+                        put("db", "sip3-index")
                         put("collections", JsonArray().apply {
                             add(JsonObject().apply {
                                 put("prefix", "test_indexes")
@@ -117,8 +119,8 @@ class MongoCollectionManagerTest : VertxTest() {
             },
             assert = {
                 mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", "mongodb://${MongoExtension.HOST}:${MongoExtension.PORT}")
-                    put("db_name", "sip3")
+                    put("connection_string", MongoExtension.MONGO_URI)
+                    put("db_name", "sip3-index")
                 })
 
                 mongo.createCollection(collection).await()
