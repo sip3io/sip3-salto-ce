@@ -72,6 +72,10 @@ class RtprSession(val mediaControl: MediaControl, val source: Byte) {
 
     val callId: String
         get() = mediaControl.callId
+    val caller: String
+        get() = mediaControl.caller
+    val callee: String
+        get() = mediaControl.callee
 
     val reportCount: Int
         get() = (forward?.reportCount ?: 0) + (reverse?.reportCount ?: 0)

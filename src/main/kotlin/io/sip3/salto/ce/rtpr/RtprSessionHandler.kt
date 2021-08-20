@@ -93,6 +93,7 @@ open class RtprSessionHandler : AbstractVerticle() {
             put(Attributes.bad_report_fraction, session.badReportFraction)
             put(Attributes.one_way, session.isOneWay)
             put(Attributes.undefined_codec, session.hasUndefinedCodec)
+            put(Attributes.duration, session.duration)
         }
 
         val prefix = when (session.source) {
@@ -138,6 +139,9 @@ open class RtprSessionHandler : AbstractVerticle() {
                 dst.host?.let { put("dst_host", it) }
 
                 put("call_id", session.mediaControl.callId)
+                put("caller", session.mediaControl.caller)
+                put("callee", session.mediaControl.callee)
+
                 put("codec_names", session.codecNames.toList())
                 put("duration", session.duration)
 

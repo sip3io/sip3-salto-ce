@@ -141,14 +141,19 @@ server:
 #        ascending: [created_at]
 #        hashed: [call_id]
 #      max-collections: 30
-#    - prefix: rtpr_media_index
+#    - prefix: rtpr_rtp_index
 #      indexes:
-#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, mos, r_factor, bad_report_fraction, missed_peer, forward_rtp.mos, forward_rtp.r_factor, forward_rtcp.mos, forward_rtcp.r_factor, reverse_rtp.mos, reverse_rtp.r_factor, reverse_rtcp.mos, reverse_rtcp.r_factor]
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, caller, callee, mos, r_factor, codec_name, duration, bad_report_fraction]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rtpr_rtp_raw
 #      indexes:
 #        ascending: [created_at]
+#        hashed: [call_id]
+#      max-collections: 30
+#    - prefix: rtpr_rtcp_index
+#      indexes:
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, caller, callee, mos, r_factor, codec_name, duration, bad_report_fraction]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rtpr_rtcp_raw
