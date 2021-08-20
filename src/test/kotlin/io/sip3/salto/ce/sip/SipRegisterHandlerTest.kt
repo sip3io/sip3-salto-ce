@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -362,7 +362,7 @@ class SipRegisterHandlerTest : VertxTest() {
                         put("register", JsonObject().apply {
                             put("expiration-delay", 100)
                             put("aggregation-timeout", 1000)
-                            put("duration-timeout", 3000)
+                            put("duration-timeout", 5000)
                             put("update-period", 200)
                         })
                     })

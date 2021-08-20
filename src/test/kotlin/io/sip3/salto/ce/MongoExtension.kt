@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,36 +16,24 @@
 
 package io.sip3.salto.ce
 
-import de.flapdoodle.embed.mongo.MongodExecutable
-import de.flapdoodle.embed.mongo.MongodStarter
-import de.flapdoodle.embed.mongo.config.MongodConfig
-import de.flapdoodle.embed.mongo.config.Net
-import de.flapdoodle.embed.mongo.distribution.Version
-import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
-import java.net.ServerSocket
+import org.testcontainers.containers.MongoDBContainer
 
-class MongoExtension : BeforeAllCallback, AfterAllCallback {
+class MongoExtension : BeforeAllCallback {
 
     companion object {
 
-        const val HOST = "127.0.0.1"
-        val PORT: Int = ServerSocket(0).use { it.localPort }
-    }
+        @JvmField
+        val MONGODB_CONTAINER = MongoDBContainer("mongo:4.4").apply {
+            start()
+        }
 
-    private lateinit var mongo: MongodExecutable
+        val MONGO_URI
+            get() = "mongodb://${MONGODB_CONTAINER.containerIpAddress}:${MONGODB_CONTAINER.firstMappedPort}"
+    }
 
     override fun beforeAll(context: ExtensionContext?) {
-        val config = MongodConfig.builder().version(Version.V4_0_12)
-            .net(Net(HOST, PORT, false))
-            .build()
-
-        mongo = MongodStarter.getDefaultInstance().prepare(config)
-        mongo.start()
-    }
-
-    override fun afterAll(context: ExtensionContext?) {
-        mongo.stop()
+        // Do nothing
     }
 }
