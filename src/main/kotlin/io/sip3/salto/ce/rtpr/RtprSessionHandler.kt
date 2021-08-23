@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 SIP3.IO, Inc.
+ * Copyright 2018-2021 SIP3.IO, Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -152,9 +152,16 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("one_way", session.isOneWay)
                 put("undefined_codec", session.hasUndefinedCodec)
 
-                val reports = listOfNotNull(session.forward?.report, session.reverse?.report)
+                val directions = mutableListOf<String>().apply {
+                    if (session.forward != null) add("out")
+                    if (session.reverse != null) add("in")
+                }
+                put("direction", directions)
 
-                put("is_forward", listOfNotNull(session.forward?.isForward, session.reverse?.isForward))
+                val reports = mutableListOf<RtpReportPayload>().apply {
+                    session.forward?.report?.let { add(it) }
+                    session.reverse?.report?.let { add(it) }
+                }
                 put("mos", reports.map { it.mos.toDouble() })
                 put("r_factor", reports.map { it.rFactor.toDouble() })
 

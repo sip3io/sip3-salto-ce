@@ -30,7 +30,7 @@ import mu.KotlinLogging
 /**
  * Manages media feature
  */
-@Instance
+@Instance(singleton = true)
 open class MediaManager : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}

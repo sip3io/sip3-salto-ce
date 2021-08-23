@@ -42,7 +42,6 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.CoroutineContext
-import kotlin.math.abs
 
 /**
  * Handles RTP reports
@@ -178,10 +177,7 @@ open class RtprHandler : AbstractVerticle() {
             decode(payload)
         }
 
-        // Ignore cumulative reports from old SIP3 Captain versions
-        if (!report.cumulative) {
-            route(packet, report)
-        }
+        route(packet, report)
     }
 
     open fun route(packet: Packet, report: RtpReportPayload) {
@@ -190,11 +186,29 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
+        val source = report.source
+        val (prefix, sessions) = when (source) {
+            RtpReportPayload.SOURCE_RTP -> {
+                Pair("rtpr_rtp", rtp)
+            }
+            RtpReportPayload.SOURCE_RTCP -> {
+                Pair("rtpr_rtcp", rtcp)
+            }
+            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
+        }
+
         val sessionId = rtprSessionId(packet.srcAddr, packet.dstAddr)
-        val session = if (report.source == RtpReportPayload.SOURCE_RTP) {
-            rtp[sessionId] ?: createRtprSession(packet, RtpReportPayload.SOURCE_RTP)?.let { rtp.put(sessionId, it) }
-        } else {
-            rtcp[sessionId] ?: createRtprSession(packet, RtpReportPayload.SOURCE_RTCP)?.let { rtcp.put(sessionId, it) }
+        var session = sessions[sessionId]
+        if (session == null) {
+            val mediaControl = mediaControls[packet.srcAddr.sdpSessionId()]
+                ?: mediaControls[packet.dstAddr.sdpSessionId()]
+
+            if (mediaControl != null) {
+                session = RtprSession.create(source, mediaControl, packet).apply {
+                    rFactorThreshold = this@RtprHandler.rFactorThreshold
+                }
+                sessions[sessionId] = session
+            }
         }
 
         if (session != null) {
@@ -207,25 +221,11 @@ open class RtprHandler : AbstractVerticle() {
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_update", session)
             }
         }
-
-        val prefix = when (report.source) {
-            RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
-            RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp"
-            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
-        }
         writeToDatabase("${prefix}_raw", packet, report)
 
         if (!cumulativeMetrics) {
             calculateMetrics(prefix, packet.srcAddr, packet.dstAddr, report)
         }
-    }
-
-    open fun createRtprSession(packet: Packet, source: Byte): RtprSession? {
-        val mediaControl = mediaControls[packet.srcAddr.sdpSessionId()]
-            ?: mediaControls[packet.dstAddr.sdpSessionId()]
-            ?: return null
-
-        return RtprSession.create(source, mediaControl, packet, rFactorThreshold)
     }
 
     open fun updateWithMediaControl(report: RtpReportPayload, mediaControl: MediaControl) {

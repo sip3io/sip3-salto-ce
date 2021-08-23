@@ -20,13 +20,18 @@ import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
+import kotlin.math.max
+import kotlin.math.min
 
-class RtprSession(val mediaControl: MediaControl, val source: Byte) {
+class RtprSession {
 
     companion object {
 
-        fun create(source: Byte, mediaControl: MediaControl, packet: Packet, rFactorThreshold: Float): RtprSession {
-            return RtprSession(mediaControl, source).apply {
+        fun create(source: Byte, mediaControl: MediaControl, packet: Packet): RtprSession {
+            return RtprSession().apply {
+                this.source = source
+                this.mediaControl = mediaControl
+
                 val sdpSession = mediaControl.sdpSession
                 when (source) {
                     RtpReportPayload.SOURCE_RTP -> {
@@ -53,8 +58,6 @@ class RtprSession(val mediaControl: MediaControl, val source: Byte) {
                         }
                     }
                 }
-
-                this.rFactorThreshold = rFactorThreshold
             }
         }
     }
@@ -64,6 +67,9 @@ class RtprSession(val mediaControl: MediaControl, val source: Byte) {
 
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
+
+    var source: Byte = RtpReportPayload.SOURCE_RTP
+    lateinit var mediaControl: MediaControl
 
     var rFactorThreshold: Float? = null
 
@@ -114,12 +120,7 @@ class RtprSession(val mediaControl: MediaControl, val source: Byte) {
             reverse!!.add(payload)
         }
 
-        listOfNotNull(forward?.createdAt, reverse?.createdAt)
-            .minOrNull()
-            ?.let { createdAt = it }
-
-        listOfNotNull(forward?.terminatedAt, reverse?.terminatedAt)
-            .maxOrNull()
-            ?.let { terminatedAt = it }
+        createdAt = min(forward?.createdAt ?: Long.MAX_VALUE, reverse?.createdAt ?: Long.MAX_VALUE)
+        terminatedAt = max(forward?.terminatedAt ?: Long.MIN_VALUE, reverse?.terminatedAt ?: Long.MIN_VALUE)
     }
 }
