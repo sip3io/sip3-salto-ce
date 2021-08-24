@@ -113,10 +113,10 @@ class RtprSession {
 
     fun add(packet: Packet, payload: RtpReportPayload) {
         if (packet.srcAddr.equals(srcAddr) || packet.dstAddr.equals(dstAddr)) {
-            if (forward == null) forward = RtprStream(packet, true, rFactorThreshold)
+            if (forward == null) forward = RtprStream(packet, rFactorThreshold)
             forward!!.add(payload)
         } else {
-            if (reverse == null) reverse = RtprStream(packet, false, rFactorThreshold)
+            if (reverse == null) reverse = RtprStream(packet, rFactorThreshold)
             reverse!!.add(payload)
         }
 

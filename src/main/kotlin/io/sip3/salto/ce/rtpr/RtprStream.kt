@@ -21,7 +21,7 @@ import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil
 
-class RtprStream(packet: Packet, val isForward: Boolean, private val rFactorThreshold: Float? = null) {
+class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
 
     var createdAt: Long = 0L
     var terminatedAt: Long = 0L
