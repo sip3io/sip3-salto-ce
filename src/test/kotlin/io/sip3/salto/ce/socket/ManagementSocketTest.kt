@@ -128,6 +128,8 @@ class ManagementSocketTest : VertxTest() {
             timestamp = System.currentTimeMillis()
 
             callId = "SomeKindOfCallId"
+            caller = "123"
+            callee = "456"
 
             sdpSession = SdpSession().apply {
                 src = MediaAddress().apply {

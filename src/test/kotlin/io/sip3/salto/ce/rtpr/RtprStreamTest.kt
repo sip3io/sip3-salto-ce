@@ -229,36 +229,6 @@ class RtprStreamTest {
     }
 
     @Test
-    fun `Validate RtprStream 'merge()' method from RTP with address change`() {
-        val stream = RtprStream(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            RtpReportPayload().apply {
-                decode(RTPR_1.encode())
-            }.let { add(it) }
-        }
-
-        val modifiedPacket = Packet().apply {
-            srcAddr = MEDIA_CONTROL.sdpSession.src.rtpAddress()
-            dstAddr = MediaAddress().apply {
-                addr = "10.20.20.20"
-                rtpPort = 20510
-            }.rtpAddress()
-        }
-        val stream2 = RtprStream(modifiedPacket).apply {
-            mediaControl = MEDIA_CONTROL
-            add(RTPR_2)
-        }
-
-        stream.merge(stream2)
-
-        assertEquals(2, stream.reportCount)
-
-        assertTrue(stream.missedPeer)
-        assertEquals(stream.dstAddr, modifiedPacket.dstAddr)
-        assertEquals(stream.dstAddr, modifiedPacket.dstAddr)
-    }
-
-    @Test
     fun `Validate RtprStream R-Factor threshold`() {
         val stream = RtprStream(PACKET_1, 50F).apply {
             mediaControl = MEDIA_CONTROL

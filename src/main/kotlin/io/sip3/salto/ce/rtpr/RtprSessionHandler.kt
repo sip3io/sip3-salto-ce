@@ -92,7 +92,6 @@ open class RtprSessionHandler : AbstractVerticle() {
         val attributes = mutableMapOf<String, Any>().apply {
             put(Attributes.bad_report_fraction, session.badReportFraction)
             put(Attributes.one_way, session.isOneWay)
-            put(Attributes.undefined_codec, session.hasUndefinedCodec)
             put(Attributes.duration, session.duration)
         }
 
@@ -150,7 +149,6 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("bad_report_fraction", session.badReportFraction)
 
                 put("one_way", session.isOneWay)
-                put("undefined_codec", session.hasUndefinedCodec)
 
                 val directions = mutableListOf<String>().apply {
                     if (session.forward != null) add("out")

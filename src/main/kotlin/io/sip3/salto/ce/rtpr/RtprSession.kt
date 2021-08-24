@@ -105,9 +105,6 @@ class RtprSession {
     val isOneWay: Boolean
         get() = (source == RtpReportPayload.SOURCE_RTP) && ((forward != null) xor (reverse != null))
 
-    val hasUndefinedCodec: Boolean
-        get() = codecNames.any { it.contains("UNDEFINED") }
-
     val duration: Long
         get() = terminatedAt - createdAt
 

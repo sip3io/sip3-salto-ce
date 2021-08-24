@@ -422,7 +422,7 @@ class SipCallHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.setPeriodic(200, 100) {
+                vertx.setPeriodic(200, 1000) {
                     vertx.eventBus().localSend(RoutesCE.sip + "_call_0", transaction)
                 }
             },
