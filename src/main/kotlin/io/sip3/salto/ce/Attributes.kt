@@ -46,8 +46,6 @@ object Attributes {
     const val ranked = "ranked"
     const val one_way = "one_way"
     const val codec = "codec"
-    const val undefined_codec = "undefined_codec"
-    const val missed_peer = "missed_peer"
     const val bad_report_fraction = "bad_report_fraction"
     const val overlapped_interval = "overlapped_interval"
     const val overlapped_fraction = "overlapped_fraction"

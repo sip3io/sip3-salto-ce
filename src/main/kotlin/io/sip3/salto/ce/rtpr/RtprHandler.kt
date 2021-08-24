@@ -363,7 +363,7 @@ open class RtprHandler : AbstractVerticle() {
                 put("payload_type", report.payloadType.toInt())
                 put("ssrc", report.ssrc)
                 report.callId?.let { put("call_id", it) }
-                report.codecName?.let { put("codec_name", it) }
+                report.codecName?.let { put("codec", it) }
                 put("duration", report.duration)
 
                 put("packets", JsonObject().apply {

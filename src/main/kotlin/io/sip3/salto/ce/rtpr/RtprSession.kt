@@ -96,7 +96,7 @@ class RtprSession {
             }
         }
 
-    val codecNames: Set<String>
+    val codecs: Set<String>
         get() = mutableSetOf<String>().apply {
             forward?.codecNames?.let { addAll(it) }
             reverse?.codecNames?.let { addAll(it) }

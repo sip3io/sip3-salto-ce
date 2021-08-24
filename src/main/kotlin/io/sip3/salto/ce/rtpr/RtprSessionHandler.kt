@@ -51,6 +51,8 @@ open class RtprSessionHandler : AbstractVerticle() {
 
     private var minExpectedPackets = 100
 
+    private var recordIpAddressesAttributes = false
+
     private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
@@ -62,6 +64,10 @@ open class RtprSessionHandler : AbstractVerticle() {
             config.getInteger("min-expected-packets")?.let {
                 minExpectedPackets = it
             }
+        }
+
+        config().getJsonObject("attributes")?.getBoolean("record-ip-addresses")?.let {
+            recordIpAddressesAttributes = it
         }
 
         attributesRegistry = AttributesRegistry(vertx, config())
@@ -90,6 +96,14 @@ open class RtprSessionHandler : AbstractVerticle() {
 
     open fun writeAttributes(session: RtprSession) {
         val attributes = mutableMapOf<String, Any>().apply {
+            val src = session.srcAddr
+            put(Attributes.src_addr, if (recordIpAddressesAttributes) src.addr else "")
+            src.host?.let { put(Attributes.src_host, it) }
+
+            val dst = session.dstAddr
+            put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
+            dst.host?.let { put(Attributes.dst_host, it) }
+
             put(Attributes.bad_report_fraction, session.badReportFraction)
             put(Attributes.one_way, session.isOneWay)
             put(Attributes.duration, session.duration)
@@ -101,6 +115,8 @@ open class RtprSessionHandler : AbstractVerticle() {
             else -> throw IllegalArgumentException("Unsupported RtprSession source: '${session.source}'")
         }
         attributesRegistry.handle(prefix, attributes)
+
+        session.codecs.forEach { attributesRegistry.handle(prefix, Attributes.codec, it)}
     }
 
     open fun calculateMetrics(prefix: String, session: RtprSession) {
@@ -108,7 +124,7 @@ open class RtprSessionHandler : AbstractVerticle() {
             val attributes = mutableMapOf<String, Any>().apply {
                 srcAddr.host?.let { put("src_host", it) }
                 dstAddr.host?.let { put("dst_host", it) }
-                codecNames.firstOrNull()?.let { put("codec", it) }
+                codecs.firstOrNull()?.let { put("codec", it) }
             }
 
             Metrics.summary(prefix + REPORTS, attributes).record(reportCount.toDouble())
@@ -141,7 +157,7 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("caller", session.mediaControl.caller)
                 put("callee", session.mediaControl.callee)
 
-                put("codec_names", session.codecNames.toList())
+                put("codec", session.codecs.toList())
                 put("duration", session.duration)
 
                 put("report_count", session.reportCount)
