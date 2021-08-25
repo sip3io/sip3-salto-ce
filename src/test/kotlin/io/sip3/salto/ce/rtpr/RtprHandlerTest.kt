@@ -20,8 +20,6 @@ import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.MockClock
 import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.mockk.*
-import io.mockk.junit5.MockKExtension
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
@@ -29,7 +27,6 @@ import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
@@ -40,7 +37,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
 
-@ExtendWith(MockKExtension::class)
 class RtprHandlerTest : VertxTest() {
 
     companion object {
@@ -163,14 +159,6 @@ class RtprHandlerTest : VertxTest() {
 
             recording = Recording()
         }
-    }
-
-    @BeforeEach
-    fun `Mock all`() {
-        mockkConstructor(AttributesRegistry::class)
-        every {
-            anyConstructed<AttributesRegistry>().handle(any(), any())
-        } just Runs
     }
 
     @Test
@@ -508,10 +496,5 @@ class RtprHandlerTest : VertxTest() {
                 }
             }
         )
-    }
-
-    @AfterEach
-    fun `Unmock all`() {
-        unmockkAll()
     }
 }

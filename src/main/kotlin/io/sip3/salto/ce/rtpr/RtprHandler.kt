@@ -26,7 +26,6 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil.R0
@@ -81,8 +80,6 @@ open class RtprHandler : AbstractVerticle() {
     private var rtp = mutableMapOf<String, RtprSession>()
     private var rtcp = mutableMapOf<String, RtprSession>()
 
-    private lateinit var attributesRegistry: AttributesRegistry
-
     override fun start() {
         config().getString("time-suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
@@ -114,8 +111,6 @@ open class RtprHandler : AbstractVerticle() {
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
         }
-
-        attributesRegistry = AttributesRegistry(vertx, config())
 
         vertx.setPeriodic(trimToSizeDelay) {
             mediaControls = MutableMapUtil.mutableMapOf(mediaControls)
@@ -188,12 +183,8 @@ open class RtprHandler : AbstractVerticle() {
     open fun handle(packet: Packet, report: RtpReportPayload) {
         val source = report.source
         val (prefix, sessions) = when (source) {
-            RtpReportPayload.SOURCE_RTP -> {
-                Pair("rtpr_rtp", rtp)
-            }
-            RtpReportPayload.SOURCE_RTCP -> {
-                Pair("rtpr_rtcp", rtcp)
-            }
+            RtpReportPayload.SOURCE_RTP -> Pair("rtpr_rtp", rtp)
+            RtpReportPayload.SOURCE_RTCP -> Pair("rtpr_rtcp", rtcp)
             else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
         }
 
@@ -285,8 +276,6 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun terminateRtprStream(stream: RtprStream) {
-        writeAttributes(stream)
-
         if (cumulativeMetrics) {
             val prefix = when (stream.source) {
                 RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
@@ -325,21 +314,6 @@ open class RtprHandler : AbstractVerticle() {
                 Metrics.counter(prefix + UNDEFINED, attributes).increment()
             }
         }
-    }
-
-    open fun writeAttributes(stream: RtprStream) {
-        val report = stream.report
-        val attributes = mutableMapOf<String, Any>().apply {
-            put(Attributes.mos, report.mos)
-            put(Attributes.r_factor, report.rFactor)
-        }
-
-        val prefix = when (report.source) {
-            RtpReportPayload.SOURCE_RTP -> "rtp"
-            RtpReportPayload.SOURCE_RTCP -> "rtcp"
-            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
-        }
-        attributesRegistry.handle(prefix, attributes)
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
