@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class RtprStreamTest {
+class RtprSessionTest {
 
     companion object {
 
@@ -162,79 +162,40 @@ class RtprStreamTest {
     }
 
     @Test
-    fun `Validate RtprStream 'add()' method from 2 RTP`() {
-        val stream = RtprStream(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            RtpReportPayload().apply {
-                decode(RTPR_1.encode())
-            }.let { add(it) }
+    fun `Validate RtprSession 'create()' static method`() {
+        val session = RtprSession.create(
+            RTPR_1.source,
+            MEDIA_CONTROL,
+            PACKET_1
+        )
 
-            add(RTPR_2)
-        }
+        assertEquals(MEDIA_CONTROL.callId, session.callId)
+        assertEquals(MEDIA_CONTROL.caller, session.caller)
+        assertEquals(MEDIA_CONTROL.callee, session.callee)
 
-        assertEquals(2, stream.reportCount)
+        assertEquals(MEDIA_CONTROL.sdpSession.src.rtpAddress(), session.srcAddr)
+        assertEquals(MEDIA_CONTROL.sdpSession.dst.rtpAddress(), session.dstAddr)
 
-        assertEquals(RTPR_1.startedAt, stream.createdAt)
-        assertEquals(RTPR_2.startedAt + RTPR_2.duration, stream.terminatedAt)
-
-        assertTrue(stream.codecNames.contains(RTPR_1.codecName))
-        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
-
-        assertEquals(RTPR_2.mos.toDouble(), stream.lastMos)
-        assertEquals(RTPR_2.rFactor.toDouble(), stream.lastRFactor)
+        assertEquals(0.0, session.badReportFraction)
     }
 
     @Test
-    fun `Validate RtprStream 'merge()' method from RTP`() {
-        val stream = RtprStream(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            RtpReportPayload().apply {
-                decode(RTPR_1.encode())
-            }.let { add(it) }
-        }
+    fun `Validate RtprSession 'add()' method from RTP`() {
+        val session = RtprSession.create(
+            RTPR_1.source,
+            MEDIA_CONTROL,
+            PACKET_1
+        )
+        session.add(PACKET_1, RTPR_1)
 
-        val stream2 = RtprStream(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            add(RTPR_2)
-        }
+        assertEquals(1, session.reportCount)
+        assertEquals(RTPR_1, session.forward!!.report)
 
-        stream.merge(stream2)
+        assertEquals(RTPR_1.startedAt, session.createdAt)
+        assertEquals(RTPR_1.startedAt + RTPR_1.duration, session.terminatedAt)
 
-        assertEquals(2, stream.reportCount)
-
-        assertEquals(RTPR_1.startedAt, stream.createdAt)
-        assertEquals(RTPR_2.startedAt + RTPR_2.duration, stream.terminatedAt)
-
-        assertTrue(stream.codecNames.contains(RTPR_1.codecName))
-        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
-    }
-
-    @Test
-    fun `Validate RtprStream R-Factor threshold`() {
-        val stream = RtprStream(PACKET_1, 50F).apply {
-            mediaControl = MEDIA_CONTROL
-            add(RTPR_1)
-        }
-
-        assertEquals(1, stream.reportCount)
-        assertEquals(1, stream.badReportCount)
-    }
-
-    @Test
-    fun `Validate RtprStream 'add()' method from RTCP`() {
-        val stream = RtprStream(PACKET_1_RTCP).apply {
-            mediaControl = MEDIA_CONTROL
-            add(RTPR_1_RTCP)
-        }
-
-        assertEquals(1, stream.reportCount)
-        assertEquals(RTPR_1_RTCP, stream.report)
-
-        assertEquals(RTPR_1_RTCP.startedAt, stream.createdAt)
-        assertEquals(RTPR_1_RTCP.startedAt + RTPR_1_RTCP.duration, stream.terminatedAt)
-
-        assertTrue(stream.codecNames.contains(RTPR_1_RTCP.codecName))
-        assertEquals(RTPR_1_RTCP.mos.toDouble(), stream.mos)
-        assertEquals(RTPR_1_RTCP.rFactor.toDouble(), stream.rFactor)
+        assertTrue(session.codecs.contains(RTPR_1.codecName))
+        assertEquals(RTPR_1.mos.toDouble(), session.forward!!.mos)
+        assertEquals(RTPR_1.rFactor.toDouble(), session.forward!!.rFactor)
     }
 }

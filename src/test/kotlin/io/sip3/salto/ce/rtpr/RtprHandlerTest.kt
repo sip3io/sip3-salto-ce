@@ -30,11 +30,8 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
 
 class RtprHandlerTest : VertxTest() {
@@ -156,8 +153,6 @@ class RtprHandlerTest : VertxTest() {
                     ie = 0F
                 })
             }
-
-            recording = Recording()
         }
     }
 
@@ -323,6 +318,35 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
+    fun `Handle periodic RTP Report and send session to media_update`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
+                vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_1)
+            },
+            assert = {
+                vertx.eventBus().consumer<RtprSession>(RoutesCE.rtpr + "_update") { event ->
+                    val session = event.body()
+
+                    context.verify {
+                        session.apply {
+                            assertEquals(1, reportCount)
+                            assertEquals(RTPR_1.startedAt, session.createdAt)
+                            assertEquals(DST_ADDR, dstAddr)
+                            assertEquals(SRC_ADDR, srcAddr)
+                            assertNotNull(session.forward)
+                        }
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
     fun `Handle RTP Report from RTCP and generate RtprStream`() {
         runTest(
             deploy = {
@@ -350,7 +374,6 @@ class RtprHandlerTest : VertxTest() {
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
                             assertEquals(RTPR_1, session.forward!!.report)
-
                         }
                     }
                     context.completeNow()

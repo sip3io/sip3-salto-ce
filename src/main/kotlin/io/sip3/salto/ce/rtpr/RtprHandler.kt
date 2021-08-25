@@ -206,9 +206,7 @@ open class RtprHandler : AbstractVerticle() {
             updateWithMediaControl(report, session.mediaControl)
             session.add(packet, report)
 
-            if (session.mediaControl.recording == null
-                && session.source == RtpReportPayload.SOURCE_RTP) {
-
+            if (session.mediaControl.recording == null && session.source == RtpReportPayload.SOURCE_RTP) {
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_update", session)
             }
         }
