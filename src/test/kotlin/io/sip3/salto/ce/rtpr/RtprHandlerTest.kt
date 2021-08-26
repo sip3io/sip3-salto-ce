@@ -122,8 +122,8 @@ class RtprHandlerTest : VertxTest() {
         // Packet with periodic RTP report without Call-ID
         val PACKET_2 = Packet().apply {
             timestamp = Timestamp(System.currentTimeMillis())
-            srcAddr = SRC_ADDR_RTCP
-            dstAddr = DST_ADDR_RTCP
+            srcAddr = DST_ADDR_RTCP
+            dstAddr = SRC_ADDR_RTCP
             payload = RTPR_2.encode().array()
         }
 
