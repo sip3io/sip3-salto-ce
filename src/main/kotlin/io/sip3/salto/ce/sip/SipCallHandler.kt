@@ -545,7 +545,7 @@ open class SipCallHandler : AbstractVerticle() {
         var disconnectTime: Long? = null
         var terminatedBy: String? = null
 
-        var errorCode: Int? = null
+        var errorCode: String? = null
         var errorType: String? = null
 
         var transactions = 0

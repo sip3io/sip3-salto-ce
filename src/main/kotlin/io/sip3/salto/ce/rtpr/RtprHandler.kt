@@ -315,12 +315,12 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
-        val collection = prefix + "_" + timeSuffix.format(packet.timestamp)
+        val collection = prefix + "_" + timeSuffix.format(report.startedAt)
 
         val operation = JsonObject().apply {
             put("document", JsonObject().apply {
-                put("created_at", report.createdAt)
-                put("started_at", report.startedAt)
+                put("reported_at", report.createdAt)
+                put("created_at", report.startedAt)
 
                 val src = packet.srcAddr
                 put("src_addr", src.addr)
@@ -335,7 +335,7 @@ open class RtprHandler : AbstractVerticle() {
                 put("payload_type", report.payloadType.toInt())
                 put("ssrc", report.ssrc)
                 report.callId?.let { put("call_id", it) }
-                report.codecName?.let { put("codec", it) }
+                put("codec", report.codecName ?: "UNDEFINED(${report.payloadType})")
                 put("duration", report.duration)
 
                 put("packets", JsonObject().apply {

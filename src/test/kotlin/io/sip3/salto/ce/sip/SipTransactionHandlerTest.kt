@@ -308,7 +308,7 @@ class SipTransactionHandlerTest : VertxTest() {
                         assertEquals(PACKET_OPTIONS_1.dstAddr.port, document.getInteger("dst_port"))
                         assertEquals("caller", document.getString("caller"))
                         assertEquals("failed", document.getString("state"))
-                        assertEquals(503, document.getInteger("error_code"))
+                        assertEquals("503", document.getString("error_code"))
                         assertEquals("server", document.getString("error_type"))
                     }
                     context.completeNow()
@@ -434,7 +434,7 @@ class SipTransactionHandlerTest : VertxTest() {
                         assertEquals("", attributes["caller"])
                         assertEquals("", attributes["callee"])
                         assertEquals("", attributes["call_id"])
-                        assertEquals(503, attributes["error_code"])
+                        assertEquals("503", attributes["error_code"])
                         assertEquals("server", attributes["error_type"])
                         assertNotNull(attributes["retransmits"])
                     }

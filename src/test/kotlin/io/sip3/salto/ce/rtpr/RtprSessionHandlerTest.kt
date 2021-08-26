@@ -209,12 +209,11 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals(MEDIA_CONTROL.caller, document.getString("caller"))
                         assertEquals(MEDIA_CONTROL.callee, document.getString("callee"))
 
+                        assertEquals("out", document.getJsonArray("direction").first())
                         document.getJsonArray("codec").toList().let { codecs ->
                             assertTrue(codecs.isNotEmpty())
-                            assertEquals(RTPR_1.codecName, codecs.first() as String)
+                            assertEquals(RTPR_1.codecName, codecs.first())
                         }
-
-                        assertEquals("out", document.getJsonArray("direction").first())
                         assertEquals(RTPR_1.payloadType, (document.getJsonArray("payload_type").first() as Int).toByte())
                         assertEquals(RTPR_1.ssrc, document.getJsonArray("ssrc").first() as Long)
 

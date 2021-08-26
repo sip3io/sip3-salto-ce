@@ -179,8 +179,8 @@ class RtprHandlerTest : VertxTest() {
                         assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
                         assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
 
-                        assertEquals(RTPR_1.createdAt, document.getLong("created_at"))
-                        assertEquals(RTPR_1.startedAt, document.getLong("started_at"))
+                        assertEquals(RTPR_1.createdAt, document.getLong("reported_at"))
+                        assertEquals(RTPR_1.startedAt, document.getLong("created_at"))
 
                         assertEquals(RTPR_1.callId, document.getString("call_id"))
                         assertEquals(RTPR_1.codecName, document.getString("codec"))
@@ -237,8 +237,8 @@ class RtprHandlerTest : VertxTest() {
                         assertEquals(PACKET_2.dstAddr.addr, document.getString("dst_addr"))
                         assertEquals(PACKET_2.dstAddr.port, document.getInteger("dst_port"))
 
-                        assertEquals(RTPR_2.createdAt, document.getLong("created_at"))
-                        assertEquals(RTPR_2.startedAt, document.getLong("started_at"))
+                        assertEquals(RTPR_2.createdAt, document.getLong("reported_at"))
+                        assertEquals(RTPR_2.startedAt, document.getLong("created_at"))
 
                         assertEquals(MEDIA_CONTROL.callId, document.getString("call_id"))
                         assertEquals(MEDIA_CONTROL.sdpSession.codecs.first().name, document.getString("codec"))

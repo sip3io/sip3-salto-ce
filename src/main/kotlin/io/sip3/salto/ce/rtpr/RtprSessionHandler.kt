@@ -157,7 +157,6 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("caller", session.mediaControl.caller)
                 put("callee", session.mediaControl.callee)
 
-                put("codec", session.codecs.toList())
                 put("duration", session.duration)
 
                 put("report_count", session.reportCount)
@@ -180,6 +179,7 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("r_factor", reports.map { it.rFactor.toDouble() })
 
                 put("payload_type", reports.map { it.payloadType.toInt() })
+                put("codec", reports.map { it.codecName ?: "UNDEFINED(${it.payloadType})" })
                 put("ssrc", reports.map { it.ssrc })
 
                 put("packets", JsonObject().apply {
