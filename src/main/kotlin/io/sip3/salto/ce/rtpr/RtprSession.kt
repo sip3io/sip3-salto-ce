@@ -112,7 +112,6 @@ class RtprSession {
     var lastMos = 1.0
 
     fun add(packet: Packet, payload: RtpReportPayload) {
-
         val isForward = if (source == RtpReportPayload.SOURCE_RTP) {
             packet.srcAddr.equals(srcAddr) || packet.dstAddr.equals(dstAddr)
         } else {
