@@ -151,8 +151,8 @@ class RtprSessionTest {
         }
 
         val PACKET_1_RTCP = Packet().apply {
-            srcAddr = MEDIA_CONTROL.sdpSession.src.rtcpAddress()
-            dstAddr = MEDIA_CONTROL.sdpSession.dst.rtcpAddress()
+            srcAddr = MEDIA_CONTROL.sdpSession.dst.rtcpAddress()
+            dstAddr = MEDIA_CONTROL.sdpSession.src.rtcpAddress()
         }
 
         val PACKET_2 = Packet().apply {
@@ -162,7 +162,7 @@ class RtprSessionTest {
     }
 
     @Test
-    fun `Validate RtprSession 'create()' static method`() {
+    fun `Validate RtprSession 'create()' static method for RTP`() {
         val session = RtprSession.create(
             RTPR_1.source,
             MEDIA_CONTROL,
@@ -175,6 +175,24 @@ class RtprSessionTest {
 
         assertEquals(MEDIA_CONTROL.sdpSession.src.rtpAddress(), session.srcAddr)
         assertEquals(MEDIA_CONTROL.sdpSession.dst.rtpAddress(), session.dstAddr)
+
+        assertEquals(0.0, session.badReportFraction)
+    }
+
+    @Test
+    fun `Validate RtprSession 'create()' static method for RTCP`() {
+        val session = RtprSession.create(
+            RTPR_1_RTCP.source,
+            MEDIA_CONTROL,
+            PACKET_1_RTCP
+        )
+
+        assertEquals(MEDIA_CONTROL.callId, session.callId)
+        assertEquals(MEDIA_CONTROL.caller, session.caller)
+        assertEquals(MEDIA_CONTROL.callee, session.callee)
+
+        assertEquals(MEDIA_CONTROL.sdpSession.src.rtcpAddress(), session.srcAddr)
+        assertEquals(MEDIA_CONTROL.sdpSession.dst.rtcpAddress(), session.dstAddr)
 
         assertEquals(0.0, session.badReportFraction)
     }
@@ -197,5 +215,42 @@ class RtprSessionTest {
         assertTrue(session.codecs.contains(RTPR_1.codecName))
         assertEquals(RTPR_1.mos.toDouble(), session.forward!!.mos)
         assertEquals(RTPR_1.rFactor.toDouble(), session.forward!!.rFactor)
+
+        assertEquals(RTPR_1.mos.toDouble(), session.lastMos)
+        assertEquals(RTPR_1.rFactor.toDouble(), session.lastRFactor)
+
+        session.add(PACKET_2, RTPR_2)
+        assertEquals(2, session.reportCount)
+        assertEquals(RTPR_2, session.reverse!!.report)
+
+        assertEquals(RTPR_1.startedAt, session.createdAt)
+        assertEquals(RTPR_2.startedAt + RTPR_2.duration, session.terminatedAt)
+
+        assertTrue(session.codecs.contains(RTPR_2.codecName))
+        assertEquals(RTPR_2.mos.toDouble(), session.reverse!!.mos)
+        assertEquals(RTPR_2.rFactor.toDouble(), session.reverse!!.rFactor)
+
+        assertEquals(RTPR_2.mos.toDouble(), session.lastMos)
+        assertEquals(RTPR_2.rFactor.toDouble(), session.lastRFactor)
+    }
+
+    @Test
+    fun `Validate RtprSession 'add()' method from RTCP`() {
+        val session = RtprSession.create(
+            RTPR_1_RTCP.source,
+            MEDIA_CONTROL,
+            PACKET_1_RTCP
+        )
+        session.add(PACKET_1_RTCP, RTPR_1_RTCP)
+
+        assertEquals(1, session.reportCount)
+        assertEquals(RTPR_1_RTCP, session.forward!!.report)
+
+        assertEquals(RTPR_1_RTCP.startedAt, session.createdAt)
+        assertEquals(RTPR_1_RTCP.startedAt + RTPR_1_RTCP.duration, session.terminatedAt)
+
+        assertTrue(session.codecs.contains(RTPR_1_RTCP.codecName))
+        assertEquals(RTPR_1_RTCP.mos.toDouble(), session.forward!!.mos)
+        assertEquals(RTPR_1_RTCP.rFactor.toDouble(), session.forward!!.rFactor)
     }
 }
