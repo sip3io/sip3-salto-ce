@@ -28,6 +28,7 @@ import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.util.DurationUtil
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
 import io.vertx.core.AbstractVerticle
@@ -73,6 +74,7 @@ open class RtprHandler : AbstractVerticle() {
     private var minExpectedPackets = 100
     private var rFactorThreshold: Float = 85F
     private var rFactorDistributions = TreeSet<Int>()
+    private var durationDistributions = TreeMap<Long, String>()
 
     private var instances: Int = 1
 
@@ -106,6 +108,9 @@ open class RtprHandler : AbstractVerticle() {
             }
             config.getJsonArray("r-factor-distributions")?.forEach {
                 rFactorDistributions.add(it as Int)
+            }
+            config.getJsonArray("duration-distributions")?.forEach {
+                durationDistributions[DurationUtil.parseDuration(it as String).toMillis()] = it
             }
         }
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
@@ -313,6 +318,9 @@ open class RtprHandler : AbstractVerticle() {
 
                 rFactorDistributions.ceiling(rFactor.toInt())
                     ?.let { attributes[Attributes.distribution] = it }
+                durationDistributions.ceilingKey(report.duration.toLong())
+                    ?.let { attributes[Attributes.duration] = durationDistributions[it]!! }
+
                 Metrics.summary(prefix + R_FACTOR, attributes).record(rFactor.toDouble())
             } else {
                 Metrics.counter(prefix + UNDEFINED, attributes).increment()
