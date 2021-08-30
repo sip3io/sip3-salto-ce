@@ -24,10 +24,6 @@ class Address {
     var port: Int = 0
     var host: String? = null
 
-    private val hostOrAddr: String by lazy {
-        host ?: addr
-    }
-
     fun compositeKey(other: Address, keyMapping: (Address) -> String): String {
         val thisKey = keyMapping.invoke(this)
         val otherKey = keyMapping.invoke(other)
@@ -35,16 +31,12 @@ class Address {
         return if (thisKey > otherKey) {
             "$thisKey:$otherKey"
         } else {
-            "$other:$thisKey"
+            "$otherKey:$thisKey"
         }
     }
 
     fun compositeKey(other: Address): String {
-        return if (hostOrAddr > other.hostOrAddr) {
-            "$hostOrAddr:${other.hostOrAddr}"
-        } else {
-            "${other.hostOrAddr}:$hostOrAddr"
-        }
+        return compositeKey(other) { it.host ?: it.addr }
     }
 
     fun sdpSessionId(): String {
