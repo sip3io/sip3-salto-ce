@@ -26,10 +26,14 @@ import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.sip.SipCallHandler
+import io.sip3.salto.ce.sip.SipCallHandlerTest
+import io.sip3.salto.ce.sip.SipTransaction
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.get
 import org.junit.jupiter.api.AfterEach
@@ -277,6 +281,42 @@ class RtprSessionHandlerTest : VertxTest() {
                             }
                             context.completeNow()
                         }
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Handle session attributes`() {
+        val prefixSlot = slot<String>()
+        val attributesSlot = slot<Map<String, Any>>()
+        every {
+            anyConstructed<AttributesRegistry>().handle(capture(prefixSlot), capture(attributesSlot))
+        } just Runs
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprSessionHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_session", RTPR_SESSION)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) {
+                    context.verify {
+                        assertEquals("rtp", prefixSlot.captured)
+
+                        val attributes = attributesSlot.captured
+                        assertEquals(7, attributes.size)
+                        assertEquals("", attributes["src_addr"])
+                        assertEquals("SomeHost", attributes["src_host"])
+                        assertEquals("", attributes["dst_addr"])
+                        assertEquals(13.0, attributes["mos"])
+                        assertEquals(12.0, attributes["r_factor"])
+                        assertEquals(0.0, attributes["bad_report_fraction"])
+                        assertEquals(false, attributes["one_way"])
+                    }
+                    context.completeNow()
                 }
             }
         )

@@ -104,9 +104,13 @@ open class RtprSessionHandler : AbstractVerticle() {
             put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
             dst.host?.let { put(Attributes.dst_host, it) }
 
+            (session.forward ?: session.reverse)?.let { stream ->
+                stream.mos?.let { put(Attributes.mos, it) }
+                stream.rFactor?.let { put(Attributes.r_factor, it) }
+            }
+
             put(Attributes.bad_report_fraction, session.badReportFraction)
             put(Attributes.one_way, session.isOneWay)
-            put(Attributes.duration, session.duration)
         }
 
         val prefix = when (session.source) {
