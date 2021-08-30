@@ -18,125 +18,121 @@ package io.sip3.salto.ce.rtpr
 
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
+import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.util.MediaUtil
+import kotlin.math.max
+import kotlin.math.min
 
-class RtprSession(packet: Packet, private val rFactorThreshold: Float? = null) {
+class RtprSession {
+
+    companion object {
+
+        fun create(source: Byte, mediaControl: MediaControl, packet: Packet): RtprSession {
+            return RtprSession().apply {
+                this.source = source
+                this.mediaControl = mediaControl
+
+                val sdpSession = mediaControl.sdpSession
+                when (source) {
+                    RtpReportPayload.SOURCE_RTP -> {
+                        if (sdpSession.src.rtpId == packet.srcAddr.sdpSessionId()
+                            || sdpSession.dst.rtpId == packet.dstAddr.sdpSessionId()
+                        ) {
+                            srcAddr = packet.srcAddr
+                            dstAddr = packet.dstAddr
+                        } else {
+                            srcAddr = packet.dstAddr
+                            dstAddr = packet.srcAddr
+                        }
+                    }
+
+                    RtpReportPayload.SOURCE_RTCP -> {
+                        if (sdpSession.src.rtcpId == packet.dstAddr.sdpSessionId()
+                            || sdpSession.dst.rtcpId == packet.srcAddr.sdpSessionId()
+                        ) {
+                            srcAddr = packet.dstAddr
+                            dstAddr = packet.srcAddr
+                        } else {
+                            srcAddr = packet.srcAddr
+                            dstAddr = packet.dstAddr
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     var createdAt: Long = 0L
     var terminatedAt: Long = 0L
 
-    var srcAddr = packet.srcAddr
-    var dstAddr = packet.dstAddr
-    lateinit var report: RtpReportPayload
+    lateinit var srcAddr: Address
+    lateinit var dstAddr: Address
 
-    val source: Byte
-        get() = report.source
+    var source: Byte = RtpReportPayload.SOURCE_RTP
+    lateinit var mediaControl: MediaControl
 
-    var mediaControl: MediaControl? = null
-    val codecNames = mutableSetOf<String>()
-    val callId: String?
-        get() = report.callId
+    var rFactorThreshold: Float? = null
 
-    val mos: Double?
-        get() = report.mos.takeIf { it != 1F }?.toDouble()
+    var forward: RtprStream? = null
+    var reverse: RtprStream? = null
 
-    val rFactor: Double?
-        get() = report.rFactor.takeIf { it != 0F }?.toDouble()
+    val callId: String
+        get() = mediaControl.callId
+    val caller: String
+        get() = mediaControl.caller
+    val callee: String
+        get() = mediaControl.callee
 
-    var lastMos: Double? = null
-    var lastRFactor: Double? = null
+    val reportCount: Int
+        get() = (forward?.reportCount ?: 0) + (reverse?.reportCount ?: 0)
+    val badReportCount: Int
+        get() = (forward?.badReportCount ?: 0) + (reverse?.badReportCount ?: 0)
+    val badReportFraction: Double
+        get() {
+            return if (reportCount > 0) {
+                badReportCount / reportCount.toDouble()
+            } else {
+                0.0
+            }
+        }
 
-    var reportCount = 0
-    var badReportCount = 0
+    val codecs: Set<String>
+        get() = mutableSetOf<String>().apply {
+            forward?.codecNames?.let { addAll(it) }
+            reverse?.codecNames?.let { addAll(it) }
+        }
 
-    var missedPeer = false
+    val isOneWay: Boolean
+        get() = (source == RtpReportPayload.SOURCE_RTP) && ((forward != null) xor (reverse != null))
 
-    fun add(payload: RtpReportPayload) {
-        if (reportCount == 0) {
-            report = payload
-            createdAt = payload.startedAt
-            terminatedAt = payload.startedAt + payload.duration
-            report.codecName?.let { codecNames.add(it) }
+    val duration: Long
+        get() = terminatedAt - createdAt
+
+    var lastRFactor = 0.0
+    var lastMos = 1.0
+
+    fun add(packet: Packet, payload: RtpReportPayload) {
+        val isForward = if (source == RtpReportPayload.SOURCE_RTP) {
+            packet.srcAddr.equals(srcAddr) || packet.dstAddr.equals(dstAddr)
         } else {
-            mergeReport(payload)
+            packet.srcAddr.equals(dstAddr) || packet.dstAddr.equals(srcAddr)
         }
 
-        reportCount++
-        rFactorThreshold?.let { if (report.rFactor in 0F..rFactorThreshold) badReportCount++ }
+        // Update streams
+        if (isForward) {
+            if (forward == null) forward = RtprStream(packet, rFactorThreshold)
+            forward!!.add(payload)
+        } else {
+            if (reverse == null) reverse = RtprStream(packet, rFactorThreshold)
+            reverse!!.add(payload)
+        }
 
-        lastMos = payload.mos.toDouble()
+        // Update timestamps
+        createdAt = min(forward?.createdAt ?: Long.MAX_VALUE, reverse?.createdAt ?: Long.MAX_VALUE)
+        terminatedAt = max(forward?.terminatedAt ?: Long.MIN_VALUE, reverse?.terminatedAt ?: Long.MIN_VALUE)
+
+        // Update last QoS values
         lastRFactor = payload.rFactor.toDouble()
-    }
-
-    fun merge(other: RtprSession) {
-        mergeReport(other.report, other.reportCount)
-
-        reportCount += other.reportCount
-        badReportCount += other.badReportCount
-
-        if (srcAddr != other.srcAddr) {
-            missedPeer = true
-            srcAddr = other.srcAddr
-        }
-
-        if (dstAddr != other.dstAddr) {
-            missedPeer = true
-            dstAddr = other.dstAddr
-        }
-    }
-
-    private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1) {
-        report.apply {
-            if (codecName == null) {
-                payload.codecName?.let { codecName = it }
-            }
-
-            codecNames.add(payload.codecName ?: "UNDEFINED($payloadType)")
-
-            if (callId == null) {
-                payload.callId?.let { callId = it }
-            }
-
-            expectedPacketCount += payload.expectedPacketCount
-            receivedPacketCount += payload.receivedPacketCount
-            rejectedPacketCount += payload.rejectedPacketCount
-            lostPacketCount += payload.lostPacketCount
-
-            duration += payload.duration
-            fractionLost = lostPacketCount.toFloat() / expectedPacketCount
-
-            lastJitter = payload.lastJitter
-            avgJitter = (avgJitter * reportCount + payload.avgJitter * reportCountIncrement) /
-                    (reportCount + reportCountIncrement)
-
-            if (maxJitter < lastJitter) {
-                maxJitter = lastJitter
-            }
-            if (minJitter > lastJitter) {
-                minJitter = lastJitter
-            }
-
-            if (payload.rFactor > 0.0F) {
-                if (rFactor > 0.0F) {
-                    rFactor = (rFactor * reportCount + payload.rFactor * reportCountIncrement) /
-                            (reportCount + reportCountIncrement)
-                } else {
-                    rFactor = payload.rFactor
-                }
-
-                // MoS
-                mos = MediaUtil.computeMos(rFactor)
-            }
-        }
-
-        if (createdAt > payload.startedAt) {
-            createdAt = payload.startedAt
-            report.startedAt = payload.startedAt
-        }
-
-        if (payload.startedAt + payload.duration > terminatedAt) {
-            terminatedAt = payload.startedAt + payload.duration
-        }
+        lastMos = payload.mos.toDouble()
     }
 }

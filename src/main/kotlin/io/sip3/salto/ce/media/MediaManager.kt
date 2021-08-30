@@ -30,7 +30,7 @@ import mu.KotlinLogging
 /**
  * Manages media feature
  */
-@Instance
+@Instance(singleton = true)
 open class MediaManager : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
@@ -49,7 +49,7 @@ open class MediaManager : AbstractVerticle() {
                 val transaction = event.body()
                 handleSipTransaction(transaction)
             } catch (e: Exception) {
-                logger.error(e) { "MediaHandler 'handleSipTransaction()' failed." }
+                logger.error(e) { "MediaManager 'handleSipTransaction()' failed." }
             }
         }
     }
@@ -63,7 +63,7 @@ open class MediaManager : AbstractVerticle() {
                         handleSdpSession(transaction, sdpSession)
                     }
                 } catch (e: Exception) {
-                    logger.error(e) { "MediaHandler 'handleSdpSession()' failed." }
+                    logger.error(e) { "MediaManager 'handleSdpSession()' failed." }
                 }
             }
         }
@@ -77,7 +77,10 @@ open class MediaManager : AbstractVerticle() {
     open fun createMediaControl(transaction: SipTransaction, sdpSession: SdpSession): MediaControl {
         return MediaControl().apply {
             timestamp = transaction.createdAt
+
             callId = transaction.callId
+            caller = transaction.caller
+            callee = transaction.callee
 
             this.sdpSession = sdpSession
 

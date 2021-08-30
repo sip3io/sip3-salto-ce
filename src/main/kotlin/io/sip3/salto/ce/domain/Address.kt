@@ -16,34 +16,31 @@
 
 package io.sip3.salto.ce.domain
 
+import io.sip3.commons.util.MediaUtil
+
 class Address {
 
     lateinit var addr: String
     var port: Int = 0
     var host: String? = null
 
-    private val hostOrAddr: String by lazy {
-        host ?: addr
-    }
+    fun compositeKey(other: Address, keyMapping: (Address) -> String): String {
+        val thisKey = keyMapping.invoke(this)
+        val otherKey = keyMapping.invoke(other)
 
-    fun compositeAddrKey(other: Address): String {
-        return if (addr > other.addr) {
-            "$addr:${other.addr}"
+        return if (thisKey > otherKey) {
+            "$thisKey:$otherKey"
         } else {
-            "${other.addr}:$addr"
+            "$otherKey:$thisKey"
         }
     }
 
     fun compositeKey(other: Address): String {
-        return if (hostOrAddr > other.hostOrAddr) {
-            "$hostOrAddr:${other.hostOrAddr}"
-        } else {
-            "${other.hostOrAddr}:$hostOrAddr"
-        }
+        return compositeKey(other) { it.host ?: it.addr }
     }
 
-    override fun toString(): String {
-        return "Address(addr='$addr', port=$port, host=$host)"
+    fun sdpSessionId(): String {
+        return MediaUtil.sdpSessionId(addr, port)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -57,5 +54,9 @@ class Address {
         var result = addr.hashCode()
         result = 31 * result + port
         return result
+    }
+
+    override fun toString(): String {
+        return "Address(addr='$addr', port=$port, host=$host)"
     }
 }

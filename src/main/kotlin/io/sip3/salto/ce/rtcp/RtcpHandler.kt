@@ -20,7 +20,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.ByteBufUtil
 import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.payload.RtpReportPayload
-import io.sip3.commons.util.MediaUtil.rtpSessionId
+import io.sip3.commons.util.MediaUtil.rtpStreamId
 import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.remainingCapacity
 import io.sip3.commons.vertx.annotations.Instance
@@ -60,7 +60,7 @@ open class RtcpHandler : AbstractVerticle() {
 
     private var instances: Int = 1
 
-    private var sessions = mutableMapOf<Long, RtcpSession>()
+    private var streams = mutableMapOf<Long, RtcpStream>()
 
     override fun start() {
         context.config().getJsonObject("media")?.getJsonObject("rtcp")?.let { config ->
@@ -80,13 +80,13 @@ open class RtcpHandler : AbstractVerticle() {
         }
 
         vertx.setPeriodic(trimToSizeDelay) {
-            sessions = MutableMapUtil.mutableMapOf(sessions)
+            streams = MutableMapUtil.mutableMapOf(streams)
         }
         vertx.setPeriodic(expirationDelay) {
             val now = System.currentTimeMillis()
-            sessions.filterValues { it.lastPacketTimestamp + aggregationTimeout < now }
-                .forEach { (sessionId, _) ->
-                    sessions.remove(sessionId)
+            streams.filterValues { it.lastPacketTimestamp + aggregationTimeout < now }
+                .forEach { (streamId, _) ->
+                    streams.remove(streamId)
                 }
         }
 
@@ -257,10 +257,10 @@ open class RtcpHandler : AbstractVerticle() {
     }
 
     private fun handleSenderReport(packet: Packet, senderReport: SenderReport) {
-        val sessionId = rtpSessionId(packet.srcAddr.port, packet.dstAddr.port, senderReport.senderSsrc)
+        val streamId = rtpStreamId(packet.srcAddr.port, packet.dstAddr.port, senderReport.senderSsrc)
 
-        val session = sessions.computeIfAbsent(sessionId) {
-            RtcpSession().apply {
+        val stream = streams.computeIfAbsent(streamId) {
+            RtcpStream().apply {
                 createdAt = packet.timestamp
                 dstAddr = packet.dstAddr
                 srcAddr = packet.srcAddr
@@ -270,15 +270,15 @@ open class RtcpHandler : AbstractVerticle() {
         senderReport.reportBlocks.forEach { report ->
             // If interarrival jitter is greater than maximum, current jitter is bad
             if (report.interarrivalJitter < MAX_VALID_JITTER) {
-                session.lastJitter = report.interarrivalJitter.toFloat()
+                stream.lastJitter = report.interarrivalJitter.toFloat()
             }
 
             val packetCount = senderReport.senderPacketCount.toInt()
 
             val payload = RtpReportPayload().apply {
-                createdAt = System.currentTimeMillis()
-                startedAt = if (session.lastPacketTimestamp > 0) {
-                    session.lastPacketTimestamp
+                reportedAt = System.currentTimeMillis()
+                createdAt = if (stream.lastPacketTimestamp > 0) {
+                    stream.lastPacketTimestamp
                 } else {
                     createdAt
                 }
@@ -286,12 +286,12 @@ open class RtcpHandler : AbstractVerticle() {
                 source = RtpReportPayload.SOURCE_RTCP
                 this.ssrc = report.ssrc
 
-                lastJitter = session.lastJitter
-                avgJitter = session.lastJitter
-                minJitter = session.lastJitter
-                maxJitter = session.lastJitter
+                lastJitter = stream.lastJitter
+                avgJitter = stream.lastJitter
+                minJitter = stream.lastJitter
+                maxJitter = stream.lastJitter
 
-                if (session.previousReport == null) {
+                if (stream.previousReport == null) {
                     lostPacketCount = report.cumulativePacketLost.toInt()
 
                     expectedPacketCount = packetCount
@@ -299,14 +299,14 @@ open class RtcpHandler : AbstractVerticle() {
 
                     fractionLost = lostPacketCount / expectedPacketCount.toFloat()
                 } else {
-                    lostPacketCount = (report.cumulativePacketLost - session.previousReport!!.cumulativePacketLost).toInt()
+                    lostPacketCount = (report.cumulativePacketLost - stream.previousReport!!.cumulativePacketLost).toInt()
 
-                    expectedPacketCount = (report.extendedSeqNumber - session.previousReport!!.extendedSeqNumber).toInt()
+                    expectedPacketCount = (report.extendedSeqNumber - stream.previousReport!!.extendedSeqNumber).toInt()
                     // Validate expected packet count
-                    if (expectedPacketCount > (packetCount - session.previousPacketCount!!) * THRESHOLD_COEFFICIENT
+                    if (expectedPacketCount > (packetCount - stream.previousPacketCount!!) * THRESHOLD_COEFFICIENT
                         || expectedPacketCount <= 0
                     ) {
-                        expectedPacketCount = (packetCount - session.previousPacketCount!!)
+                        expectedPacketCount = (packetCount - stream.previousPacketCount!!)
                     }
 
                     receivedPacketCount = expectedPacketCount - lostPacketCount
@@ -315,17 +315,17 @@ open class RtcpHandler : AbstractVerticle() {
                 }
             }
 
-            session.previousReport = report
-            session.previousPacketCount = packetCount
+            stream.previousReport = report
+            stream.previousPacketCount = packetCount
             vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
         }
 
-        session.lastPacketTimestamp = packet.timestamp.time
+        stream.lastPacketTimestamp = packet.timestamp.time
     }
 
-    class RtcpSession {
+    class RtcpStream {
 
-        // Static session data
+        // Static stream data
         lateinit var createdAt: Timestamp
         lateinit var dstAddr: Address
         lateinit var srcAddr: Address

@@ -25,30 +25,25 @@ class AddressTest {
     fun `Check 'compositeKey()' method`() {
         val srcAddr = Address().apply {
             addr = "29.11.19.88"
+            port = 5060
         }
         var dstAddr = Address().apply {
             addr = "23.08.20.15"
+            port = 5061
         }
         assertEquals("29.11.19.88:23.08.20.15", srcAddr.compositeKey(dstAddr))
         assertEquals("29.11.19.88:23.08.20.15", dstAddr.compositeKey(srcAddr))
+        assertEquals("5061:5060", srcAddr.compositeKey(dstAddr) { it.port.toString() })
+        assertEquals("5061:5060", dstAddr.compositeKey(srcAddr) { it.port.toString() })
 
         dstAddr = Address().apply {
             addr = "23.08.20.15"
             host = "Test"
+            port = 5061
         }
         assertEquals("Test:29.11.19.88", srcAddr.compositeKey(dstAddr))
         assertEquals("Test:29.11.19.88", dstAddr.compositeKey(srcAddr))
-    }
-
-    @Test
-    fun `Check 'compositeAddrKey()' method`() {
-        val srcAddr = Address().apply {
-            addr = "29.11.19.88"
-        }
-        val dstAddr = Address().apply {
-            addr = "23.08.20.15"
-        }
-        assertEquals("29.11.19.88:23.08.20.15", srcAddr.compositeKey(dstAddr))
-        assertEquals("29.11.19.88:23.08.20.15", dstAddr.compositeKey(srcAddr))
+        assertEquals("5061:5060", srcAddr.compositeKey(dstAddr) { it.port.toString() })
+        assertEquals("5061:5060", dstAddr.compositeKey(srcAddr) { it.port.toString() })
     }
 }

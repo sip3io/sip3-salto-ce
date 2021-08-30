@@ -274,6 +274,7 @@ open class SipRegisterHandler : AbstractVerticle() {
         val attributes = registration.attributes
             .toMutableMap()
             .apply {
+                put(Attributes.method, "REGISTER")
                 put(Attributes.state, registration.state)
 
                 val src = registration.srcAddr

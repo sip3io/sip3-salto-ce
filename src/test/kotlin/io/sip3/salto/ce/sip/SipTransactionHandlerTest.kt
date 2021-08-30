@@ -308,7 +308,7 @@ class SipTransactionHandlerTest : VertxTest() {
                         assertEquals(PACKET_OPTIONS_1.dstAddr.port, document.getInteger("dst_port"))
                         assertEquals("caller", document.getString("caller"))
                         assertEquals("failed", document.getString("state"))
-                        assertEquals(503, document.getInteger("error_code"))
+                        assertEquals("503", document.getString("error_code"))
                         assertEquals("server", document.getString("error_type"))
                     }
                     context.completeNow()
@@ -427,14 +427,15 @@ class SipTransactionHandlerTest : VertxTest() {
                         assertEquals("sip", prefixSlot.captured)
 
                         val attributes = attributesSlot.captured
-                        assertEquals(9, attributes.size)
+                        assertEquals(10, attributes.size)
+                        assertEquals("OPTIONS", attributes["method"])
                         assertEquals("failed", attributes["state"])
                         assertEquals("127.0.0.1", attributes["src_addr"])
                         assertEquals("127.0.0.2", attributes["dst_addr"])
                         assertEquals("", attributes["caller"])
                         assertEquals("", attributes["callee"])
                         assertEquals("", attributes["call_id"])
-                        assertEquals(503, attributes["error_code"])
+                        assertEquals("503", attributes["error_code"])
                         assertEquals("server", attributes["error_type"])
                         assertNotNull(attributes["retransmits"])
                     }

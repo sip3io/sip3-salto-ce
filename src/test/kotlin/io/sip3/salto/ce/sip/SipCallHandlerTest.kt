@@ -422,7 +422,7 @@ class SipCallHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.setPeriodic(200, 100) {
+                vertx.setPeriodic(1000, 1000) {
                     vertx.eventBus().localSend(RoutesCE.sip + "_call_0", transaction)
                 }
             },
@@ -495,7 +495,7 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals("321", document.getString("callee"))
                         assertEquals("failed", document.getString("state"))
                         assertEquals(107, document.getLong("trying_delay"))
-                        assertEquals(503, document.getLong("error_code"))
+                        assertEquals("503", document.getString("error_code"))
                         assertEquals("server", document.getString("error_type"))
                         assertEquals(1, document.getInteger("transactions"))
                         assertEquals(0, document.getInteger("retransmits"))
@@ -629,7 +629,7 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals("321", payload["callee"])
                         assertEquals("58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117", payload["call_id"])
                         assertEquals(107L, payload["trying_delay"])
-                        assertEquals(503, payload["error_code"])
+                        assertEquals("503", payload["error_code"])
                         assertEquals("server", payload["error_type"])
                         assertEquals(1, payload["transactions"])
                         assertEquals(0, payload["retransmits"])
@@ -682,7 +682,8 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals("sip", prefixSlot.captured)
 
                         val attributes = attributesSlot.captured
-                        assertEquals(13, attributes.size)
+                        assertEquals(14, attributes.size)
+                        assertEquals("INVITE", attributes["method"])
                         assertEquals("failed", attributes["state"])
                         assertEquals("", attributes["src_addr"])
                         assertEquals("", attributes["dst_addr"])
@@ -691,7 +692,7 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals("321", attributes["callee"])
                         assertEquals("", attributes["call_id"])
                         assertEquals(107L, attributes["trying_delay"])
-                        assertEquals(503, attributes["error_code"])
+                        assertEquals("503", attributes["error_code"])
                         assertEquals("server", attributes["error_type"])
                         assertEquals(1, attributes["transactions"])
                         assertNotNull(attributes["retransmits"])

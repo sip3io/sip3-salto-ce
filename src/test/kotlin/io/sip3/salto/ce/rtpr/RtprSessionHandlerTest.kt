@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.media
+package io.sip3.salto.ce.rtpr
 
 import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.MockClock
@@ -30,27 +30,19 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.rtpr.RtprSession
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.json.get
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.sql.Timestamp
 
 @ExtendWith(MockKExtension::class)
-class MediaHandlerTest : VertxTest() {
+class RtprSessionHandlerTest : VertxTest() {
 
     companion object {
-
-        val TEST_CONFIG = JsonObject().apply {
-            put("media", JsonObject().apply {
-                put("expiration-delay", 100L)
-                put("aggregation-timeout", 500L)
-            })
-        }
 
         val SRC_ADDR = Address().apply {
             addr = "10.10.10.10"
@@ -87,8 +79,8 @@ class MediaHandlerTest : VertxTest() {
             mos = 13F
             fractionLost = 14F
 
-            createdAt = 1579511172674
-            startedAt = 1579522272674
+            reportedAt = 1579511172674
+            createdAt = 1579522272674
         }
 
         val PACKET_1 = Packet().apply {
@@ -122,8 +114,8 @@ class MediaHandlerTest : VertxTest() {
             mos = 14F
             fractionLost = 15F
 
-            createdAt = 1579511272674
-            startedAt = 1579522372674
+            reportedAt = 1579511272674
+            createdAt = 1579522372674
         }
 
         val PACKET_2 = Packet().apply {
@@ -138,6 +130,8 @@ class MediaHandlerTest : VertxTest() {
             timestamp = System.currentTimeMillis()
 
             callId = "callId_uuid@domain.io"
+            caller = "123"
+            callee = "456"
 
             sdpSession = SdpSession().apply {
                 src = MediaAddress().apply {
@@ -163,15 +157,9 @@ class MediaHandlerTest : VertxTest() {
             recording = Recording()
         }
 
-        val RTPR_SESSION_1 = RtprSession(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            add(RTPR_1)
-            missedPeer = true
-        }
-
-        val RTPR_SESSION_2 = RtprSession(PACKET_2).apply {
-            mediaControl = MEDIA_CONTROL
-            add(RTPR_2)
+        val RTPR_SESSION = RtprSession.create(RTPR_1.source, MEDIA_CONTROL, PACKET_1).apply {
+            add(PACKET_1, RTPR_1)
+            add(PACKET_2, RTPR_2)
         }
     }
 
@@ -180,19 +168,18 @@ class MediaHandlerTest : VertxTest() {
         mockkConstructor(AttributesRegistry::class)
         every {
             anyConstructed<AttributesRegistry>().handle(any(), any())
+            anyConstructed<AttributesRegistry>().handle(any(), any(), any())
         } just Runs
     }
 
     @Test
-    fun `Write MediaSession to database`() {
+    fun `Write RtprSession to database`() {
         runTest(
             deploy = {
-                vertx.deployTestVerticle(MediaHandler::class, TEST_CONFIG)
+                vertx.deployTestVerticle(RtprSessionHandler::class)
             },
             execute = {
-                vertx.eventBus().localSend(RoutesCE.media + "_control", MEDIA_CONTROL)
-                vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_1)
-                vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_2)
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_session", RTPR_SESSION)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
@@ -201,60 +188,53 @@ class MediaHandlerTest : VertxTest() {
                     val document = operation.getJsonObject("document")
 
                     context.verify {
-                        assertTrue(collection.startsWith("rtpr_media_index"))
+                        assertTrue(collection.startsWith("rtpr_rtp_index"), collection)
 
                         assertAddresses(PACKET_1, document)
 
-                        assertEquals(RTPR_SESSION_1.createdAt, document.getLong("created_at"))
-                        assertEquals(RTPR_SESSION_2.terminatedAt, document.getLong("terminated_at"))
+                        assertEquals(RTPR_SESSION.createdAt, document.getLong("created_at"))
+                        assertEquals(RTPR_SESSION.terminatedAt, document.getLong("terminated_at"))
 
                         assertEquals(2, document.getInteger("report_count"))
                         assertEquals(0, document.getInteger("bad_report_count"))
                         assertEquals(0, document.getInteger("bad_report_fraction"))
 
-                        assertEquals(12.0, document.getDouble("r_factor"))
-                        assertEquals(13.0, document.getDouble("mos"))
+                        assertEquals(12.0, document.getJsonArray("r_factor").first())
+                        assertEquals(13.0, document.getJsonArray("mos").first())
 
 
                         assertEquals(false, document.getBoolean("one_way"))
-                        assertEquals(false, document.getBoolean("undefined_codec"))
-                        assertEquals(true, document.getBoolean("missed_peer"))
 
                         assertEquals(MEDIA_CONTROL.callId, document.getString("call_id"))
-                        document.getJsonArray("codec_names").toList().let { codecNames ->
-                            assertTrue(codecNames.isNotEmpty())
-                            assertEquals(RTPR_1.codecName, codecNames.first() as String)
+                        assertEquals(MEDIA_CONTROL.caller, document.getString("caller"))
+                        assertEquals(MEDIA_CONTROL.callee, document.getString("callee"))
+
+                        assertEquals("out", document.getJsonArray("direction").first())
+                        document.getJsonArray("codec").toList().let { codecs ->
+                            assertTrue(codecs.isNotEmpty())
+                            assertEquals(RTPR_1.codecName, codecs.first())
                         }
+                        assertEquals(RTPR_1.payloadType, (document.getJsonArray("payload_type").first() as Int).toByte())
+                        assertEquals(RTPR_1.ssrc, document.getJsonArray("ssrc").first() as Long)
 
-                        document.getJsonObject("forward_rtp").let { forwardRtp ->
-                            assertAddresses(PACKET_1, forwardRtp)
+                        assertPackets(RTPR_1, document.getJsonObject("packets"), 0)
+                        assertJitter(RTPR_1, document.getJsonObject("jitter"), 0)
 
-                            assertEquals(RTPR_1.payloadType, forwardRtp.getInteger("payload_type").toByte())
-                            assertEquals(RTPR_1.ssrc, forwardRtp.getLong("ssrc"))
+                        assertEquals(RTPR_1.rFactor, (document.getJsonArray("r_factor").first() as Double).toFloat())
+                        assertEquals(RTPR_1.mos, (document.getJsonArray("mos").first() as Double).toFloat())
+                        assertEquals(RTPR_1.fractionLost, (document.getJsonArray("fraction_lost").first() as Double).toFloat())
 
-                            assertPackets(RTPR_1, forwardRtp.getJsonObject("packets"))
-                            assertJitter(RTPR_1, forwardRtp.getJsonObject("jitter"))
+                        assertEquals("in", document.getJsonArray("direction").last())
+                        assertEquals(RTPR_2.payloadType, (document.getJsonArray("payload_type").last() as Int).toByte())
+                        assertEquals(RTPR_2.ssrc, document.getJsonArray("ssrc").last() as Long)
 
-                            assertEquals(RTPR_1.rFactor, forwardRtp.getFloat("r_factor"))
-                            assertEquals(RTPR_1.mos, forwardRtp.getFloat("mos"))
-                            assertEquals(RTPR_1.fractionLost, forwardRtp.getFloat("fraction_lost"))
+                        assertPackets(RTPR_2, document.getJsonObject("packets"), 1)
+                        assertJitter(RTPR_2, document.getJsonObject("jitter"), 1)
 
-                            assertEquals(true, document.getBoolean("missed_peer"))
-                        }
+                        assertEquals(RTPR_2.rFactor, (document.getJsonArray("r_factor").last() as Double).toFloat())
+                        assertEquals(RTPR_2.mos, (document.getJsonArray("mos").last() as Double).toFloat())
+                        assertEquals(RTPR_2.fractionLost, (document.getJsonArray("fraction_lost").last() as Double).toFloat())
 
-                        document.getJsonObject("reverse_rtp").let { reverseRtp ->
-                            assertAddresses(PACKET_2, reverseRtp)
-
-                            assertEquals(RTPR_2.payloadType, reverseRtp.getInteger("payload_type").toByte())
-                            assertEquals(RTPR_2.ssrc, reverseRtp.getLong("ssrc"))
-
-                            assertPackets(RTPR_2, reverseRtp.getJsonObject("packets"))
-                            assertJitter(RTPR_2, reverseRtp.getJsonObject("jitter"))
-
-                            assertEquals(RTPR_2.rFactor, reverseRtp.getFloat("r_factor"))
-                            assertEquals(RTPR_2.mos, reverseRtp.getFloat("mos"))
-                            assertEquals(RTPR_2.fractionLost, reverseRtp.getFloat("fraction_lost"))
-                        }
                     }
 
                     context.completeNow()
@@ -264,82 +244,28 @@ class MediaHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Receive keep-alive`() {
-        runTest(
-            deploy = {
-                vertx.deployTestVerticle(MediaHandler::class, TEST_CONFIG)
-            },
-            execute = {
-                // Send Media Control
-                vertx.eventBus().localSend(RoutesCE.media + "_control", MEDIA_CONTROL)
-
-                // Send first Session
-                vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_1)
-
-                vertx.setTimer(300L) {
-                    // Send keep alive
-                    vertx.eventBus().localSend(RoutesCE.media + "_keep-alive", RTPR_SESSION_1)
-
-                    // Send after 300+400=700ms after first session
-                    vertx.setTimer(400L) {
-                        vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_2)
-                    }
-                }
-
-            },
-            assert = {
-                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                    val (collection, operation) = event.body()
-
-                    val document = operation.getJsonObject("document")
-
-                    context.verify {
-                        assertTrue(collection.startsWith("rtpr_media_index"))
-
-                        assertAddresses(PACKET_1, document)
-
-                        assertEquals(RTPR_SESSION_1.createdAt, document.getLong("created_at"))
-                        assertEquals(RTPR_SESSION_2.terminatedAt, document.getLong("terminated_at"))
-
-                        assertEquals(2, document.getInteger("report_count"))
-                    }
-                    context.completeNow()
-                }
-            }
-        )
-    }
-
-    @Test
-    fun `Calculate metrics for Media Session`() {
+    fun `Calculate metrics for RTP Report Session`() {
         val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
         Metrics.addRegistry(registry)
 
         runTest(
             deploy = {
-                vertx.deployTestVerticle(MediaHandler::class, JsonObject().apply {
-                    put("media", JsonObject().apply {
-                        put("expiration-delay", 100L)
-                        put("aggregation-timeout", 200L)
-                    })
-                })
+                vertx.deployTestVerticle(RtprSessionHandler::class)
             },
             execute = {
-                vertx.eventBus().localSend(RoutesCE.media + "_control", MEDIA_CONTROL)
-                vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_1)
-                vertx.eventBus().localSend(RoutesCE.media + "_0", RTPR_SESSION_2)
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_session", RTPR_SESSION)
             },
             assert = {
                 vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
                     val (collection, _) = event.body()
-
                     context.verify {
-                        assertTrue(collection.startsWith("rtpr_media_index"))
+                        assertTrue(collection.startsWith("rtpr_rtp_index"))
                     }
                 }
 
                 vertx.setPeriodic(200L) {
-                    registry.find("media_reports").summaries()
-                        .firstOrNull { it.mean().toFloat() == 2F }
+                    registry.find("rtpr_rtp_reports").summaries()
+                        .firstOrNull { it.mean() == 2.0 }
                         ?.let { summary ->
                             context.verify {
                                 val tags = summary.id.tags
@@ -356,6 +282,42 @@ class MediaHandlerTest : VertxTest() {
         )
     }
 
+    @Test
+    fun `Handle session attributes`() {
+        val prefixSlot = slot<String>()
+        val attributesSlot = slot<Map<String, Any>>()
+        every {
+            anyConstructed<AttributesRegistry>().handle(capture(prefixSlot), capture(attributesSlot))
+        } just Runs
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(RtprSessionHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.rtpr + "_session", RTPR_SESSION)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) {
+                    context.verify {
+                        assertEquals("rtp", prefixSlot.captured)
+
+                        val attributes = attributesSlot.captured
+                        assertEquals(7, attributes.size)
+                        assertEquals("", attributes["src_addr"])
+                        assertEquals("SomeHost", attributes["src_host"])
+                        assertEquals("", attributes["dst_addr"])
+                        assertEquals(13.0, attributes["mos"])
+                        assertEquals(12.0, attributes["r_factor"])
+                        assertEquals(0.0, attributes["bad_report_fraction"])
+                        assertEquals(false, attributes["one_way"])
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
     private fun assertAddresses(packet: Packet, document: JsonObject) {
         assertEquals(packet.srcAddr.addr, document.getString("src_addr"))
         assertEquals(packet.srcAddr.port, document.getInteger("src_port"))
@@ -363,18 +325,18 @@ class MediaHandlerTest : VertxTest() {
         assertEquals(packet.dstAddr.port, document.getInteger("dst_port"))
     }
 
-    private fun assertPackets(rtpr: RtpReportPayload, packets: JsonObject) {
-        assertEquals(rtpr.expectedPacketCount, packets.getInteger("expected"))
-        assertEquals(rtpr.receivedPacketCount, packets.getInteger("received"))
-        assertEquals(rtpr.lostPacketCount, packets.getInteger("lost"))
-        assertEquals(rtpr.rejectedPacketCount, packets.getInteger("rejected"))
+    private fun assertPackets(rtpr: RtpReportPayload, packets: JsonObject, index: Int) {
+        assertEquals(rtpr.expectedPacketCount, packets.getJsonArray("expected")[index])
+        assertEquals(rtpr.receivedPacketCount, packets.getJsonArray("received")[index])
+        assertEquals(rtpr.lostPacketCount, packets.getJsonArray("lost")[index])
+        assertEquals(rtpr.rejectedPacketCount, packets.getJsonArray("rejected")[index])
     }
 
-    private fun assertJitter(rtpr: RtpReportPayload, jitter: JsonObject) {
-        assertEquals(rtpr.lastJitter, jitter.getDouble("last").toFloat())
-        assertEquals(rtpr.avgJitter, jitter.getDouble("avg").toFloat())
-        assertEquals(rtpr.minJitter, jitter.getDouble("min").toFloat())
-        assertEquals(rtpr.maxJitter, jitter.getDouble("max").toFloat())
+    private fun assertJitter(rtpr: RtpReportPayload, jitter: JsonObject, index: Int) {
+        assertEquals(rtpr.lastJitter, (jitter.getJsonArray("last").getDouble(index)).toFloat())
+        assertEquals(rtpr.avgJitter, (jitter.getJsonArray("avg").getDouble(index)).toFloat())
+        assertEquals(rtpr.minJitter, (jitter.getJsonArray("min").getDouble(index)).toFloat())
+        assertEquals(rtpr.maxJitter, (jitter.getJsonArray("max").getDouble(index)).toFloat())
     }
 
     @AfterEach

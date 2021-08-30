@@ -517,7 +517,8 @@ class SipRegisterHandlerTest : VertxTest() {
                         assertEquals("sip", prefixSlot.captured)
 
                         val attributes = attributesSlot.captured
-                        assertEquals(8, attributes.size)
+                        assertEquals(9, attributes.size)
+                        assertEquals("REGISTER", attributes["method"])
                         assertEquals("unauthorized", attributes["state"])
                         assertEquals("", attributes["src_addr"])
                         assertEquals("", attributes["dst_addr"])

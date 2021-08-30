@@ -60,7 +60,7 @@ class SipTransaction {
     lateinit var callee: String
     lateinit var caller: String
 
-    var errorCode: Int? = null
+    var errorCode: String? = null
     var errorType: String? = null
 
     var retransmits = 0
@@ -199,7 +199,7 @@ class SipTransaction {
                         if (extend) response = message
                         state = FAILED
 
-                        errorCode = statusCode
+                        errorCode = statusCode.toString()
                         errorType = "client"
                     }
                     in 500..599 -> {
@@ -212,7 +212,7 @@ class SipTransaction {
                         if (extend) response = message
                         state = FAILED
 
-                        errorCode = statusCode
+                        errorCode = statusCode.toString()
                         errorType = "server"
                     }
                     in 600..699 -> {
@@ -225,7 +225,7 @@ class SipTransaction {
                         if (extend) response = message
                         state = FAILED
 
-                        errorCode = statusCode
+                        errorCode = statusCode.toString()
                         errorType = "global"
                     }
                 }

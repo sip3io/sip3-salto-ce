@@ -53,9 +53,7 @@ class ManagementSocketTest : VertxTest() {
 
         private val CONFIG = JsonObject().apply {
             put("management", JsonObject().apply {
-                put("protocol", "udp")
-                put("local-host", "127.0.0.1:15091")
-                put("remote-host", "127.0.0.1:15090")
+                put("uri", "udp://127.0.0.1:15090")
                 put("register-delay", 2000L)
             })
             put("host", HOST)
@@ -128,6 +126,8 @@ class ManagementSocketTest : VertxTest() {
             timestamp = System.currentTimeMillis()
 
             callId = "SomeKindOfCallId"
+            caller = "123"
+            callee = "456"
 
             sdpSession = SdpSession().apply {
                 src = MediaAddress().apply {
