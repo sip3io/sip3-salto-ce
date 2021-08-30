@@ -682,7 +682,8 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals("sip", prefixSlot.captured)
 
                         val attributes = attributesSlot.captured
-                        assertEquals(13, attributes.size)
+                        assertEquals(14, attributes.size)
+                        assertEquals("INVITE", attributes["method"])
                         assertEquals("failed", attributes["state"])
                         assertEquals("", attributes["src_addr"])
                         assertEquals("", attributes["dst_addr"])

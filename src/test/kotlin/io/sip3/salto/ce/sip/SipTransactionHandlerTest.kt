@@ -427,7 +427,8 @@ class SipTransactionHandlerTest : VertxTest() {
                         assertEquals("sip", prefixSlot.captured)
 
                         val attributes = attributesSlot.captured
-                        assertEquals(9, attributes.size)
+                        assertEquals(10, attributes.size)
+                        assertEquals("OPTIONS", attributes["method"])
                         assertEquals("failed", attributes["state"])
                         assertEquals("127.0.0.1", attributes["src_addr"])
                         assertEquals("127.0.0.2", attributes["dst_addr"])
