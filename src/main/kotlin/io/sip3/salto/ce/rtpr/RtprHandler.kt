@@ -226,9 +226,9 @@ open class RtprHandler : AbstractVerticle() {
         if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
             report.duration = report.expectedPacketCount * sdpSession.ptime
 
-            // Recalculate `startedAt` for first report
-            if (report.startedAt == report.createdAt) {
-                report.startedAt = report.startedAt - report.duration
+            // Recalculate `createdAt` for first report
+            if (report.createdAt == report.reportedAt) {
+                report.createdAt = report.createdAt - report.duration
             }
         }
 
@@ -321,12 +321,12 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
-        val collection = prefix + "_" + timeSuffix.format(report.startedAt)
+        val collection = prefix + "_" + timeSuffix.format(report.createdAt)
 
         val operation = JsonObject().apply {
             put("document", JsonObject().apply {
-                put("reported_at", report.createdAt)
-                put("created_at", report.startedAt)
+                put("reported_at", report.reportedAt)
+                put("created_at", report.createdAt)
 
                 val src = packet.srcAddr
                 put("src_addr", src.addr)

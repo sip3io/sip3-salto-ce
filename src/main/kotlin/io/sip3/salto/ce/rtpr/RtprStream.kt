@@ -53,8 +53,8 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
     fun add(payload: RtpReportPayload) {
         if (reportCount == 0) {
             report = payload
-            createdAt = payload.startedAt
-            terminatedAt = payload.startedAt + payload.duration
+            createdAt = payload.createdAt
+            terminatedAt = payload.createdAt + payload.duration
             report.codecName?.let { codecNames.add(it) }
         } else {
             mergeReport(payload)
@@ -118,13 +118,13 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
             }
         }
 
-        if (createdAt > payload.startedAt) {
-            createdAt = payload.startedAt
-            report.startedAt = payload.startedAt
+        if (createdAt > payload.createdAt) {
+            createdAt = payload.createdAt
+            report.createdAt = payload.createdAt
         }
 
-        if (payload.startedAt + payload.duration > terminatedAt) {
-            terminatedAt = payload.startedAt + payload.duration
+        if (payload.createdAt + payload.duration > terminatedAt) {
+            terminatedAt = payload.createdAt + payload.duration
         }
     }
 }

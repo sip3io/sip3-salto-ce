@@ -85,8 +85,8 @@ class RtprStreamTest {
             mos = 13F
             fractionLost = 14F
 
-            createdAt = 1579544472674
-            startedAt = 1579522272674
+            reportedAt = 1579544472674
+            createdAt = 1579522272674
         }
 
         val RTPR_2 = RtpReportPayload().apply {
@@ -113,8 +113,8 @@ class RtprStreamTest {
             mos = 14F
             fractionLost = 15F
 
-            createdAt = 1579555572674
-            startedAt = 1579533372674
+            reportedAt = 1579555572674
+            createdAt = 1579533372674
         }
 
         val RTPR_1_RTCP = RtpReportPayload().apply {
@@ -141,8 +141,8 @@ class RtprStreamTest {
             mos = 13F
             fractionLost = 14F
 
-            createdAt = 1579511172674
-            startedAt = 1579522272674
+            reportedAt = 1579511172674
+            createdAt = 1579522272674
         }
 
         val PACKET_1 = Packet().apply {
@@ -174,8 +174,8 @@ class RtprStreamTest {
 
         assertEquals(2, stream.reportCount)
 
-        assertEquals(RTPR_1.startedAt, stream.createdAt)
-        assertEquals(RTPR_2.startedAt + RTPR_2.duration, stream.terminatedAt)
+        assertEquals(RTPR_1.createdAt, stream.createdAt)
+        assertEquals(RTPR_2.createdAt + RTPR_2.duration, stream.terminatedAt)
 
         assertTrue(stream.codecNames.contains(RTPR_1.codecName))
         assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
@@ -202,8 +202,8 @@ class RtprStreamTest {
 
         assertEquals(2, stream.reportCount)
 
-        assertEquals(RTPR_1.startedAt, stream.createdAt)
-        assertEquals(RTPR_2.startedAt + RTPR_2.duration, stream.terminatedAt)
+        assertEquals(RTPR_1.createdAt, stream.createdAt)
+        assertEquals(RTPR_2.createdAt + RTPR_2.duration, stream.terminatedAt)
 
         assertTrue(stream.codecNames.contains(RTPR_1.codecName))
         assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
@@ -230,8 +230,8 @@ class RtprStreamTest {
         assertEquals(1, stream.reportCount)
         assertEquals(RTPR_1_RTCP, stream.report)
 
-        assertEquals(RTPR_1_RTCP.startedAt, stream.createdAt)
-        assertEquals(RTPR_1_RTCP.startedAt + RTPR_1_RTCP.duration, stream.terminatedAt)
+        assertEquals(RTPR_1_RTCP.createdAt, stream.createdAt)
+        assertEquals(RTPR_1_RTCP.createdAt + RTPR_1_RTCP.duration, stream.terminatedAt)
 
         assertTrue(stream.codecNames.contains(RTPR_1_RTCP.codecName))
         assertEquals(RTPR_1_RTCP.mos.toDouble(), stream.mos)

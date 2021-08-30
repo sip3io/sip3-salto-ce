@@ -83,8 +83,8 @@ class RtprHandlerTest : VertxTest() {
             mos = 13F
             fractionLost = 14F
 
-            createdAt = 1579511172674
-            startedAt = 1579522272674
+            reportedAt = 1579511172674
+            createdAt = 1579522272674
         }
 
         // Periodic RTP report without Call-ID
@@ -106,8 +106,8 @@ class RtprHandlerTest : VertxTest() {
             minJitter = 10F
             maxJitter = 11F
 
-            createdAt = 1579511172674
-            startedAt = 1579522272674
+            reportedAt = 1579511172674
+            createdAt = 1579522272674
         }
 
 
@@ -179,8 +179,8 @@ class RtprHandlerTest : VertxTest() {
                         assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
                         assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
 
-                        assertEquals(RTPR_1.createdAt, document.getLong("reported_at"))
-                        assertEquals(RTPR_1.startedAt, document.getLong("created_at"))
+                        assertEquals(RTPR_1.reportedAt, document.getLong("reported_at"))
+                        assertEquals(RTPR_1.createdAt, document.getLong("created_at"))
 
                         assertEquals(RTPR_1.callId, document.getString("call_id"))
                         assertEquals(RTPR_1.codecName, document.getString("codec"))
@@ -237,8 +237,8 @@ class RtprHandlerTest : VertxTest() {
                         assertEquals(PACKET_2.dstAddr.addr, document.getString("dst_addr"))
                         assertEquals(PACKET_2.dstAddr.port, document.getInteger("dst_port"))
 
-                        assertEquals(RTPR_2.createdAt, document.getLong("reported_at"))
-                        assertEquals(RTPR_2.startedAt, document.getLong("created_at"))
+                        assertEquals(RTPR_2.reportedAt, document.getLong("reported_at"))
+                        assertEquals(RTPR_2.createdAt, document.getLong("created_at"))
 
                         assertEquals(MEDIA_CONTROL.callId, document.getString("call_id"))
                         assertEquals(MEDIA_CONTROL.sdpSession.codecs.first().name, document.getString("codec"))
@@ -301,7 +301,7 @@ class RtprHandlerTest : VertxTest() {
                             assertEquals(1, codecs.size)
                             assertEquals(MEDIA_CONTROL.sdpSession.codecs.first().name, codecs.first())
 
-                            assertEquals(RTPR_2.startedAt, session.createdAt)
+                            assertEquals(RTPR_2.createdAt, session.createdAt)
                             assertEquals(DST_ADDR_RTCP, dstAddr)
                             assertEquals(SRC_ADDR_RTCP, srcAddr)
 
@@ -334,7 +334,7 @@ class RtprHandlerTest : VertxTest() {
                     context.verify {
                         session.apply {
                             assertEquals(1, reportCount)
-                            assertEquals(RTPR_1.startedAt, session.createdAt)
+                            assertEquals(RTPR_1.createdAt, session.createdAt)
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
                             assertNotNull(session.forward)
@@ -370,7 +370,7 @@ class RtprHandlerTest : VertxTest() {
                     context.verify {
                         session.apply {
                             assertEquals(1, reportCount)
-                            assertEquals(RTPR_1.startedAt, session.createdAt)
+                            assertEquals(RTPR_1.createdAt, session.createdAt)
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
                             assertEquals(RTPR_1, session.forward!!.report)

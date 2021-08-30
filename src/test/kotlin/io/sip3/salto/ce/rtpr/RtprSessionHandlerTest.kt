@@ -26,14 +26,10 @@ import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
-import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.sip.SipCallHandler
-import io.sip3.salto.ce.sip.SipCallHandlerTest
-import io.sip3.salto.ce.sip.SipTransaction
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.get
 import org.junit.jupiter.api.AfterEach
@@ -83,8 +79,8 @@ class RtprSessionHandlerTest : VertxTest() {
             mos = 13F
             fractionLost = 14F
 
-            createdAt = 1579511172674
-            startedAt = 1579522272674
+            reportedAt = 1579511172674
+            createdAt = 1579522272674
         }
 
         val PACKET_1 = Packet().apply {
@@ -118,8 +114,8 @@ class RtprSessionHandlerTest : VertxTest() {
             mos = 14F
             fractionLost = 15F
 
-            createdAt = 1579511272674
-            startedAt = 1579522372674
+            reportedAt = 1579511272674
+            createdAt = 1579522372674
         }
 
         val PACKET_2 = Packet().apply {

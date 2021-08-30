@@ -276,8 +276,8 @@ open class RtcpHandler : AbstractVerticle() {
             val packetCount = senderReport.senderPacketCount.toInt()
 
             val payload = RtpReportPayload().apply {
-                createdAt = System.currentTimeMillis()
-                startedAt = if (stream.lastPacketTimestamp > 0) {
+                reportedAt = System.currentTimeMillis()
+                createdAt = if (stream.lastPacketTimestamp > 0) {
                     stream.lastPacketTimestamp
                 } else {
                     createdAt
