@@ -373,6 +373,7 @@ open class SipCallHandler : AbstractVerticle() {
         val attributes = session.attributes
             .toMutableMap()
             .apply {
+                put(Attributes.method, "INVITE")
                 put(Attributes.state, session.state)
 
                 val src = session.srcAddr

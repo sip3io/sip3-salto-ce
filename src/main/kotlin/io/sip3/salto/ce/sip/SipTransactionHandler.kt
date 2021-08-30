@@ -215,6 +215,7 @@ open class SipTransactionHandler : AbstractVerticle() {
         val attributes = transaction.attributes
             .toMutableMap()
             .apply {
+                put(Attributes.method, transaction.cseqMethod)
                 put(Attributes.state, transaction.state)
 
                 val src = transaction.srcAddr
