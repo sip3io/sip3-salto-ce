@@ -28,11 +28,14 @@ class Address {
         host ?: addr
     }
 
-    fun compositeAddrKey(other: Address): String {
-        return if (addr > other.addr) {
-            "$addr:${other.addr}"
+    fun compositeKey(other: Address, keyMapping: (Address) -> String): String {
+        val thisKey = keyMapping.invoke(this)
+        val otherKey = keyMapping.invoke(other)
+
+        return if (thisKey > otherKey) {
+            "$thisKey:$otherKey"
         } else {
-            "${other.addr}:$addr"
+            "$other:$thisKey"
         }
     }
 
@@ -48,10 +51,6 @@ class Address {
         return MediaUtil.sdpSessionId(addr, port)
     }
 
-    override fun toString(): String {
-        return "Address(addr='$addr', port=$port, host=$host)"
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Address) return false
@@ -63,5 +62,9 @@ class Address {
         var result = addr.hashCode()
         result = 31 * result + port
         return result
+    }
+
+    override fun toString(): String {
+        return "Address(addr='$addr', port=$port, host=$host)"
     }
 }

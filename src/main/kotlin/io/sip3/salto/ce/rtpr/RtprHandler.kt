@@ -188,7 +188,7 @@ open class RtprHandler : AbstractVerticle() {
             else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
         }
 
-        val sessionId = rtprSessionId(packet.srcAddr, packet.dstAddr)
+        val sessionId = packet.srcAddr.compositeKey(packet.dstAddr) { it.sdpSessionId() }
         var session = sessions[sessionId]
         if (session == null) {
             val mediaControl = mediaControls[packet.srcAddr.sdpSessionId()]
@@ -365,13 +365,5 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
-    }
-
-    private fun rtprSessionId(srcAddr: Address, dstAddr: Address): String {
-        return if (srcAddr.addr > dstAddr.addr) {
-            "${srcAddr.sdpSessionId()}:${dstAddr.sdpSessionId()}"
-        } else {
-            "${dstAddr.sdpSessionId()}:${srcAddr.sdpSessionId()}"
-        }
     }
 }
