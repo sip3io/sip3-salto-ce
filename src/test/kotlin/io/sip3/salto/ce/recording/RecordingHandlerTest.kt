@@ -131,6 +131,7 @@ class RecordingHandlerTest : VertxTest() {
 
                         assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
                         assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(PACKET_1.srcAddr.host, document.getString("src_host"))
                         assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
                         assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
 
@@ -174,6 +175,7 @@ class RecordingHandlerTest : VertxTest() {
 
                         assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
                         assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
+                        assertEquals(PACKET_1.srcAddr.host, document.getString("src_host"))
                         assertEquals(PACKET_1.dstAddr.addr, document.getString("dst_addr"))
                         assertEquals(PACKET_1.dstAddr.port, document.getInteger("dst_port"))
 
