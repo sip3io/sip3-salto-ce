@@ -8,7 +8,7 @@ integration endpoints.
 
 Before starting with `sip3-salto-ce`, make sure you have installed:
 
-* [Docker] (https://docs.docker.com/get-docker/)
+* [Docker](https://docs.docker.com/get-docker/)
 * [Maven](https://maven.apache.org/install.html)
 * [sip3-parent](https://github.com/sip3io/sip3-parent)
 * [sip3-commons](https://github.com/sip3io/sip3-commons)
