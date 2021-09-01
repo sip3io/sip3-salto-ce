@@ -8,6 +8,7 @@ integration endpoints.
 
 Before starting with `sip3-salto-ce`, make sure you have installed:
 
+* [Docker] (https://docs.docker.com/get-docker/)
 * [Maven](https://maven.apache.org/install.html)
 * [sip3-parent](https://github.com/sip3io/sip3-parent)
 * [sip3-commons](https://github.com/sip3io/sip3-commons)
@@ -22,8 +23,8 @@ mvn clean package -P executable-jar
 
 ## 3. Documentation
 
-The entire SIP3 Documentation including `Getting Started Guide`, `Installation Guide`, `Features`, `Tutorials`
-and `Realease Notes` can be found [here](https://sip3.io/docs/GettingStartedGuide.html).
+The entire SIP3 Documentation including `Installation Guide`, `Features`, `Tutorials`
+and `Realease Notes` can be found [here](https://sip3.io/docs/InstallationGuide.html).
 
 ## 4. Support
 
