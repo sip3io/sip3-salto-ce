@@ -121,7 +121,9 @@ class Decoder : AbstractVerticle() {
                 packetOffset += 2
                 when (type.toInt()) {
                     1 -> millis = buffer.getLong(packetOffset)
-                    2 -> nanos = buffer.getInt(packetOffset)
+                    // TODO: Division by 1000000 is a back compatibility hack.
+                    //       It has to be removed in one of the next versions.
+                    2 -> nanos = buffer.getInt(packetOffset) % 1000000
                     3 -> srcAddr = buffer.getBytes(packetOffset, packetOffset + length)
                     4 -> dstAddr = buffer.getBytes(packetOffset, packetOffset + length)
                     5 -> srcPort = buffer.getUnsignedShort(packetOffset)
@@ -133,7 +135,7 @@ class Decoder : AbstractVerticle() {
             }
 
             val packet = Packet().apply {
-                this.timestamp = Timestamp(millis!!).apply { this.nanos = nanos!! }
+                this.timestamp = Timestamp(millis!!).apply { this.nanos += nanos!! }
                 this.srcAddr = Address().apply {
                     addr = IpUtil.convertToString(srcAddr!!)
                     port = srcPort!!
