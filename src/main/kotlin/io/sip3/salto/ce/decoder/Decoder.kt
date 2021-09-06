@@ -122,7 +122,9 @@ class Decoder : AbstractVerticle() {
                 when (type.toInt()) {
                     1 -> millis = buffer.getLong(packetOffset)
                     // TODO: Division by 1000000 is a back compatibility hack.
-                    //       It has to be removed in one of the next versions.
+                    //  It has to be removed in one of the next versions.
+                    //  Keep in mind that removing this hack will break
+                    //  `Decode SIP3 SIP packet with protocol version 2 compressed` test which will have to be rewritten.
                     2 -> nanos = buffer.getInt(packetOffset) % 1000000
                     3 -> srcAddr = buffer.getBytes(packetOffset, packetOffset + length)
                     4 -> dstAddr = buffer.getBytes(packetOffset, packetOffset + length)
