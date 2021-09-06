@@ -159,11 +159,11 @@ server:
 #      max-collections: 30
 #    - prefix: rtpr_rtcp_raw
 #      indexes:
-#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host]
+#        ascending: [created_at]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rec_raw
 #      indexes:
-#        ascending: [created_at]
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host]
 #        hashed: [call_id]
 #      max-collections: 30
