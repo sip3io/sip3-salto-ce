@@ -22,7 +22,6 @@ import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.util.MediaUtil.rtpStreamId
 import io.sip3.commons.util.MutableMapUtil
-import io.sip3.commons.util.remainingCapacity
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
@@ -127,7 +126,7 @@ open class RtcpHandler : AbstractVerticle() {
     open fun handleRaw(packet: Packet) {
         val payload = Unpooled.wrappedBuffer(packet.payload)
 
-        while (payload.remainingCapacity() > 4) {
+        while (payload.readableBytes() > 4) {
             val offset = payload.readerIndex()
 
             val headerByte = payload.readByte()
