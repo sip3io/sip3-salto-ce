@@ -20,7 +20,10 @@ import io.micrometer.core.instrument.Metrics
 import io.micrometer.core.instrument.MockClock
 import io.micrometer.core.instrument.simple.SimpleConfig
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import io.sip3.commons.domain.media.*
+import io.sip3.commons.domain.media.Codec
+import io.sip3.commons.domain.media.MediaAddress
+import io.sip3.commons.domain.media.MediaControl
+import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localPublish
@@ -318,7 +321,7 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Handle periodic RTP Report and send session to media_update`() {
+    fun `Handle periodic RTP Report and send session to rtpr_update`() {
         runTest(
             deploy = {
                 vertx.deployTestVerticle(RtprHandler::class)
