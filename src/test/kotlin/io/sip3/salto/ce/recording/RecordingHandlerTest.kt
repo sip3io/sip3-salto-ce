@@ -19,6 +19,7 @@ package io.sip3.salto.ce.recording
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.domain.media.Recording
 import io.sip3.commons.domain.payload.RecordingPayload
+import io.sip3.commons.util.getBytes
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
@@ -77,7 +78,7 @@ class RecordingHandlerTest : VertxTest() {
 
         source = "sip3"
         protocolCode = PacketTypes.REC
-        payload = RECORDING_1.encode().array()
+        payload = RECORDING_1.encode().getBytes()
     }
 
     val RECORDING_2 = RecordingPayload().apply {
@@ -103,7 +104,7 @@ class RecordingHandlerTest : VertxTest() {
 
         source = "sip3"
         protocolCode = PacketTypes.REC
-        payload = RECORDING_2.encode().array()
+        payload = RECORDING_2.encode().getBytes()
     }
 
 

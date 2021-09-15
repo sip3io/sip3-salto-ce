@@ -24,6 +24,7 @@ import io.mockk.*
 import io.mockk.junit5.MockKExtension
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
+import io.sip3.commons.util.getBytes
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
@@ -33,7 +34,8 @@ import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.get
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -87,7 +89,7 @@ class RtprSessionHandlerTest : VertxTest() {
             timestamp = Timestamp(System.currentTimeMillis())
             srcAddr = SRC_ADDR
             dstAddr = DST_ADDR
-            payload = RTPR_1.encode().array()
+            payload = RTPR_1.encode().getBytes()
         }
 
         val RTPR_2 = RtpReportPayload().apply {
@@ -122,7 +124,7 @@ class RtprSessionHandlerTest : VertxTest() {
             timestamp = Timestamp(System.currentTimeMillis())
             srcAddr = DST_ADDR
             dstAddr = SRC_ADDR
-            payload = RTPR_2.encode().array()
+            payload = RTPR_2.encode().getBytes()
         }
 
         // Media Control

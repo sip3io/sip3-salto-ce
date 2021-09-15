@@ -594,10 +594,8 @@ open class SipCallHandler : AbstractVerticle() {
                         state = CANCELED
                         (transaction.terminatedAt ?: transaction.createdAt).let { terminatedAt ->
                             this.terminatedAt = terminatedAt
-                            transaction.ringingAt?.let { ringingAt ->
-                                if (terminatedAt > ringingAt) {
-                                    cancelTime = terminatedAt - ringingAt
-                                }
+                            if (terminatedAt > createdAt) {
+                                cancelTime = terminatedAt - createdAt
                             }
                         }
                     }

@@ -25,6 +25,7 @@ import io.sip3.commons.domain.media.MediaAddress
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.domain.payload.RtpReportPayload
+import io.sip3.commons.util.getBytes
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
@@ -119,7 +120,7 @@ class RtprHandlerTest : VertxTest() {
             timestamp = Timestamp(System.currentTimeMillis())
             srcAddr = SRC_ADDR
             dstAddr = DST_ADDR
-            payload = RTPR_1.encode().array()
+            payload = RTPR_1.encode().getBytes()
         }
 
         // Packet with periodic RTP report without Call-ID
@@ -127,7 +128,7 @@ class RtprHandlerTest : VertxTest() {
             timestamp = Timestamp(System.currentTimeMillis())
             srcAddr = DST_ADDR_RTCP
             dstAddr = SRC_ADDR_RTCP
-            payload = RTPR_2.encode().array()
+            payload = RTPR_2.encode().getBytes()
         }
 
         // Media Control
