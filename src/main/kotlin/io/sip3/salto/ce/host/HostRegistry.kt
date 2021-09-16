@@ -67,6 +67,10 @@ object HostRegistry {
         }
     }
 
+    fun getHostName(addr: String): String? {
+        return hosts[addr]
+    }
+
     fun getHostName(addr: String, port: Int): String? {
         return hosts[addr] ?: hosts["${addr}:${port}"]
     }

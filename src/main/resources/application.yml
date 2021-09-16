@@ -18,6 +18,7 @@ server:
 #  uri: udp://0.0.0.0:15091
 #  expiration-delay: 60000
 #  expiration-timeout: 120000
+#  publish-media-control-mode: 0
 
 #! Application
 #time-suffix: yyyyMMdd

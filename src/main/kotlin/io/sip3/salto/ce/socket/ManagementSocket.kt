@@ -23,6 +23,7 @@ import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.host.HostRegistry
 import io.vertx.core.AbstractVerticle
+import io.vertx.core.buffer.Buffer
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.datagram.DatagramSocketOptions
 import io.vertx.core.json.JsonObject
@@ -52,9 +53,11 @@ open class ManagementSocket : AbstractVerticle() {
     private lateinit var uri: URI
     private var expirationDelay: Long = 60000
     private var expirationTimeout: Long = 120000
+    private var publishMediaControlMode = 0
+
+    private lateinit var socket: DatagramSocket
 
     private val remoteHosts = mutableMapOf<String, RemoteHost>()
-    private lateinit var socket: DatagramSocket
     private var sendSdpSessions = false
 
     override fun start() {
@@ -66,8 +69,16 @@ open class ManagementSocket : AbstractVerticle() {
 
         config().getJsonObject("management").let { config ->
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
-            config.getLong("expiration-delay")?.let { expirationDelay = it }
-            config.getLong("expiration-timeout")?.let { expirationTimeout = it }
+
+            config.getLong("expiration-delay")?.let {
+                expirationDelay = it
+            }
+            config.getLong("expiration-timeout")?.let {
+                expirationTimeout = it
+            }
+            config.getInteger("publish-media-control-mode")?.let {
+                publishMediaControlMode = it
+            }
         }
 
         startUdpServer()
@@ -81,7 +92,7 @@ open class ManagementSocket : AbstractVerticle() {
                     remoteHosts.remove(name)
                 }
 
-            sendSdpSessions = remoteHosts.any { it.value.mediaEnabled }
+            sendSdpSessions = remoteHosts.any { (_, host) -> host.mediaEnabled }
         }
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
@@ -102,11 +113,11 @@ open class ManagementSocket : AbstractVerticle() {
         socket = vertx.createDatagramSocket(options)
 
         socket.handler { packet ->
-            val buffer = packet.data()
             val socketAddress = packet.sender()
+            val buffer = packet.data()
             try {
                 val message = buffer.toJsonObject()
-                handle(message, socketAddress)
+                handle(socketAddress, message)
             } catch (e: Exception) {
                 logger.error(e) { "ManagementSocket 'handle()' failed." }
             }
@@ -121,33 +132,30 @@ open class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    open fun handle(message: JsonObject, socketAddress: SocketAddress) {
+    open fun handle(socketAddress: SocketAddress, message: JsonObject) {
         val type = message.getString("type")
         val payload = message.getJsonObject("payload")
 
         when (type) {
             TYPE_REGISTER -> {
-                val timestamp = payload.getLong("timestamp")
-                val name = payload.getString("name")
                 val config = payload.getJsonObject("config")
 
-                remoteHosts.computeIfAbsent(name) {
+                remoteHosts.computeIfAbsent(config?.getJsonObject("host")?.getString("name") ?: payload.getString("name")) { name ->
+                    logger.info { "Registered: $payload" }
+
                     val host = socketAddress.host()
                     val port = socketAddress.port()
                     val uri = URI("${uri.scheme}://$host:$port")
 
-                    val remoteHost = RemoteHost(name, uri)
-                    logger.info { "Registered: $remoteHost, Timestamp: $timestamp, Config:\n${config?.encodePrettily()}" }
-
+                    return@computeIfAbsent RemoteHost(name, uri)
+                }.apply {
                     config?.getJsonObject("host")?.let { hostRegistry.save(it) }
 
                     val rtpEnabled = config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false
                     val rtcpEnabled = config?.getJsonObject("rtcp")?.getBoolean("enabled") ?: false
-                    remoteHost.mediaEnabled = rtpEnabled || rtcpEnabled
-                    sendSdpSessions = sendSdpSessions || remoteHost.mediaEnabled
+                    mediaEnabled = rtpEnabled || rtcpEnabled
+                    sendSdpSessions = sendSdpSessions || mediaEnabled
 
-                    return@computeIfAbsent remoteHost
-                }.apply {
                     lastUpdate = System.currentTimeMillis()
                 }
             }
@@ -158,25 +166,43 @@ open class ManagementSocket : AbstractVerticle() {
     open fun publishMediaControl(mediaControl: MediaControl) {
         if (!sendSdpSessions) return
 
-        val buffer = JsonObject().apply {
+        val message = JsonObject().apply {
             put("type", TYPE_MEDIA_CONTROL)
             put("payload", JsonObject.mapFrom(mediaControl))
         }.toBuffer()
 
-        remoteHosts.forEach { (_, remoteHost) ->
-            if (remoteHost.mediaEnabled) {
-                try {
-                    socket.send(buffer, remoteHost.uri.port, remoteHost.uri.host) {}
-                } catch (e: Exception) {
-                    logger.error(e) { "Socket 'send()' failed. URI: ${remoteHost.uri}" }
+        when (publishMediaControlMode) {
+            // Mode 0: Send to all hosts
+            0 -> {
+                remoteHosts.forEach { (_, host) -> sendMediaControlIfNeeded(host, message) }
+            }
+            // Mode 1: Send to media participants only
+            1 -> {
+                mediaControl.sdpSession.apply {
+                    remoteHosts[hostRegistry.getHostName(src.addr)]?.let {
+                        sendMediaControlIfNeeded(it, message)
+                    }
+                    remoteHosts[hostRegistry.getHostName(dst.addr)]?.let {
+                        sendMediaControlIfNeeded(it, message)
+                    }
                 }
+            }
+        }
+    }
+
+    private fun sendMediaControlIfNeeded(host: RemoteHost, message: Buffer) {
+        if (host.mediaEnabled) {
+            try {
+                socket.send(message, host.uri.port, host.uri.host) {}
+            } catch (e: Exception) {
+                logger.error(e) { "Socket 'send()' failed. URI: ${host.uri}" }
             }
         }
     }
 
     data class RemoteHost(val name: String, val uri: URI) {
 
-        var lastUpdate: Long = Long.MIN_VALUE
+        var lastUpdate: Long = System.currentTimeMillis()
         var mediaEnabled = false
     }
 }
