@@ -86,10 +86,11 @@ class SipMessageParser(val supportedMethods: Set<String>, val extensionHeaders: 
             accumulator.add(Pair(packet, message))
         }
 
-        // Check if there is more then a single message
+        // Check if there is more than a single message
         if (payload.size > offset) {
             val pkt = Packet().apply {
-                this.timestamp = packet.timestamp
+                this.createdAt = packet.createdAt
+                this.nanos = packet.nanos
                 this.srcAddr = packet.srcAddr
                 this.dstAddr = packet.dstAddr
                 this.protocolCode = packet.protocolCode
@@ -125,7 +126,7 @@ class SipMessageParser(val supportedMethods: Set<String>, val extensionHeaders: 
 
             val name = Lexer.getHeaderName(header)
 
-            val hdr = when (name.toLowerCase()) {
+            val hdr = when (name.lowercase()) {
                 // These headers may or will be used in the SIP3 aggregation logic
                 "content-length", "l" -> ContentLengthParser(header + "\n").parse()
                 "cseq" -> {

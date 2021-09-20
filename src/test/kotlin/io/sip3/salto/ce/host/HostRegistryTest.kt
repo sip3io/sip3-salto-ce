@@ -47,12 +47,12 @@ class HostRegistryTest : VertxTest() {
             })
             put("mapping", JsonArray().apply {
                 add(JsonObject().apply {
-                    put("source", "3.3.3.1" )
-                    put("target", "4.4.4.4" )
+                    put("source", "3.3.3.1")
+                    put("target", "4.4.4.4")
                 })
                 add(JsonObject().apply {
-                    put("source", "2.2.2.2" )
-                    put("target", "5.5.5.5" )
+                    put("source", "2.2.2.2")
+                    put("target", "5.5.5.5")
                 })
                 put("feature", JsonArray().apply {
                     add("feature1")
@@ -69,8 +69,8 @@ class HostRegistryTest : VertxTest() {
             })
             put("mapping", JsonArray().apply {
                 add(JsonObject().apply {
-                    put("source", "7.7.7.7" )
-                    put("target", "6.6.6.6" )
+                    put("source", "7.7.7.7")
+                    put("target", "6.6.6.6")
                 })
             })
             put("feature", JsonArray().apply {
@@ -151,7 +151,7 @@ class HostRegistryTest : VertxTest() {
 
                 vertx.setPeriodic(200L) {
                     mongo.find("hosts", JsonObject().apply { put("name", HOST_3.getString("name")) }) { asr ->
-                        if(asr.succeeded() && asr.result().isNotEmpty()) {
+                        if (asr.succeeded() && asr.result().isNotEmpty()) {
                             val host = asr.result().first()
                             context.verify {
                                 assertEquals(HOST_3.getString("name"), host.getString("name"))

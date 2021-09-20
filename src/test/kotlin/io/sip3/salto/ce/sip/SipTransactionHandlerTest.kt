@@ -35,7 +35,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.sql.Timestamp
 
 @ExtendWith(MockKExtension::class)
 class SipTransactionHandlerTest : VertxTest() {
@@ -49,7 +48,7 @@ class SipTransactionHandlerTest : VertxTest() {
         val NOW = System.currentTimeMillis()
 
         val PACKET_OPTIONS_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -58,7 +57,8 @@ class SipTransactionHandlerTest : VertxTest() {
                 addr = "127.0.0.2"
                 port = 5061
             }
-            attributes[Attributes.caller] = "caller"
+            attributes = mutableMapOf()
+            attributes!![Attributes.caller] = "caller"
             payload = """
                         OPTIONS sip:1010@192.168.10.123:61540;rinstance=afd8f6ae9bf996b2 SIP/2.0
                         Via: SIP/2.0/UDP 192.168.10.5:5060;rport;branch=z9hG4bKPj5464cb3a-5b18-4e5d-97b1-1cbbd70cb879
@@ -75,7 +75,7 @@ class SipTransactionHandlerTest : VertxTest() {
         }
 
         val PACKET_OPTIONS_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 25)
+            createdAt = NOW + 25
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -103,7 +103,7 @@ class SipTransactionHandlerTest : VertxTest() {
         }
 
         val PACKET_MESSAGE_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -112,7 +112,8 @@ class SipTransactionHandlerTest : VertxTest() {
                 addr = "127.0.0.2"
                 port = 5061
             }
-            attributes[Attributes.caller] = "caller"
+            attributes = mutableMapOf()
+            attributes!![Attributes.caller] = "caller"
             payload = """
                         MESSAGE sip:user2@domain.com SIP/2.0
                         Via: SIP/2.0/TCP user1pc.domain.com;branch=z9hG4bK776sgdkse
@@ -130,7 +131,7 @@ class SipTransactionHandlerTest : VertxTest() {
         }
 
         val PACKET_MESSAGE_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 25)
+            createdAt = NOW + 25
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -153,7 +154,7 @@ class SipTransactionHandlerTest : VertxTest() {
 
         // INVITE
         val FAILED_PACKET_1 = Packet().apply {
-            timestamp = Timestamp(SipCallHandlerTest.NOW)
+            createdAt = SipCallHandlerTest.NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -162,7 +163,8 @@ class SipTransactionHandlerTest : VertxTest() {
                 addr = "127.0.0.2"
                 port = 5061
             }
-            attributes[Attributes.caller] = "caller"
+            attributes = mutableMapOf()
+            attributes!![Attributes.caller] = "caller"
             payload = """
                         INVITE sip:321@116.203.55.139;user=phone SIP/2.0
                         Via: SIP/2.0/UDP 176.9.119.117:5063;rport;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515
@@ -191,7 +193,7 @@ class SipTransactionHandlerTest : VertxTest() {
 
         // 100 Trying
         val FAILED_PACKET_2 = Packet().apply {
-            timestamp = Timestamp(SipCallHandlerTest.NOW + 107)
+            createdAt = SipCallHandlerTest.NOW + 107
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -200,7 +202,8 @@ class SipTransactionHandlerTest : VertxTest() {
                 addr = "127.0.0.1"
                 port = 5060
             }
-            attributes["include-me"] = true
+            attributes = mutableMapOf()
+            attributes!!["include-me"] = true
             payload = """
                         SIP/2.0 100 Trying
                         Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063
@@ -217,7 +220,7 @@ class SipTransactionHandlerTest : VertxTest() {
 
         // 503 Service Unavailable
         val FAILED_PACKET_3 = Packet().apply {
-            timestamp = Timestamp(SipCallHandlerTest.NOW + 107 + 342)
+            createdAt = SipCallHandlerTest.NOW + 107 + 342
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061

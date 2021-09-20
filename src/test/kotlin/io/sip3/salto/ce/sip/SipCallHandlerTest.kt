@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.sql.Timestamp
 
 @ExtendWith(MockKExtension::class)
 class SipCallHandlerTest : VertxTest() {
@@ -49,7 +48,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // INVITE
         val UNKNOWN_PACKET_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -91,7 +90,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // INVITE
         val FAILED_PACKET_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -101,7 +100,8 @@ class SipCallHandlerTest : VertxTest() {
                 host = "Test"
                 port = 5061
             }
-            attributes[Attributes.caller] = "caller"
+            attributes = mutableMapOf()
+            attributes!![Attributes.caller] = "caller"
             payload = """
                         INVITE sip:321@116.203.55.139;user=phone SIP/2.0
                         Via: SIP/2.0/UDP 176.9.119.117:5063;rport;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515
@@ -130,7 +130,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // 100 Trying
         val FAILED_PACKET_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 107)
+            createdAt = NOW + 107
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 host = "Test"
@@ -140,7 +140,8 @@ class SipCallHandlerTest : VertxTest() {
                 addr = "127.0.0.1"
                 port = 5060
             }
-            attributes["include-me"] = true
+            attributes = mutableMapOf()
+            attributes!!["include-me"] = true
             payload = """
                         SIP/2.0 100 Trying
                         Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063
@@ -157,7 +158,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // 503 Service Unavailable
         val FAILED_PACKET_3 = Packet().apply {
-            timestamp = Timestamp(NOW + 107 + 342)
+            createdAt = NOW + 107 + 342
             srcAddr = Address().apply {
                 addr = "127.0.0.3"
                 host = "Test"
@@ -183,7 +184,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // INVITE
         val ANSWERED_PACKET_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -225,7 +226,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // 100 Trying
         val ANSWERED_PACKET_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 2)
+            createdAt = NOW + 2
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 host = "Test"
@@ -249,7 +250,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // 200 OK
         val ANSWERED_PACKET_3 = Packet().apply {
-            timestamp = Timestamp(NOW + 2 + 23)
+            createdAt = NOW + 2 + 23
             srcAddr = Address().apply {
                 addr = "127.0.0.3"
                 host = "Test"
@@ -294,7 +295,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // ACK
         val ANSWERED_PACKET_4 = Packet().apply {
-            timestamp = Timestamp(NOW + 2 + 23 + 128)
+            createdAt = NOW + 2 + 23 + 128
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -319,7 +320,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // BYE
         val ANSWERED_PACKET_5 = Packet().apply {
-            timestamp = Timestamp(NOW + 2 + 23 + 128 + 221)
+            createdAt = NOW + 2 + 23 + 128 + 221
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -347,7 +348,7 @@ class SipCallHandlerTest : VertxTest() {
 
         // 200 OK
         val ANSWERED_PACKET_6 = Packet().apply {
-            timestamp = Timestamp(NOW + 2 + 23 + 128 + 221 + 1)
+            createdAt = NOW + 2 + 23 + 128 + 221 + 1
             srcAddr = Address().apply {
                 addr = "127.0.0.3"
                 host = "Test"

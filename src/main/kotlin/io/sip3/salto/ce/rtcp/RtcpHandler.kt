@@ -35,7 +35,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.nio.charset.Charset
-import java.sql.Timestamp
 import kotlin.coroutines.CoroutineContext
 import kotlin.experimental.and
 
@@ -260,7 +259,7 @@ open class RtcpHandler : AbstractVerticle() {
 
         val stream = streams.computeIfAbsent(streamId) {
             RtcpStream().apply {
-                createdAt = packet.timestamp
+                createdAt = packet.createdAt
                 dstAddr = packet.dstAddr
                 srcAddr = packet.srcAddr
             }
@@ -315,13 +314,13 @@ open class RtcpHandler : AbstractVerticle() {
             vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(packet, payload))
         }
 
-        stream.lastPacketTimestamp = packet.timestamp.time
+        stream.lastPacketTimestamp = packet.createdAt
     }
 
     class RtcpStream {
 
         // Static stream data
-        lateinit var createdAt: Timestamp
+        var createdAt: Long = 0
         lateinit var dstAddr: Address
         lateinit var srcAddr: Address
 

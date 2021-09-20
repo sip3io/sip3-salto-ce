@@ -233,6 +233,6 @@ class SipTransaction {
         }
 
         // Copy attributes
-        packet.attributes.forEach { (name, value) -> attributes[name] = value }
+        packet.attributes?.forEach { (name, value) -> attributes[name] = value }
     }
 }

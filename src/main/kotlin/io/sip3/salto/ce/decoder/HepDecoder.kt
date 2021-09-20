@@ -27,7 +27,6 @@ import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
 import mu.KotlinLogging
-import java.sql.Timestamp
 
 /**
  * Decodes packets in HEP2 and HEP3 protocols
@@ -88,7 +87,8 @@ class HepDecoder : AbstractVerticle() {
         val payload: ByteArray = buffer.getBytes(28, packetLength)
 
         val packet = Packet().apply {
-            this.timestamp = Timestamp(seconds * 1000 + uSeconds / 1000).apply { nanos += (uSeconds % 1000).toInt() }
+            this.createdAt = seconds * 1000 + uSeconds / 1000
+            this.nanos = (uSeconds % 1000).toInt()
             this.srcAddr = Address().apply {
                 addr = IpUtil.convertToString(srcAddr)
                 port = srcPort
@@ -142,7 +142,8 @@ class HepDecoder : AbstractVerticle() {
         if (!rtcpEnabled && protocolType == HEP3_TYPE_RTCP) return
 
         val packet = Packet().apply {
-            this.timestamp = Timestamp(seconds!! * 1000 + uSeconds!! / 1000).apply { nanos += (uSeconds % 1000).toInt() }
+            this.createdAt = seconds!! * 1000 + uSeconds!! / 1000
+            this.nanos = (uSeconds % 1000).toInt()
             this.srcAddr = Address().apply {
                 addr = IpUtil.convertToString(srcAddr!!)
                 port = srcPort!!

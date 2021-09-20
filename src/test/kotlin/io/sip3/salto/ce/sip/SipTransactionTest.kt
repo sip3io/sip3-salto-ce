@@ -22,7 +22,6 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.sql.Timestamp
 
 class SipTransactionTest {
 
@@ -35,7 +34,7 @@ class SipTransactionTest {
         val NOW = System.currentTimeMillis()
 
         val PACKET_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -44,8 +43,9 @@ class SipTransactionTest {
                 addr = "127.0.0.2"
                 port = 5061
             }
-            attributes["invite"] = true
-            attributes[Attributes.caller] = "caller"
+            attributes = mutableMapOf()
+            attributes!!["invite"] = true
+            attributes!![Attributes.caller] = "caller"
             payload = """
                         INVITE sip:000155917690@ss63.invite.demo.sip3.io:5060 SIP/2.0
                         Via: SIP/2.0/UDP 10.177.131.211:6333;branch=z9hG4bKmqffet30b03pp5mv5jj0.1
@@ -79,7 +79,7 @@ class SipTransactionTest {
         }
 
         val PACKET_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 20)
+            createdAt = NOW + 20
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -88,7 +88,8 @@ class SipTransactionTest {
                 addr = "127.0.0.1"
                 port = 5060
             }
-            attributes["ringing"] = true
+            attributes = mutableMapOf()
+            attributes!!["ringing"] = true
             payload = """
                         SIP/2.0 183 Session Progress
                         Supported: 100rel,precondition,timer
@@ -118,7 +119,7 @@ class SipTransactionTest {
         }
 
         val PACKET_3 = Packet().apply {
-            timestamp = Timestamp(NOW + 10)
+            createdAt = NOW + 10
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -127,7 +128,8 @@ class SipTransactionTest {
                 addr = "127.0.0.1"
                 port = 5060
             }
-            attributes["ringing"] = true
+            attributes = mutableMapOf()
+            attributes!!["ringing"] = true
             payload = """
                         SIP/2.0 100 Trying
                         Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063

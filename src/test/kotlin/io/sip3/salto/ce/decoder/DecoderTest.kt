@@ -123,8 +123,8 @@ class DecoderTest : VertxTest() {
     }
 
     private fun assertPacket(packet: Packet) {
-        assertEquals(1549880240852, packet.timestamp.time)
-        assertEquals(852000000, packet.timestamp.nanos)
+        assertEquals(1549880240852, packet.createdAt)
+        assertEquals(0, packet.nanos)
         val src = packet.srcAddr
         assertEquals("124.173.217.107", src.addr)
         assertEquals(11236, src.port)

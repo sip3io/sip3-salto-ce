@@ -39,7 +39,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.sql.Timestamp
 
 @ExtendWith(MockKExtension::class)
 class RtprSessionHandlerTest : VertxTest() {
@@ -86,7 +85,7 @@ class RtprSessionHandlerTest : VertxTest() {
         }
 
         val PACKET_1 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = SRC_ADDR
             dstAddr = DST_ADDR
             payload = RTPR_1.encode().getBytes()
@@ -121,7 +120,7 @@ class RtprSessionHandlerTest : VertxTest() {
         }
 
         val PACKET_2 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = DST_ADDR
             dstAddr = SRC_ADDR
             payload = RTPR_2.encode().getBytes()
