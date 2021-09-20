@@ -140,6 +140,7 @@ open class ManagementSocket : AbstractVerticle() {
         when (type) {
             TYPE_REGISTER -> {
                 val config = payload.getJsonObject("config")
+                val scheme = uri.scheme
 
                 remoteHosts.computeIfAbsent(config?.getJsonObject("host")?.getString("name") ?: payload.getString("name")) { name ->
                     logger.info { "Registered: $payload" }
@@ -147,7 +148,7 @@ open class ManagementSocket : AbstractVerticle() {
                 }.apply {
                     val host = socketAddress.host()
                     val port = socketAddress.port()
-                    uri = URI("${uri.scheme}://$host:$port")
+                    uri = URI("$scheme://$host:$port")
 
                     config?.getJsonObject("host")?.let { hostRegistry.save(it) }
 
@@ -208,7 +209,7 @@ open class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    data class RemoteHost(val name: String) {
+    class RemoteHost(val name: String) {
 
         var lastUpdate: Long = System.currentTimeMillis()
         lateinit var uri: URI
