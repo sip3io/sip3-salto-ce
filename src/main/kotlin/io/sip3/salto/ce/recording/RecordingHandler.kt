@@ -178,7 +178,7 @@ open class RecordingHandler : AbstractVerticle() {
                 val dst = recording.dstAddr
                 put("dst_addr", dst.addr)
                 put("dst_port", dst.port)
-                src.host?.let { put("dst_host", it) }
+                dst.host?.let { put("dst_host", it) }
 
                 put("call_id", recording.callId)
                 put("packets", recording.packets.toList())
