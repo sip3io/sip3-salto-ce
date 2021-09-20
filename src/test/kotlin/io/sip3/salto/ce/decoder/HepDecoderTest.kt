@@ -188,8 +188,8 @@ class HepDecoderTest : VertxTest() {
                     val (_, packets) = event.body()
                     context.verify {
                         val packet = packets.first()
-                        assertEquals(1571254062044, packet.timestamp.time)
-                        assertEquals(44000436, packet.timestamp.nanos)
+                        assertEquals(1571254062044, packet.createdAt)
+                        assertEquals(436, packet.nanos)
                         val src = packet.srcAddr
                         assertEquals("10.0.0.4", src.addr)
                         assertEquals(5060, src.port)
@@ -224,8 +224,8 @@ class HepDecoderTest : VertxTest() {
                         val packet = packets.first()
                         assertEquals("hep3", packet.source)
                         assertEquals(PacketTypes.SIP, packet.protocolCode)
-                        assertEquals(1550492760263, packet.timestamp.time)
-                        assertEquals(263000774, packet.timestamp.nanos)
+                        assertEquals(1550492760263, packet.createdAt)
+                        assertEquals(774, packet.nanos)
                         val src = packet.srcAddr
                         assertEquals("79.142.86.118", src.addr)
                         assertEquals(5063, src.port)
@@ -265,8 +265,8 @@ class HepDecoderTest : VertxTest() {
                     context.verify {
                         val packet = packets.first()
                         assertEquals(546, packet.payload.size)
-                        assertEquals(1602657480066, packet.timestamp.time)
-                        assertEquals(66000334, packet.timestamp.nanos)
+                        assertEquals(1602657480066, packet.createdAt)
+                        assertEquals(334, packet.nanos)
                         assertEquals(PacketTypes.RTCP, packet.protocolCode)
                         val src = packet.srcAddr
                         assertEquals("192.168.9.119", src.addr)

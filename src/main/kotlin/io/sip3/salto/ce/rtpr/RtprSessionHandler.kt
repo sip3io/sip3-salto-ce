@@ -40,7 +40,7 @@ open class RtprSessionHandler : AbstractVerticle() {
 
     companion object {
 
-        const val REPORTS =  "_reports"
+        const val REPORTS = "_reports"
         const val BAD_REPORTS = "_bad-reports"
         const val BAD_REPORTS_FRACTION = "_bad-reports-fraction"
 
@@ -120,7 +120,7 @@ open class RtprSessionHandler : AbstractVerticle() {
         }
         attributesRegistry.handle(prefix, attributes)
 
-        session.codecs.forEach { attributesRegistry.handle(prefix, Attributes.codec, it)}
+        session.codecs.forEach { attributesRegistry.handle(prefix, Attributes.codec, it) }
     }
 
     open fun calculateMetrics(prefix: String, session: RtprSession) {

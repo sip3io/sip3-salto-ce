@@ -29,13 +29,11 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.host.HostRegistry
 import io.sip3.salto.ce.sip.SipTransaction
-import io.sip3.salto.ce.sip.SipTransactionHandlerTest
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.sql.Timestamp
 
 @ExtendWith(MockKExtension::class, MockKSingletonExtension::class)
 class SdpHandlerTest : VertxTest() {
@@ -64,7 +62,7 @@ class SdpHandlerTest : VertxTest() {
 
         // Valid SIP Message (INVITE)
         val PACKET_REQUEST_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -107,7 +105,7 @@ class SdpHandlerTest : VertxTest() {
 
         // SIP Message (INVITE) with invalid SDP
         val PACKET_REQUEST_2 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -145,7 +143,7 @@ class SdpHandlerTest : VertxTest() {
 
         // Valid SIP Message response (200 Ok) on REQUEST_1 (INVITE)
         val PACKET_RESPONSE_1 = Packet().apply {
-            timestamp = Timestamp(SipTransactionHandlerTest.NOW + 25)
+            createdAt = NOW + 25
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -184,7 +182,7 @@ class SdpHandlerTest : VertxTest() {
 
         // Valid SIP Message (INVITE) with Content-Type: multipart/mixed;
         val PACKET_REQUEST_3 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -243,7 +241,7 @@ class SdpHandlerTest : VertxTest() {
 
         // Valid SIP Message response (183 Session Progress) with SDP content on REQUEST_3 (INVITE)
         val PACKET_RESPONSE_3 = Packet().apply {
-            timestamp = Timestamp(SipTransactionHandlerTest.NOW + 25)
+            createdAt = NOW + 25
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -284,7 +282,7 @@ class SdpHandlerTest : VertxTest() {
 
         // Valid SIP Message (INVITE) without codec description (a=)
         val PACKET_REQUEST_4 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -333,7 +331,7 @@ class SdpHandlerTest : VertxTest() {
 
         // Valid SIP Message response (200 Ok) on REQUEST_4 (INVITE)
         val PACKET_RESPONSE_4 = Packet().apply {
-            timestamp = Timestamp(SipTransactionHandlerTest.NOW + 25)
+            createdAt = NOW + 25
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061

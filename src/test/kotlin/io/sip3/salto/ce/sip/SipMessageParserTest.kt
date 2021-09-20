@@ -21,7 +21,6 @@ import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.callId
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.sql.Timestamp
 
 class SipMessageParserTest {
 
@@ -341,7 +340,7 @@ class SipMessageParserTest {
 
         // SIP message with extension headers
         val PACKET_3 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -388,7 +387,7 @@ class SipMessageParserTest {
     @Test
     fun `Parse single SIP message`() {
         val messages = SipMessageParser(setOf("PRACK")).parse(Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -409,7 +408,7 @@ class SipMessageParserTest {
     @Test
     fun `Parse multiple SIP messages`() {
         val messages = SipMessageParser(setOf("INVITE", "PRACK")).parse(Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -434,7 +433,7 @@ class SipMessageParserTest {
     @Test
     fun `Skip SIP response message`() {
         val messages = SipMessageParser(setOf("INVITE")).parse(Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -455,7 +454,7 @@ class SipMessageParserTest {
     @Test
     fun `Skip SIP request message`() {
         val messages = SipMessageParser(setOf("PRACK")).parse(Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060

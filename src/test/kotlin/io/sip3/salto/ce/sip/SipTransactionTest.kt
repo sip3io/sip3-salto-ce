@@ -22,7 +22,6 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.sql.Timestamp
 
 class SipTransactionTest {
 
@@ -35,7 +34,7 @@ class SipTransactionTest {
         val NOW = System.currentTimeMillis()
 
         val PACKET_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -79,7 +78,7 @@ class SipTransactionTest {
         }
 
         val PACKET_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 20)
+            createdAt = NOW + 20
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -118,7 +117,7 @@ class SipTransactionTest {
         }
 
         val PACKET_3 = Packet().apply {
-            timestamp = Timestamp(NOW + 10)
+            createdAt = NOW + 10
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061

@@ -35,7 +35,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.sql.Timestamp
 
 @ExtendWith(MockKExtension::class)
 class SipTransactionHandlerTest : VertxTest() {
@@ -49,7 +48,7 @@ class SipTransactionHandlerTest : VertxTest() {
         val NOW = System.currentTimeMillis()
 
         val PACKET_OPTIONS_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -75,7 +74,7 @@ class SipTransactionHandlerTest : VertxTest() {
         }
 
         val PACKET_OPTIONS_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 25)
+            createdAt = NOW + 25
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -103,7 +102,7 @@ class SipTransactionHandlerTest : VertxTest() {
         }
 
         val PACKET_MESSAGE_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -130,7 +129,7 @@ class SipTransactionHandlerTest : VertxTest() {
         }
 
         val PACKET_MESSAGE_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 25)
+            createdAt = NOW + 25
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -153,7 +152,7 @@ class SipTransactionHandlerTest : VertxTest() {
 
         // INVITE
         val FAILED_PACKET_1 = Packet().apply {
-            timestamp = Timestamp(SipCallHandlerTest.NOW)
+            createdAt = SipCallHandlerTest.NOW
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -191,7 +190,7 @@ class SipTransactionHandlerTest : VertxTest() {
 
         // 100 Trying
         val FAILED_PACKET_2 = Packet().apply {
-            timestamp = Timestamp(SipCallHandlerTest.NOW + 107)
+            createdAt = SipCallHandlerTest.NOW + 107
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061
@@ -217,7 +216,7 @@ class SipTransactionHandlerTest : VertxTest() {
 
         // 503 Service Unavailable
         val FAILED_PACKET_3 = Packet().apply {
-            timestamp = Timestamp(SipCallHandlerTest.NOW + 107 + 342)
+            createdAt = SipCallHandlerTest.NOW + 107 + 342
             srcAddr = Address().apply {
                 addr = "127.0.0.2"
                 port = 5061

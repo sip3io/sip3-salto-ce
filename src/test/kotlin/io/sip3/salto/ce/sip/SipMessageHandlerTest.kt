@@ -29,7 +29,6 @@ import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.sql.Timestamp
 import javax.sip.header.ExtensionHeader
 
 class SipMessageHandlerTest : VertxTest() {
@@ -40,7 +39,7 @@ class SipMessageHandlerTest : VertxTest() {
         const val UDF_JS = "src/test/resources/udf/SipMessageHandlerTest/SipMessageHandlerTest.js"
 
         val PACKET_1 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -83,7 +82,7 @@ class SipMessageHandlerTest : VertxTest() {
 
         // SIP Message without `Call-ID` Header
         val PACKET_2 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -107,7 +106,7 @@ class SipMessageHandlerTest : VertxTest() {
 
         // SIP Message OPTIONS
         val PACKET_3 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -133,7 +132,7 @@ class SipMessageHandlerTest : VertxTest() {
 
         // SIP Message with empty X-Call-ID
         val PACKET_4 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = Address().apply {
                 addr = "127.0.0.1"
                 port = 5060
@@ -353,7 +352,7 @@ class SipMessageHandlerTest : VertxTest() {
             execute = {
                 vertx.setPeriodic(1000) {
                     val packet = Packet().apply {
-                        timestamp = PACKET_1.timestamp
+                        createdAt = PACKET_1.createdAt
                         srcAddr = PACKET_1.srcAddr
                         dstAddr = PACKET_1.dstAddr
                         payload = PACKET_1.payload
@@ -392,7 +391,7 @@ class SipMessageHandlerTest : VertxTest() {
             execute = {
                 vertx.setPeriodic(1000) {
                     val packet = Packet().apply {
-                        timestamp = PACKET_1.timestamp
+                        createdAt = PACKET_1.createdAt
                         srcAddr = PACKET_1.srcAddr
                         dstAddr = PACKET_1.dstAddr
                         payload = PACKET_1.payload

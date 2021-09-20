@@ -36,7 +36,6 @@ import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.sql.Timestamp
 
 class RtprHandlerTest : VertxTest() {
 
@@ -117,7 +116,7 @@ class RtprHandlerTest : VertxTest() {
 
         // Packet with periodic RTP report with RTP source
         val PACKET_1 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = SRC_ADDR
             dstAddr = DST_ADDR
             payload = RTPR_1.encode().getBytes()
@@ -125,7 +124,7 @@ class RtprHandlerTest : VertxTest() {
 
         // Packet with periodic RTP report without Call-ID
         val PACKET_2 = Packet().apply {
-            timestamp = Timestamp(System.currentTimeMillis())
+            createdAt = System.currentTimeMillis()
             srcAddr = DST_ADDR_RTCP
             dstAddr = SRC_ADDR_RTCP
             payload = RTPR_2.encode().getBytes()

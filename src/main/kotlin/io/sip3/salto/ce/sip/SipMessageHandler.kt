@@ -181,13 +181,12 @@ open class SipMessageHandler : AbstractVerticle() {
     }
 
     open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage) {
-        val collection = prefix + "_raw_" + timeSuffix.format(packet.timestamp)
+        val collection = prefix + "_raw_" + timeSuffix.format(packet.createdAt)
 
         val operation = JsonObject().apply {
             put("document", JsonObject().apply {
-                val timestamp = packet.timestamp
-                put("created_at", timestamp.time)
-                put("nanos", timestamp.nanos)
+                put("created_at", packet.createdAt)
+                put("nanos", packet.nanos)
 
                 val src = packet.srcAddr
                 put("src_addr", src.addr)

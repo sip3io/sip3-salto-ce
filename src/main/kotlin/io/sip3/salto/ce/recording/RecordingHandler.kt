@@ -120,7 +120,8 @@ open class RecordingHandler : AbstractVerticle() {
 
         if (recording.type == PacketTypes.RTCP) {
             val rtcpPacket = Packet().apply {
-                timestamp = packet.timestamp
+                createdAt = packet.createdAt
+                nanos = packet.nanos
                 srcAddr = packet.srcAddr
                 dstAddr = packet.dstAddr
                 protocolCode = PacketTypes.RTCP
@@ -147,9 +148,8 @@ open class RecordingHandler : AbstractVerticle() {
             }
 
             packets.add(JsonObject().apply {
-                val timestamp = packet.timestamp
-                put("created_at", timestamp.time)
-                put("nanos", timestamp.nanos)
+                put("created_at", packet.createdAt)
+                put("nanos", packet.nanos)
 
                 put("type", recordingPayload.type.toInt())
                 put("raw_data", String(recordingPayload.payload, Charsets.ISO_8859_1))
@@ -178,7 +178,7 @@ open class RecordingHandler : AbstractVerticle() {
                 val dst = recording.dstAddr
                 put("dst_addr", dst.addr)
                 put("dst_port", dst.port)
-                src.host?.let { put("dst_host", it)}
+                src.host?.let { put("dst_host", it) }
 
                 put("call_id", recording.callId)
                 put("packets", recording.packets.toList())

@@ -16,11 +16,10 @@
 
 package io.sip3.salto.ce.domain
 
-import java.sql.Timestamp
-
 class Packet {
 
-    lateinit var timestamp: Timestamp
+    var createdAt: Long = 0
+    var nanos: Int = 0
 
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
@@ -32,11 +31,7 @@ class Packet {
 
     var attributes = mutableMapOf<String, Any>()
 
-    val createdAt: Long by lazy {
-        timestamp.time
-    }
-
     override fun toString(): String {
-        return "Packet(timestamp=$timestamp, srcAddr=$srcAddr, dstAddr=$dstAddr, source=$source, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"
+        return "Packet(createdAt=$createdAt, nanos=$nanos, srcAddr=$srcAddr, dstAddr=$dstAddr, source=$source, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"
     }
 }

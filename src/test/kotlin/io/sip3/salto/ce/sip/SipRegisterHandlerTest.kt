@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import java.sql.Timestamp
 
 @ExtendWith(MockKExtension::class)
 class SipRegisterHandlerTest : VertxTest() {
@@ -47,7 +46,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         // REGISTER
         val PACKET_1 = Packet().apply {
-            timestamp = Timestamp(NOW)
+            createdAt = NOW
             srcAddr = Address().apply {
                 addr = "192.168.10.123"
                 port = 5060
@@ -76,7 +75,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         // 401
         val PACKET_2 = Packet().apply {
-            timestamp = Timestamp(NOW + 5)
+            createdAt = NOW + 5
             srcAddr = Address().apply {
                 addr = "192.168.10.5"
                 port = 5060
@@ -100,7 +99,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         // REGISTER
         val PACKET_3 = Packet().apply {
-            timestamp = Timestamp(NOW + 5 + 10)
+            createdAt = NOW + 5 + 10
             srcAddr = Address().apply {
                 addr = "192.168.10.123"
                 port = 5060
@@ -129,7 +128,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         // 200 Ok
         val PACKET_4 = Packet().apply {
-            timestamp = Timestamp(NOW + 5 + 10 + 2)
+            createdAt = NOW + 5 + 10 + 2
             srcAddr = Address().apply {
                 addr = "192.168.10.5"
                 port = 5060
@@ -157,7 +156,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         // 2nd REGISTER
         val PACKET_5 = Packet().apply {
-            timestamp = Timestamp(NOW + 90015)
+            createdAt = NOW + 90015
             srcAddr = Address().apply {
                 addr = "192.168.10.123"
                 port = 5060
@@ -186,7 +185,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         // 2nd 200 Ok
         val PACKET_6 = Packet().apply {
-            timestamp = Timestamp(NOW + 90020)
+            createdAt = NOW + 90020
             srcAddr = Address().apply {
                 addr = "192.168.10.5"
                 port = 5060
@@ -260,7 +259,7 @@ class SipRegisterHandlerTest : VertxTest() {
                         assertTrue(collection.startsWith("sip_register_index_"))
 
                         document.getJsonObject("\$setOnInsert").apply {
-                            assertEquals(PACKET_1.timestamp.time, getLong("created_at"))
+                            assertEquals(PACKET_1.createdAt, getLong("created_at"))
                             assertEquals(PACKET_1.srcAddr.addr, getString("src_addr"))
                             assertEquals(PACKET_1.srcAddr.port, getInteger("src_port"))
                             assertEquals(PACKET_1.dstAddr.addr, getString("dst_addr"))
@@ -272,8 +271,8 @@ class SipRegisterHandlerTest : VertxTest() {
                             assertEquals("1010", getString("caller"))
                             assertEquals("1010", getString("callee"))
                             assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
-                            assertEquals(PACKET_3.timestamp.time + 120000, getLong("terminated_at"))
-                            assertEquals(PACKET_3.timestamp.time + 120000 - PACKET_1.timestamp.time, getLong("duration"))
+                            assertEquals(PACKET_3.createdAt + 120000, getLong("terminated_at"))
+                            assertEquals(PACKET_3.createdAt + 120000 - PACKET_1.createdAt, getLong("duration"))
                         }
                     }
                     context.completeNow()
@@ -321,7 +320,7 @@ class SipRegisterHandlerTest : VertxTest() {
                         assertTrue(collection.startsWith("sip_register_index_"))
 
                         document.getJsonObject("\$setOnInsert").apply {
-                            assertEquals(PACKET_3.timestamp.time, getLong("created_at"))
+                            assertEquals(PACKET_3.createdAt, getLong("created_at"))
                             assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
                             assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
                             assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
@@ -331,8 +330,8 @@ class SipRegisterHandlerTest : VertxTest() {
 
                         document.getJsonObject("\$set").apply {
                             assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
-                            assertEquals(PACKET_5.timestamp.time + 120000, getLong("terminated_at"))
-                            assertEquals(PACKET_5.timestamp.time + 120000 - PACKET_3.timestamp.time, getLong("duration"))
+                            assertEquals(PACKET_5.createdAt + 120000, getLong("terminated_at"))
+                            assertEquals(PACKET_5.createdAt + 120000 - PACKET_3.createdAt, getLong("duration"))
                             assertEquals(30000L, getLong("overlapped_interval"))
                             assertEquals(0.25, getDouble("overlapped_fraction"))
                             assertEquals(2, getInteger("transactions"))
@@ -387,14 +386,14 @@ class SipRegisterHandlerTest : VertxTest() {
                             // Assert first write to DB for Registration SipSession
                             createdAt = System.currentTimeMillis()
                             document.apply {
-                                assertEquals(PACKET_3.timestamp.time, getLong("created_at"))
+                                assertEquals(PACKET_3.createdAt, getLong("created_at"))
                                 assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
                                 assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
                                 assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
                                 assertEquals(PACKET_3.dstAddr.port, getInteger("dst_port"))
                                 assertNotNull(getString("call_id"))
                                 assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
-                                assertEquals(PACKET_5.timestamp.time + 120000, getLong("terminated_at"))
+                                assertEquals(PACKET_5.createdAt + 120000, getLong("terminated_at"))
                                 assertNull(getLong("duration"))
                                 assertEquals(30000L, getLong("overlapped_interval"))
                                 assertEquals(0.25, getDouble("overlapped_fraction"))
@@ -405,7 +404,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
                             // Assert update session in DB
                             document.getJsonObject("\$setOnInsert").apply {
-                                assertEquals(PACKET_3.timestamp.time, getLong("created_at"))
+                                assertEquals(PACKET_3.createdAt, getLong("created_at"))
                                 assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
                                 assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
                                 assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
@@ -415,8 +414,8 @@ class SipRegisterHandlerTest : VertxTest() {
 
                             document.getJsonObject("\$set").apply {
                                 assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
-                                assertEquals(PACKET_5.timestamp.time + 120000, getLong("terminated_at"))
-                                assertEquals(PACKET_5.timestamp.time + 120000 - PACKET_3.timestamp.time, getLong("duration"))
+                                assertEquals(PACKET_5.createdAt + 120000, getLong("terminated_at"))
+                                assertEquals(PACKET_5.createdAt + 120000 - PACKET_3.createdAt, getLong("duration"))
                                 assertEquals(30000L, getLong("overlapped_interval"))
                                 assertEquals(0.25, getDouble("overlapped_fraction"))
                             }
@@ -463,7 +462,7 @@ class SipRegisterHandlerTest : VertxTest() {
                         assertTrue(collection.startsWith("sip_register_index_"))
 
                         document.apply {
-                            assertEquals(PACKET_1.timestamp.time, getLong("created_at"))
+                            assertEquals(PACKET_1.createdAt, getLong("created_at"))
                             assertEquals(PACKET_1.srcAddr.addr, getString("src_addr"))
                             assertEquals(PACKET_1.srcAddr.port, getInteger("src_port"))
                             assertEquals(PACKET_1.dstAddr.addr, getString("dst_addr"))

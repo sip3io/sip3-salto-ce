@@ -28,7 +28,6 @@ import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.sql.Timestamp
 
 class RecordingHandlerTest : VertxTest() {
 
@@ -63,7 +62,7 @@ class RecordingHandlerTest : VertxTest() {
     }
 
     val PACKET_1 = Packet().apply {
-        timestamp = Timestamp(System.currentTimeMillis())
+        createdAt = System.currentTimeMillis()
 
         srcAddr = Address().apply {
             addr = "127.0.0.1"
@@ -89,7 +88,7 @@ class RecordingHandlerTest : VertxTest() {
     }
 
     val PACKET_2 = Packet().apply {
-        timestamp = Timestamp(System.currentTimeMillis())
+        createdAt = System.currentTimeMillis()
 
         srcAddr = Address().apply {
             addr = "127.0.0.1"
@@ -128,7 +127,7 @@ class RecordingHandlerTest : VertxTest() {
                     context.verify {
                         assertTrue(collection.startsWith("rec_raw"))
 
-                        assertEquals(PACKET_1.timestamp.time, document.getLong("created_at"))
+                        assertEquals(PACKET_1.createdAt, document.getLong("created_at"))
 
                         assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
                         assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
@@ -172,7 +171,7 @@ class RecordingHandlerTest : VertxTest() {
                     context.verify {
                         assertTrue(collection.startsWith("rec_raw"))
 
-                        assertEquals(PACKET_1.timestamp.time, document.getLong("created_at"))
+                        assertEquals(PACKET_1.createdAt, document.getLong("created_at"))
 
                         assertEquals(PACKET_1.srcAddr.addr, document.getString("src_addr"))
                         assertEquals(PACKET_1.srcAddr.port, document.getInteger("src_port"))
@@ -208,7 +207,7 @@ class RecordingHandlerTest : VertxTest() {
                 vertx.eventBus().consumer<Packet>(RoutesCE.rtcp) { event ->
                     val packet = event.body()
                     context.verify {
-                        assertEquals(PACKET_2.timestamp, packet.timestamp)
+                        assertEquals(PACKET_2.createdAt, packet.createdAt)
                         assertEquals(PACKET_2.srcAddr, packet.srcAddr)
                         assertEquals(PACKET_2.dstAddr, packet.dstAddr)
                         assertEquals(PacketTypes.RTCP, packet.protocolCode)

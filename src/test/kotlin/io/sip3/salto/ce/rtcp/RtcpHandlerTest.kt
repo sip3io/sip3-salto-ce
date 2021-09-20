@@ -26,7 +26,6 @@ import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import java.sql.Timestamp
 
 class RtcpHandlerTest : VertxTest() {
 
@@ -177,7 +176,7 @@ class RtcpHandlerTest : VertxTest() {
                         source = "sip3"
                         protocolCode = PacketTypes.RTCP
                         this.payload = payload
-                        timestamp = Timestamp(System.currentTimeMillis())
+                        createdAt = System.currentTimeMillis()
                     }
                 }.forEach { vertx.eventBus().localSend(RoutesCE.rtcp, it) }
             },
@@ -250,7 +249,7 @@ class RtcpHandlerTest : VertxTest() {
                     source = "hep3"
                     protocolCode = PacketTypes.RTCP
                     this.payload = PACKET_4
-                    timestamp = Timestamp(System.currentTimeMillis())
+                    createdAt = System.currentTimeMillis()
                 }
                 vertx.eventBus().localSend(RoutesCE.rtcp, packet)
             },
