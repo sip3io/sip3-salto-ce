@@ -143,13 +143,12 @@ open class ManagementSocket : AbstractVerticle() {
 
                 remoteHosts.computeIfAbsent(config?.getJsonObject("host")?.getString("name") ?: payload.getString("name")) { name ->
                     logger.info { "Registered: $payload" }
-
+                    return@computeIfAbsent RemoteHost(name)
+                }.apply {
                     val host = socketAddress.host()
                     val port = socketAddress.port()
-                    val uri = URI("${uri.scheme}://$host:$port")
+                    uri = URI("${uri.scheme}://$host:$port")
 
-                    return@computeIfAbsent RemoteHost(name, uri)
-                }.apply {
                     config?.getJsonObject("host")?.let { hostRegistry.save(it) }
 
                     val rtpEnabled = config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false
@@ -209,9 +208,10 @@ open class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    data class RemoteHost(val name: String, val uri: URI) {
+    data class RemoteHost(val name: String) {
 
         var lastUpdate: Long = System.currentTimeMillis()
+        lateinit var uri: URI
         var mediaEnabled = false
     }
 }
