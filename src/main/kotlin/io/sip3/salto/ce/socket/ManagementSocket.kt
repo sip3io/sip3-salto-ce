@@ -42,8 +42,9 @@ open class ManagementSocket : AbstractVerticle() {
 
     companion object {
 
-        const val TYPE_MEDIA_CONTROL = "media_control"
+        const val TYPE_SHUTDOWN = "shutdown"
         const val TYPE_REGISTER = "register"
+        const val TYPE_MEDIA_CONTROL = "media_control"
     }
 
     private var client: io.vertx.ext.mongo.MongoClient? = null
@@ -157,6 +158,13 @@ open class ManagementSocket : AbstractVerticle() {
                     sendSdpSessions = sendSdpSessions || mediaEnabled
 
                     lastUpdate = System.currentTimeMillis()
+                }
+            }
+            TYPE_SHUTDOWN -> {
+                val name = payload.getString("name")
+                remoteHosts[name]?.apply {
+                    logger.info { "Shutting down the `$name` via management socket..." }
+                    socket.send(message.toBuffer(), uri.port, uri.host) {}
                 }
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
