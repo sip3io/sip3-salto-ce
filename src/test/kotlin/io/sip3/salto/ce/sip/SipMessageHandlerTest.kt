@@ -329,7 +329,7 @@ class SipMessageHandlerTest : VertxTest() {
 
                     context.verify {
                         assertTrue((message.getHeader("X-Call-ID") as ExtensionHeader).value.isBlank())
-                        assertFalse(packet.attributes.containsKey("x_call_id"))
+                        assertFalse(packet.attributes!!.containsKey("x_call_id"))
                     }
                     context.completeNow()
                 }
@@ -365,7 +365,7 @@ class SipMessageHandlerTest : VertxTest() {
                     val (packet, _) = event.body()
 
                     val attributes = packet.attributes
-                    if (attributes.isNotEmpty()) {
+                    if (attributes!!.isNotEmpty()) {
                         context.verify {
                             assertEquals(2, attributes.size)
                         }
@@ -404,7 +404,7 @@ class SipMessageHandlerTest : VertxTest() {
                     val (packet, _) = event.body()
 
                     val attributes = packet.attributes
-                    if (attributes.isNotEmpty()) {
+                    if (attributes!!.isNotEmpty()) {
                         context.verify {
                             assertEquals(2, attributes.size)
                         }

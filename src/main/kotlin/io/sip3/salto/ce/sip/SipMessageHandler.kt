@@ -109,10 +109,12 @@ open class SipMessageHandler : AbstractVerticle() {
     }
 
     open fun handleSipMessage(packet: Packet, message: SIPMessage) {
+        packet.attributes = mutableMapOf()
+
         // Find `x-correlation-header`
         (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.value?.let { value ->
             if (value.isNotBlank()) {
-                packet.attributes[Attributes.x_call_id] = value
+                packet.attributes!![Attributes.x_call_id] = value
             }
         }
 
@@ -137,11 +139,11 @@ open class SipMessageHandler : AbstractVerticle() {
             completionHandler = { asr ->
                 val (result, attributes) = asr.result()
                 if (result) {
-                    attributes.forEach { (k, v) -> packet.attributes[k] = v }
+                    attributes.forEach { (k, v) -> packet.attributes!![k] = v }
 
                     val cseqMethod = message.cseqMethod()
                     val prefix = when (cseqMethod) {
-                        "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.toLowerCase()}"
+                        "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${cseqMethod.lowercase()}"
                         else -> RoutesCE.sip + "_call"
                     }
 
@@ -160,22 +162,20 @@ open class SipMessageHandler : AbstractVerticle() {
     }
 
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
-        val attributes = packet.attributes
-            .toMutableMap()
-            .apply {
-                packet.srcAddr.host?.let { put(Attributes.src_host, it) }
-                packet.dstAddr.host?.let { put(Attributes.dst_host, it) }
-                message.statusCode()?.let {
-                    put("status_type", "${it / 100}xx")
-                    put("status_code", it)
-                }
-                message.method()?.let { put("method", it) }
-                message.cseqMethod()?.let { put("cseq_method", it) }
-                remove(Attributes.caller)
-                remove(Attributes.callee)
-                remove(Attributes.x_call_id)
-                remove(Attributes.recording_mode)
+        val attributes = (packet.attributes?.toMutableMap() ?: mutableMapOf()).apply {
+            packet.srcAddr.host?.let { put(Attributes.src_host, it) }
+            packet.dstAddr.host?.let { put(Attributes.dst_host, it) }
+            message.statusCode()?.let {
+                put("status_type", "${it / 100}xx")
+                put("status_code", it)
             }
+            message.method()?.let { put("method", it) }
+            message.cseqMethod()?.let { put("cseq_method", it) }
+            remove(Attributes.caller)
+            remove(Attributes.callee)
+            remove(Attributes.x_call_id)
+            remove(Attributes.recording_mode)
+        }
 
         Metrics.counter(prefix + "_messages", attributes).increment()
     }

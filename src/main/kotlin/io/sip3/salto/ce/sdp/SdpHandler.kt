@@ -78,7 +78,7 @@ class SdpHandler : AbstractVerticle() {
             codecObject as JsonObject
 
             val codec = Codec().apply {
-                name = codecObject.getString("name").toUpperCase()
+                name = codecObject.getString("name").uppercase()
                 payloadTypes = codecObject.getJsonArray("payload_types")
                     .flatMap { payloadType ->
                         when (payloadType) {
@@ -149,7 +149,7 @@ class SdpHandler : AbstractVerticle() {
             // Define Codec by name
             val payload = response?.getFormat(payloadType) ?: request?.getFormat(payloadType)
             if (payload != null) {
-                codec = codecs[payload.codec.toUpperCase()]
+                codec = codecs[payload.codec.uppercase()]
             }
 
             // Define Codec by Payload Type

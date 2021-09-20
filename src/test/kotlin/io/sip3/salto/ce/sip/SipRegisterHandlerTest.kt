@@ -137,8 +137,8 @@ class SipRegisterHandlerTest : VertxTest() {
                 addr = "192.168.10.123"
                 port = 5060
             }
-
-            attributes["include-me"] = true
+            attributes = mutableMapOf()
+            attributes!!["include-me"] = true
             payload = """
                         SIP/2.0 200 OK
                         Via: SIP/2.0/UDP 192.168.10.123:55399;rport=55399;received=192.168.10.123;branch=z9hG4bK-d8754z-ef77c05e05556d61-1---d8754z-
@@ -194,8 +194,8 @@ class SipRegisterHandlerTest : VertxTest() {
                 addr = "192.168.10.123"
                 port = 5060
             }
-
-            attributes["include-me"] = true
+            attributes = mutableMapOf()
+            attributes!!["include-me"] = true
             payload = """
                         SIP/2.0 200 OK
                         Via: SIP/2.0/UDP 192.168.10.123:55399;rport=55399;received=192.168.10.123;branch=z9hG4bK-d8754z-ef77c05e05556d61-1---d8754z-

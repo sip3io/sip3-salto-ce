@@ -29,7 +29,7 @@ class Packet {
     var protocolCode: Byte = 0
     lateinit var payload: ByteArray
 
-    var attributes = mutableMapOf<String, Any>()
+    var attributes: MutableMap<String, Any>? = null
 
     override fun toString(): String {
         return "Packet(createdAt=$createdAt, nanos=$nanos, srcAddr=$srcAddr, dstAddr=$dstAddr, source=$source, protocolCode=$protocolCode, payload=${payload.contentToString()}, attributes=$attributes)"

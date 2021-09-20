@@ -100,7 +100,8 @@ class SipCallHandlerTest : VertxTest() {
                 host = "Test"
                 port = 5061
             }
-            attributes[Attributes.caller] = "caller"
+            attributes = mutableMapOf()
+            attributes!![Attributes.caller] = "caller"
             payload = """
                         INVITE sip:321@116.203.55.139;user=phone SIP/2.0
                         Via: SIP/2.0/UDP 176.9.119.117:5063;rport;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515
@@ -139,7 +140,8 @@ class SipCallHandlerTest : VertxTest() {
                 addr = "127.0.0.1"
                 port = 5060
             }
-            attributes["include-me"] = true
+            attributes = mutableMapOf()
+            attributes!!["include-me"] = true
             payload = """
                         SIP/2.0 100 Trying
                         Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063

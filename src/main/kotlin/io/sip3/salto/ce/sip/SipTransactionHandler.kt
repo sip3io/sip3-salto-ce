@@ -172,7 +172,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     open fun routeTransaction(transaction: SipTransaction) {
         val prefix = when (transaction.cseqMethod) {
-            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${transaction.cseqMethod.toLowerCase()}"
+            "REGISTER", "NOTIFY", "MESSAGE", "OPTIONS", "SUBSCRIBE" -> RoutesCE.sip + "_${transaction.cseqMethod.lowercase()}"
             else -> RoutesCE.sip + "_call"
         }
 

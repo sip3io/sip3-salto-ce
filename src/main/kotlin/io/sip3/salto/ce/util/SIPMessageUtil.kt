@@ -78,7 +78,7 @@ fun SIPMessage.headersMap(): Map<String, String> {
         (this@headersMap as? SIPResponse)?.let {
             put("status-line", it.statusLine.toString().replace("\r\n", ""))
         }
-        headers.forEach { header -> put(header.headerName.toLowerCase(), header.headerValue) }
+        headers.forEach { header -> put(header.headerName.lowercase(), header.headerValue) }
     }
 }
 
@@ -124,5 +124,5 @@ fun URI.userOrNumber() = when (this) {
 }
 
 fun Content.matches(proto: String): Boolean {
-    return contentTypeHeader?.contentSubType?.toLowerCase()?.contains(proto.toLowerCase()) ?: false
+    return contentTypeHeader?.contentSubType?.lowercase()?.contains(proto.lowercase()) ?: false
 }
