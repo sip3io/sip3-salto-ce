@@ -90,7 +90,7 @@ object HostRegistry {
             }
             client!!.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true)) { asr ->
                 if (asr.failed()) {
-                    logger.error(asr.cause()) { "MongoClient 'replaceDocuments()' failed." }
+                    logger.error(asr.cause()) { "MongoClient 'replaceDocumentsWithOptions()' failed." }
                 }
             }
         }
@@ -99,7 +99,7 @@ object HostRegistry {
     private fun updateHosts() {
         client?.find("hosts", JsonObject()) { asr ->
             if (asr.failed()) {
-                logger.error("MongoClient 'find()' failed.", asr.cause())
+                logger.error(asr.cause()) { "MongoClient 'find()' failed." }
                 return@find
             }
 
@@ -138,7 +138,7 @@ object HostRegistry {
                             tmpFeatures[name] = it
                         }
                 } catch (e: Exception) {
-                    logger.error("Router `mapHostToAddr()` failed. Host: $host")
+                    logger.error(e) { "Router `mapHostToAddr()` failed. Host: $host" }
                 }
             }
 

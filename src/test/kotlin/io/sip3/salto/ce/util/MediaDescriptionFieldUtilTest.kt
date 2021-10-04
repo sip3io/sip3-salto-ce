@@ -199,11 +199,9 @@ class MediaDescriptionFieldUtilTest {
 
     @Test
     fun `Check ICE candidates`() {
-
-        REQUEST_DESCRIPTION_ICE.candidates.forEach { candidateAttribute ->
-            println(candidateAttribute.candidateType == CandidateAttribute.TYP_SRFLX)
+        val srflxCount = REQUEST_DESCRIPTION_ICE.candidates.count { candidateAttribute ->
+            candidateAttribute.candidateType == CandidateAttribute.TYP_SRFLX
         }
-
-        println("end")
+        assertEquals(1, srflxCount)
     }
 }
