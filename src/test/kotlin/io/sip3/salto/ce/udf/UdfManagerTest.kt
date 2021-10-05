@@ -54,7 +54,7 @@ class UdfManagerTest : VertxTest() {
                 vertx.orCreateContext.config().put("udf", JsonObject().apply {
                     put("check-period", 1000)
                 })
-                UdfManager(vertx).watch(tmpDir.toAbsolutePath().toString())
+                UdfManager(vertx).start(tmpDir.toAbsolutePath().toString())
             },
             execute = {
                 var script = Paths.get(UDF_LOCATION, "UdfManagerTestV1.groovy")
@@ -91,7 +91,7 @@ class UdfManagerTest : VertxTest() {
                 vertx.orCreateContext.config().put("udf", JsonObject().apply {
                     put("check-period", 1000)
                 })
-                UdfManager(vertx).watch(tmpDir.toAbsolutePath().toString())
+                UdfManager(vertx).start(tmpDir.toAbsolutePath().toString())
             },
             execute = {
                 var script = Paths.get(UDF_LOCATION, "UdfManagerTestV1.js")

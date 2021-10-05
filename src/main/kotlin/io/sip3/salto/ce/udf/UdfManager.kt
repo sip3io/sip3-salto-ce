@@ -44,7 +44,7 @@ class UdfManager(val vertx: Vertx) {
     private val deployments = mutableMapOf<String, Deployment>()
     private var lastChecked: Long = 0
 
-    fun watch(path: String) {
+    fun start(path: String) {
         vertx.orCreateContext.config().let { config ->
             config.getJsonObject("udf")?.getLong("check-period")?.let {
                 checkPeriod = it
@@ -58,12 +58,12 @@ class UdfManager(val vertx: Vertx) {
 
         vertx.setPeriodic(0, checkPeriod) {
             GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
-                deploy(path)
+                manage(path)
             }
         }
     }
 
-    private suspend fun deploy(path: String) {
+    private suspend fun manage(path: String) {
         val now = System.currentTimeMillis()
 
         // 1. Walk through the UDF directory and update `deployments`

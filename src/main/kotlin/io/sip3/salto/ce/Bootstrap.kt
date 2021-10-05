@@ -28,7 +28,7 @@ open class Bootstrap : AbstractBootstrap() {
         super.deployVerticles(config)
 
         System.getProperty("udf.location")?.let { path ->
-            UdfManager(vertx).watch(path)
+            UdfManager(vertx).start(path)
         }
     }
 }
