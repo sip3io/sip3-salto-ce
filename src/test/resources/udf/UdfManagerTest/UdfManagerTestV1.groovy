@@ -14,21 +14,8 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce
+package udf.BootstrapTest
 
-import io.sip3.commons.vertx.AbstractBootstrap
-import io.sip3.salto.ce.udf.UdfManager
-import io.vertx.core.json.JsonObject
-
-open class Bootstrap : AbstractBootstrap() {
-
-    override val configLocations = listOf("config.location", "codecs.location")
-
-    override suspend fun deployVerticles(config: JsonObject) {
-        super.deployVerticles(config)
-
-        System.getProperty("udf.location")?.let { path ->
-            UdfManager(vertx).watch(path)
-        }
-    }
-}
+vertx.eventBus().localConsumer("groovy", { event ->
+    vertx.eventBus().send("groovy1", event.body())
+})

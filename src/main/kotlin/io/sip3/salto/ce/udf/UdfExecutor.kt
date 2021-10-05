@@ -39,7 +39,7 @@ class UdfExecutor(val vertx: Vertx) {
         val DELIVERY_OPTIONS = DeliveryOptions()
     }
 
-    private var checkPeriod: Long = 300000
+    private var checkPeriod: Long = 10000
     private var executionTimeout: Long = 100
 
     private var endpoints = emptySet<String>()
