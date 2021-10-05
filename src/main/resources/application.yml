@@ -23,7 +23,7 @@ server:
 #! Application
 #time-suffix: yyyyMMdd
 #udf:
-#  check-period: 300000
+#  check-period: 10000
 #  execution-timeout: 100
 #attributes:
 #  record-ip-addresses: true
