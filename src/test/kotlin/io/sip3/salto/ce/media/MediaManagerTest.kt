@@ -240,6 +240,36 @@ class MediaManagerTest : VertxTest() {
         )
     }
 
+    @Test
+    fun `Validate behaviour on disable recording`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(MediaManager::class, JsonObject().apply {
+                    put("recording", JsonObject().apply {
+                        put("enabled", true)
+                    })
+                })
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.config_change, JsonObject().apply {
+                    put("recording", JsonObject().apply {
+                        put("enabled", false)
+                    })
+                })
+            },
+            assert = {
+                vertx.eventBus().localConsumer<JsonObject>(RoutesCE.media + "_stop_recording") { event ->
+                    val message = event.body()
+                    context.verify {
+                        assertTrue(message.isEmpty)
+                    }
+
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
     private fun SipTransaction.addPacket(packet: Packet) {
         val message = StringMsgParser().parseSIPMessage(packet.payload, true, false, null)
         addMessage(packet, message)

@@ -22,9 +22,11 @@ import io.sip3.commons.domain.media.SdpSession
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localRequest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.sip.SipTransaction
 import io.vertx.core.AbstractVerticle
+import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
 
 /**
@@ -44,6 +46,15 @@ open class MediaManager : AbstractVerticle() {
             }
         }
 
+        vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
+            try {
+                val config = event.body()
+                onConfigChange(config)
+            } catch (e: Exception) {
+                logger.error(e) { "MediaManager 'onConfigChange()' failed." }
+            }
+        }
+
         vertx.eventBus().localConsumer<SipTransaction>(RoutesCE.media + "_sdp") { event ->
             try {
                 val transaction = event.body()
@@ -51,6 +62,16 @@ open class MediaManager : AbstractVerticle() {
             } catch (e: Exception) {
                 logger.error(e) { "MediaManager 'handleSipTransaction()' failed." }
             }
+        }
+    }
+
+    open fun onConfigChange(config: JsonObject) {
+        config.getJsonObject("recording")?.getBoolean("enabled")?.let {
+                recordingEnabled = it
+            }
+
+        if (!recordingEnabled) {
+            vertx.eventBus().localSend(RoutesCE.media + "_stop_recording", JsonObject())
         }
     }
 
