@@ -52,7 +52,7 @@ class BootstrapTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.setPeriodic(100) {
+                vertx.setPeriodic(500, 100) {
                     vertx.eventBus().send("groovy", message)
                 }
             },
@@ -90,7 +90,8 @@ class BootstrapTest : VertxTest() {
                     }
                     context.completeNow()
                 }
-            }
+            },
+            timeout = 20000
         )
     }
 

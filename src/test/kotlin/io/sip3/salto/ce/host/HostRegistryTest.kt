@@ -83,7 +83,7 @@ class HostRegistryTest : VertxTest() {
     }
 
     @Test
-    fun `Validate 'updateHosts()' and get()'`() {
+    fun `Validate HostRegistry methods`() {
         var hostRegistry: HostRegistry? = null
 
         runTest(
@@ -103,13 +103,15 @@ class HostRegistryTest : VertxTest() {
                         put("db", "sip3")
                     })
                     put("hosts", JsonObject().apply {
-                        put("check-period", 100L)
+                        put("check-period", 500L)
                     })
                 })
+                hostRegistry!!.save(HOST_3)
             },
             assert = {
                 vertx.setPeriodic(100L) {
-                    if (hostRegistry?.getHostName("1.1.1.1", 5060) != null) {
+                    if (hostRegistry?.getHostName("1.1.1.1", 5060) != null
+                        && hostRegistry?.getHostName("6.6.6.6") != null) {
                         context.verify {
                             assertEquals(HOST_1.getString("name"), hostRegistry?.getHostName("1.1.1.1", 5060), "1")
                             assertEquals(HOST_1.getString("name"), hostRegistry?.getHostName("2.2.2.0/30", 5060), "2")
@@ -119,48 +121,10 @@ class HostRegistryTest : VertxTest() {
                             assertEquals("5.5.5.5", hostRegistry?.getAddrMapping("2.2.2.2"), "5")
                             assertEquals("feature1", hostRegistry?.getFeatures(HOST_2.getString("name"))?.first())
                             assertEquals("feature2", hostRegistry?.getFeatures(HOST_2.getString("name"))?.last())
+
+                            assertEquals(HOST_3.getString("name"), hostRegistry?.getHostName("6.6.6.6"))
                         }
                         context.completeNow()
-                    }
-                }
-            }
-        )
-    }
-
-    @Test
-    fun `Validate 'save()'`() {
-        runTest(
-            execute = {
-                val hostRegistry = HostRegistry.getInstance(vertx, JsonObject().apply {
-                    put("mongo", JsonObject().apply {
-                        put("uri", MongoExtension.MONGO_URI)
-                        put("db", MONGO_DB)
-                    })
-                    put("hosts", JsonObject().apply {
-                        put("check-period", 100L)
-                    })
-                })
-
-                hostRegistry.save(HOST_3)
-            },
-            assert = {
-                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
-                    put("connection_string", MongoExtension.MONGO_URI)
-                    put("db_name", MONGO_DB)
-                })
-
-                vertx.setPeriodic(200L) {
-                    mongo.find("hosts", JsonObject().apply { put("name", HOST_3.getString("name")) }) { asr ->
-                        if (asr.succeeded() && asr.result().isNotEmpty()) {
-                            val host = asr.result().first()
-                            context.verify {
-                                assertEquals(HOST_3.getString("name"), host.getString("name"))
-                                assertEquals(HOST_3.getString("addr"), host.getString("addr"))
-                                assertEquals(HOST_3.getString("mapping"), host.getString("mapping"))
-                                assertEquals(HOST_3.getString("features"), host.getString("features"))
-                            }
-                            context.completeNow()
-                        }
                     }
                 }
             }
