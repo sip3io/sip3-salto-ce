@@ -115,7 +115,7 @@ server:
 #      max-collections: 30
 #    - prefix: sip_register_index
 #      indexes:
-#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, transactions, retransmits]
+#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type transactions, retransmits]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: sip_register_raw

@@ -358,6 +358,9 @@ open class SipRegisterHandler : AbstractVerticle() {
                     put("caller", registration.caller)
                     put("callee", registration.callee)
 
+                    registration.errorCode?.let { put("error_code", it) }
+                    registration.errorType?.let { put("error_type", it) }
+
                     put("transactions", registration.transactions)
                     put("retransmits", registration.retransmits)
 
@@ -463,6 +466,9 @@ open class SipRegisterHandler : AbstractVerticle() {
         lateinit var callee: String
         lateinit var caller: String
 
+        var errorCode: String? = null
+        var errorType: String? = null
+
         var transactions = 0
         var retransmits = 0
 
@@ -507,6 +513,9 @@ open class SipRegisterHandler : AbstractVerticle() {
             if (state != UNAUTHORIZED) {
                 terminatedAt = transaction.terminatedAt ?: transaction.createdAt
             }
+
+            errorCode = transaction.errorCode
+            errorType = transaction.errorType
 
             transaction.attributes.forEach { (name, value) -> attributes[name] = value }
         }
