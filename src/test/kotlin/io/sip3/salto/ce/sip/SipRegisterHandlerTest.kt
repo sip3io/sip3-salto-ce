@@ -210,6 +210,61 @@ class SipRegisterHandlerTest : VertxTest() {
                         Content-Length:  0
                     """.trimIndent().toByteArray()
         }
+
+        // REGISTER
+        val PACKET_7 = Packet().apply {
+            createdAt = NOW
+            srcAddr = Address().apply {
+                addr = "192.168.10.123"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "192.168.10.5"
+                port = 5060
+            }
+            payload = """
+                        REGISTER sip:192.168.10.5:5060;transport=udp SIP/2.0
+                        Via: SIP/2.0/UDP 192.168.10.123:5060;rport;branch=z9hG4bK2rB6X308rv4vg
+                        Max-Forwards: 70
+                        From: <sip:26101986@192.168.10.5>;tag=N6242jtac3K1H
+                        To: <sip:26101986@192.168.10.5>
+                        Call-ID: 060de43c-04a7-11ec-8721-cdec45fe8260
+                        CSeq: 41060268 REGISTER
+                        Contact: <sip:26101986@192.168.10.123:5060;transport=udp;gw=d8f665c2-b717-4c9d-a1fe-9528e240b387>
+                        Expires: 0
+                        User-Agent: FreeSWITCH
+                        Allow: INVITE, ACK, BYE, CANCEL, OPTIONS, MESSAGE, INFO, UPDATE, REGISTER, REFER, NOTIFY
+                        Supported: timer, path, replaces
+                        Authorization: Digest username="26101986", realm="192.168.10.5", nonce="02305a0082903a108000000c290b59cf@vs.krsk.info", algorithm=MD5, uri="sip:192.168.10.5:5060;transport=udp", response="62d03a51b79827db20ef40ff02c3eb15"
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
+
+        // 403 Forbidden
+        val PACKET_8 = Packet().apply {
+            createdAt = NOW + 20
+            srcAddr = Address().apply {
+                addr = "192.168.10.5"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "192.168.10.123"
+                port = 5060
+            }
+            attributes = mutableMapOf()
+            attributes!!["include-me"] = true
+            payload = """
+                        SIP/2.0 403 Forbidden
+                        Via: SIP/2.0/UDP 192.168.10.123:5060;rport;branch=z9hG4bK2rB6X308rv4vg
+                        From: <sip:26101986@192.168.10.5>;tag=N6242jtac3K1H
+                        To: <sip:26101986@192.168.10.5>
+                        Call-ID: 060de43c-04a7-11ec-8721-cdec45fe8260
+                        CSeq: 41060268 REGISTER
+                        Contact: <sip:26101986@192.168.10.123:5060;transport=udp;gw=d8f665c2-b717-4c9d-a1fe-9528e240b387>
+                        Expires: 0
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
     }
 
     @BeforeEach
@@ -448,7 +503,7 @@ class SipRegisterHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.setPeriodic(200, 10000) {
+                vertx.setPeriodic(200, 3000) {
                     vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction401)
                 }
             },
@@ -472,6 +527,61 @@ class SipRegisterHandlerTest : VertxTest() {
                             assertEquals("1010", getString("caller"))
                             assertEquals("1010", getString("callee"))
                             assertEquals(SipRegisterHandler.UNAUTHORIZED, getString("state"))
+                        }
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Aggregate and check 'failed' registration`() {
+        val transaction403 = SipTransaction().apply {
+            addPacket(PACKET_7)
+            addPacket(PACKET_8)
+        }
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("register", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 200)
+                            put("duration-timeout", 200)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 3000) {
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction403)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_register_index_"))
+
+                        document.apply {
+                            assertEquals(PACKET_7.createdAt, getLong("created_at"))
+                            assertEquals(PACKET_7.srcAddr.addr, getString("src_addr"))
+                            assertEquals(PACKET_7.srcAddr.port, getInteger("src_port"))
+                            assertEquals(PACKET_7.dstAddr.addr, getString("dst_addr"))
+                            assertEquals(PACKET_7.dstAddr.port, getInteger("dst_port"))
+                            assertNotNull(getString("call_id"))
+
+                            assertEquals("26101986", getString("caller"))
+                            assertEquals("26101986", getString("callee"))
+                            assertEquals(SipRegisterHandler.FAILED, getString("state"))
+
+                            assertEquals("403", getString("error_code"))
+                            assertEquals("client", getString("error_type"))
                         }
                     }
                     context.completeNow()
@@ -506,7 +616,7 @@ class SipRegisterHandlerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.setPeriodic(200, 10000) {
+                vertx.setPeriodic(200, 3000) {
                     vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction401)
                 }
             },
