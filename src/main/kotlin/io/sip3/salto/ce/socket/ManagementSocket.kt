@@ -109,9 +109,9 @@ open class ManagementSocket : AbstractVerticle() {
         vertx.eventBus().localConsumer<JsonObject>(RoutesCE.media + "_recording_reset") { event ->
             try {
                 val payload = event.body()
-                sendMediaRecordingReset(payload)
+                publishMediaRecordingReset(payload)
             } catch (e: Exception) {
-                logger.error(e) { "ManagementSocket 'sendMediaRecordingReset()' failed." }
+                logger.error(e) { "ManagementSocket 'publishMediaRecordingReset()' failed." }
             }
         }
     }
@@ -209,7 +209,7 @@ open class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    open fun sendMediaRecordingReset(payload: JsonObject) {
+    open fun publishMediaRecordingReset(payload: JsonObject) {
         val message = JsonObject().apply {
             put("type", TYPE_MEDIA_RECORDING_RESET)
             put("payload", payload)

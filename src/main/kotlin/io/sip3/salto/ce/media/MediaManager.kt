@@ -67,8 +67,8 @@ open class MediaManager : AbstractVerticle() {
 
     open fun onConfigChange(config: JsonObject) {
         config.getJsonObject("recording")?.getBoolean("enabled")?.let {
-                recordingEnabled = it
-            }
+            recordingEnabled = it
+        }
 
         if (!recordingEnabled) {
             vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
