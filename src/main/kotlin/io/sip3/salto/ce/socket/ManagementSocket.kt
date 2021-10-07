@@ -45,6 +45,7 @@ open class ManagementSocket : AbstractVerticle() {
         const val TYPE_SHUTDOWN = "shutdown"
         const val TYPE_REGISTER = "register"
         const val TYPE_MEDIA_CONTROL = "media_control"
+        const val TYPE_MEDIA_RECORDING_RESET = "media_recording_reset"
     }
 
     private var client: io.vertx.ext.mongo.MongoClient? = null
@@ -102,6 +103,15 @@ open class ManagementSocket : AbstractVerticle() {
                 publishMediaControl(mediaControl)
             } catch (e: Exception) {
                 logger.error(e) { "ManagementSocket 'publishMediaControl()' failed." }
+            }
+        }
+
+        vertx.eventBus().localConsumer<JsonObject>(RoutesCE.media + "_recording_reset") { event ->
+            try {
+                val payload = event.body()
+                publishMediaRecordingReset(payload)
+            } catch (e: Exception) {
+                logger.error(e) { "ManagementSocket 'publishMediaRecordingReset()' failed." }
             }
         }
     }
@@ -195,6 +205,21 @@ open class ManagementSocket : AbstractVerticle() {
                         sendMediaControlIfNeeded(it, message)
                     }
                 }
+            }
+        }
+    }
+
+    open fun publishMediaRecordingReset(payload: JsonObject) {
+        val message = JsonObject().apply {
+            put("type", TYPE_MEDIA_RECORDING_RESET)
+            put("payload", payload)
+        }.toBuffer()
+
+        remoteHosts.forEach { (_, host) ->
+            try {
+                socket.send(message, host.uri.port, host.uri.host) {}
+            } catch (e: Exception) {
+                logger.error(e) { "Socket 'send()' failed. URI: ${host.uri}" }
             }
         }
     }
