@@ -45,7 +45,7 @@ open class ManagementSocket : AbstractVerticle() {
         const val TYPE_SHUTDOWN = "shutdown"
         const val TYPE_REGISTER = "register"
         const val TYPE_MEDIA_CONTROL = "media_control"
-        const val TYPE_STOP_RECORDING = "stop_recording"
+        const val TYPE_MEDIA_RECORDING_RESET = "media_recording_reset"
     }
 
     private var client: io.vertx.ext.mongo.MongoClient? = null
@@ -106,12 +106,12 @@ open class ManagementSocket : AbstractVerticle() {
             }
         }
 
-        vertx.eventBus().localConsumer<JsonObject>(RoutesCE.media + "_stop_recording") { event ->
+        vertx.eventBus().localConsumer<JsonObject>(RoutesCE.media + "_recording_reset") { event ->
             try {
                 val payload = event.body()
-                sendStopRecording(payload)
+                sendMediaRecordingReset(payload)
             } catch (e: Exception) {
-                logger.error(e) { "ManagementSocket 'sendStopRecording()' failed." }
+                logger.error(e) { "ManagementSocket 'sendMediaRecordingReset()' failed." }
             }
         }
     }
@@ -209,9 +209,9 @@ open class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    open fun sendStopRecording(payload: JsonObject) {
+    open fun sendMediaRecordingReset(payload: JsonObject) {
         val message = JsonObject().apply {
-            put("type", TYPE_STOP_RECORDING)
+            put("type", TYPE_MEDIA_RECORDING_RESET)
             put("payload", payload)
         }.toBuffer()
 

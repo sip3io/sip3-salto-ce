@@ -258,7 +258,7 @@ class MediaManagerTest : VertxTest() {
                 })
             },
             assert = {
-                vertx.eventBus().localConsumer<JsonObject>(RoutesCE.media + "_stop_recording") { event ->
+                vertx.eventBus().localConsumer<JsonObject>(RoutesCE.media + "_recording_reset") { event ->
                     val message = event.body()
                     context.verify {
                         assertTrue(message.isEmpty)

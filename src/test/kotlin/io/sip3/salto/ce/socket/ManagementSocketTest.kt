@@ -182,7 +182,7 @@ class ManagementSocketTest : VertxTest() {
     }
 
     @Test
-    fun `Send 'stop_recording' commmand to agents`() {
+    fun `Send 'media_recording_reset' commmand to agents`() {
         every {
             HostRegistry.save(any())
         } just Runs
@@ -195,7 +195,7 @@ class ManagementSocketTest : VertxTest() {
             execute = {
                 socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
                 vertx.setTimer(100) {
-                    vertx.eventBus().localSend(RoutesCE.media + "_stop_recording", JsonObject())
+                    vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
                 }
             },
             assert = {
@@ -204,11 +204,14 @@ class ManagementSocketTest : VertxTest() {
                 socket.handler { packet ->
                     context.verify {
                         packet.data().toJsonObject().apply {
-                            assertEquals("stop_recording", getString("type"))
+                            assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, getString("type"))
                         }
                         context.completeNow()
                     }
                 }
+            },
+            cleanup = {
+                socket.close()
             }
         )
     }

@@ -71,7 +71,7 @@ open class MediaManager : AbstractVerticle() {
             }
 
         if (!recordingEnabled) {
-            vertx.eventBus().localSend(RoutesCE.media + "_stop_recording", JsonObject())
+            vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
         }
     }
 
