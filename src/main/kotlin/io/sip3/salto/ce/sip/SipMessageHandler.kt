@@ -175,6 +175,7 @@ open class SipMessageHandler : AbstractVerticle() {
             remove(Attributes.callee)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
+            remove(Attributes.debug)
         }
 
         Metrics.counter(prefix + "_messages", attributes).increment()

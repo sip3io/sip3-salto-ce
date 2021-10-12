@@ -105,7 +105,7 @@ server:
 #      max-collections: 30
 #    - prefix: sip_call_index
 #      indexes:
-#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type, duration, trying_delay, setup_time, establish_time, disconnect_time, transactions, retransmits, terminated_by]
+#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type, duration, trying_delay, setup_time, establish_time, disconnect_time, transactions, retransmits, terminated_by, debug]
 #        hashed: [call_id, x_call_id]
 #      max-collections: 30
 #    - prefix: sip_call_raw
@@ -115,7 +115,7 @@ server:
 #      max-collections: 30
 #    - prefix: sip_register_index
 #      indexes:
-#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type transactions, retransmits]
+#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type transactions, retransmits, debug]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: sip_register_raw
@@ -125,7 +125,7 @@ server:
 #      max-collections: 30
 #    - prefix: sip_message_index
 #      indexes:
-#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type, retransmits]
+#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type, retransmits, debug]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: sip_message_raw
@@ -135,7 +135,7 @@ server:
 #      max-collections: 30
 #    - prefix: sip_options_index
 #      indexes:
-#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type, retransmits]
+#        ascending: [created_at, terminated_at, src_addr, src_host, dst_addr, dst_host, caller, callee, state, error_code, error_type, retransmits, debug]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: sip_options_raw
