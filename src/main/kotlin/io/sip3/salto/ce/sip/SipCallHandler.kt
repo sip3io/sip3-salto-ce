@@ -519,6 +519,7 @@ open class SipCallHandler : AbstractVerticle() {
             remove(Attributes.callee)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
+            remove(Attributes.debug)
             excludedAttributes.forEach { remove(it) }
         }
     }
