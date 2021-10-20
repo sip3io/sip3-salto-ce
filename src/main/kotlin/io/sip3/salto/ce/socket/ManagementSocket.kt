@@ -128,6 +128,7 @@ open class ManagementSocket : AbstractVerticle() {
             val buffer = packet.data()
             try {
                 val message = buffer.toJsonObject()
+
                 handle(socketAddress, message)
             } catch (e: Exception) {
                 logger.error(e) { "ManagementSocket 'handle()' failed." }
@@ -150,16 +151,15 @@ open class ManagementSocket : AbstractVerticle() {
         when (type) {
             TYPE_REGISTER -> {
                 val config = payload.getJsonObject("config")
-                val scheme = uri.scheme
+                val host = socketAddress.host()
+                val port = socketAddress.port()
+                val senderUri = URI("${uri.scheme}://$host:$port")
 
                 remoteHosts.computeIfAbsent(config?.getJsonObject("host")?.getString("name") ?: payload.getString("name")) { name ->
-                    logger.info { "Registered: $payload" }
+                    logger.info { "Registered from `$senderUri`: $payload" }
                     return@computeIfAbsent RemoteHost(name)
                 }.apply {
-                    val host = socketAddress.host()
-                    val port = socketAddress.port()
-                    uri = URI("$scheme://$host:$port")
-
+                    uri = senderUri
                     config?.getJsonObject("host")?.let { hostRegistry.save(it) }
 
                     val rtpEnabled = config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false
