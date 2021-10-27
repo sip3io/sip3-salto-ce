@@ -20,9 +20,9 @@ import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -67,7 +67,6 @@ open class RtprHandler : AbstractVerticle() {
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
-    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 4000
     private var aggregationTimeout: Long = 30000
     private var cumulativeMetrics = true
@@ -78,9 +77,9 @@ open class RtprHandler : AbstractVerticle() {
 
     private var instances: Int = 1
 
-    private var mediaControls = mutableMapOf<String, MediaControl>()
-    private var rtp = mutableMapOf<String, RtprSession>()
-    private var rtcp = mutableMapOf<String, RtprSession>()
+    private lateinit var mediaControls: PeriodicallyExpiringHashMap<String, MediaControl>
+    private lateinit var rtp: PeriodicallyExpiringHashMap<String, RtprSession>
+    private lateinit var rtcp: PeriodicallyExpiringHashMap<String, RtprSession>
 
     override fun start() {
         config().getString("time-suffix")?.let {
@@ -88,9 +87,6 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         config().getJsonObject("media")?.getJsonObject("rtp-r")?.let { config ->
-            config.getLong("trim-to-size-delay")?.let {
-                trimToSizeDelay = it
-            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -117,14 +113,25 @@ open class RtprHandler : AbstractVerticle() {
             instances = it
         }
 
-        vertx.setPeriodic(trimToSizeDelay) {
-            mediaControls = MutableMapUtil.mutableMapOf(mediaControls)
-            rtp = MutableMapUtil.mutableMapOf(rtp)
-            rtcp = MutableMapUtil.mutableMapOf(rtcp)
-        }
-        vertx.setPeriodic(expirationDelay) {
-            terminateExpiredSessions()
-        }
+        mediaControls = PeriodicallyExpiringHashMap.Builder<String, MediaControl>()
+            .delay(expirationDelay)
+            .period((aggregationTimeout / expirationDelay).toInt())
+            .expireAt { _, v -> v.timestamp + aggregationTimeout }
+            .build(vertx)
+
+        rtp = PeriodicallyExpiringHashMap.Builder<String, RtprSession>()
+            .delay(expirationDelay)
+            .period((aggregationTimeout / expirationDelay).toInt())
+            .expireAt { _, v -> v.terminatedAt + aggregationTimeout }
+            .onExpire { _, v -> terminateRtprSession(v) }
+            .build(vertx)
+
+        rtcp = PeriodicallyExpiringHashMap.Builder<String, RtprSession>()
+            .delay(expirationDelay)
+            .period((aggregationTimeout / expirationDelay).toInt())
+            .expireAt { _, v -> v.terminatedAt + aggregationTimeout }
+            .onExpire { _, v -> terminateRtprSession(v) }
+            .build(vertx)
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
             val mediaControl = event.body()
@@ -164,10 +171,10 @@ open class RtprHandler : AbstractVerticle() {
 
     open fun handleMediaControl(mediaControl: MediaControl) {
         mediaControl.sdpSession.apply {
-            mediaControls[src.rtpId] = mediaControl
-            mediaControls[src.rtcpId] = mediaControl
-            mediaControls[dst.rtpId] = mediaControl
-            mediaControls[dst.rtcpId] = mediaControl
+            mediaControls.put(src.rtpId, mediaControl)
+            mediaControls.put(src.rtcpId, mediaControl)
+            mediaControls.put(dst.rtpId, mediaControl)
+            mediaControls.put(dst.rtcpId, mediaControl)
         }
     }
 
@@ -194,16 +201,16 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         val sessionId = packet.srcAddr.compositeKey(packet.dstAddr) { it.sdpSessionId() }
-        var session = sessions[sessionId]
+        var session = sessions.get(sessionId)
         if (session == null) {
-            val mediaControl = mediaControls[packet.srcAddr.sdpSessionId()]
-                ?: mediaControls[packet.dstAddr.sdpSessionId()]
+            val mediaControl = mediaControls.get(packet.srcAddr.sdpSessionId())
+                ?: mediaControls.get(packet.dstAddr.sdpSessionId())
 
             if (mediaControl != null) {
                 session = RtprSession.create(source, mediaControl, packet).apply {
                     rFactorThreshold = this@RtprHandler.rFactorThreshold
                 }
-                sessions[sessionId] = session
+                sessions.put(sessionId, session)
             }
         }
 
@@ -256,25 +263,6 @@ open class RtprHandler : AbstractVerticle() {
             // MoS
             report.mos = computeMos(report.rFactor)
         }
-    }
-
-    open fun terminateExpiredSessions() {
-        val now = System.currentTimeMillis()
-
-        rtp.filterValues { it.terminatedAt + aggregationTimeout < now }
-            .forEach { (sessionId, session) ->
-                terminateRtprSession(session)
-                rtp.remove(sessionId)
-            }
-
-        rtcp.filterValues { it.terminatedAt + aggregationTimeout < now }
-            .forEach { (sessionId, session) ->
-                terminateRtprSession(session)
-                rtcp.remove(sessionId)
-            }
-
-        mediaControls.filterValues { it.timestamp + aggregationTimeout < now }
-            .forEach { (key, _) -> mediaControls.remove(key) }
     }
 
     open fun terminateRtprSession(session: RtprSession) {
