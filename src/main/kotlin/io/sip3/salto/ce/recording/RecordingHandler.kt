@@ -19,9 +19,9 @@ package io.sip3.salto.ce.recording
 import io.netty.buffer.Unpooled
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.domain.payload.RecordingPayload
-import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
@@ -47,13 +47,12 @@ open class RecordingHandler : AbstractVerticle() {
 
     private var instances = 1
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
-    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay = 1000L
     private var aggregationTimeout = 30000L
 
     private var bulkSize = 64
 
-    private var recordings = mutableMapOf<String, Recording>()
+    private lateinit var recordings: PeriodicallyExpiringHashMap<String, Recording>
 
     override fun start() {
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
@@ -63,9 +62,6 @@ open class RecordingHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("recording")?.let { config ->
-            config.getLong("trim-to-size-delay")?.let {
-                trimToSizeDelay = it
-            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -77,17 +73,12 @@ open class RecordingHandler : AbstractVerticle() {
             }
         }
 
-        vertx.setPeriodic(trimToSizeDelay) {
-            recordings = MutableMapUtil.mutableMapOf(recordings)
-        }
-        vertx.setPeriodic(expirationDelay) {
-            val now = System.currentTimeMillis()
-            recordings.filterValues { it.createdAt + aggregationTimeout < now }
-                .forEach { (callId, recording) ->
-                    writeToDatabase(recording)
-                    recordings.remove(callId)
-                }
-        }
+        recordings = PeriodicallyExpiringHashMap.Builder<String, Recording>()
+            .delay(expirationDelay)
+            .period((aggregationTimeout / expirationDelay).toInt())
+            .expireAt { _, v -> v.createdAt + aggregationTimeout }
+            .onExpire { _, v -> writeToDatabase(v) }
+            .build(vertx)
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rec) { event ->
             try {

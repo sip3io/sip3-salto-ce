@@ -19,9 +19,9 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -62,7 +62,6 @@ open class SipTransactionHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
-    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 1000
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
@@ -74,7 +73,7 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var recordCallUsersAttributes = false
     private var instances = 1
 
-    private var transactions = mutableMapOf<String, SipTransaction>()
+    private lateinit var transactions: PeriodicallyExpiringHashMap<String, SipTransaction>
 
     private lateinit var attributesRegistry: AttributesRegistry
 
@@ -83,9 +82,6 @@ open class SipTransactionHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("transaction")?.let { config ->
-            config.getLong("trim-to-size-delay")?.let {
-                trimToSizeDelay = it
-            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -119,12 +115,18 @@ open class SipTransactionHandler : AbstractVerticle() {
 
         attributesRegistry = AttributesRegistry(vertx, config())
 
-        vertx.setPeriodic(trimToSizeDelay) {
-            transactions = MutableMapUtil.mutableMapOf(transactions)
-        }
-        vertx.setPeriodic(expirationDelay) {
-            terminateExpiredTransactions()
-        }
+        transactions = PeriodicallyExpiringHashMap.Builder<String, SipTransaction>()
+            .delay(expirationDelay)
+            .period((aggregationTimeout / expirationDelay).toInt())
+            .expireAt { _, v ->
+                // 1. Wait `termination-timeout` if transaction was terminated
+                // 2. Wait `response-timeout` if transaction was created but hasn't received any response yet
+                // 3. Wait `aggregation-timeout` if transaction was created and has received response with non final status code
+                v.terminatedAt?.let { it + terminationTimeout }
+                    ?: (v.createdAt + (v.establishedAt?.let { aggregationTimeout } ?: responseTimeout))
+            }
+            .onExpire { _, v -> routeTransaction(v) }
+            .build(vertx)
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(PREFIX).await()
@@ -144,7 +146,10 @@ open class SipTransactionHandler : AbstractVerticle() {
             return
         }
 
-        val transaction = transactions.getOrPut(message.transactionId()) { SipTransaction() }
+        val transactionId = message.transactionId()
+
+        val transaction = transactions.getOrPut(transactionId) { SipTransaction() }
+        transactions.touch(transactionId)
 
         val extend = (saveSipMessagePayloadMode == 0) || (saveSipMessagePayloadMode == 1 && message is SIPRequest)
         transaction.addMessage(packet, message, extend)
@@ -152,21 +157,6 @@ open class SipTransactionHandler : AbstractVerticle() {
         // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.request?.hasSdp() == true && transaction.response?.hasSdp() == true) {
             vertx.eventBus().localSend(RoutesCE.media + "_sdp", transaction)
-        }
-    }
-
-    open fun terminateExpiredTransactions() {
-        val now = System.currentTimeMillis()
-
-        transactions.filterValues { transaction ->
-            // 1. Wait `termination-timeout` if transaction was terminated
-            // 2. Wait `response-timeout` if transaction was created but hasn't received any response yet
-            // 3. Wait `aggregation-timeout` if transaction was created and has received response with non final status code
-            (transaction.terminatedAt?.let { it + terminationTimeout }
-                ?: transaction.createdAt + (transaction.establishedAt?.let { aggregationTimeout } ?: responseTimeout)) < now
-        }.forEach { (tid, transaction) ->
-            transactions.remove(tid)
-            routeTransaction(transaction)
         }
     }
 
