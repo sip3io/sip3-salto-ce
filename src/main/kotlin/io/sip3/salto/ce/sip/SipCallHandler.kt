@@ -353,12 +353,16 @@ open class SipCallHandler : AbstractVerticle() {
             put(Attributes.state, session.state)
             session.srcAddr.host?.let { put("src_host", it) }
             session.dstAddr.host?.let { put("dst_host", it) }
-            session.terminatedBy?.let { put("terminated_by", it) }
         }
-
         Metrics.counter(TRANSACTIONS, attributes).increment(session.transactions.toDouble())
         Metrics.counter(RETRANSMITS, attributes).increment(session.retransmits.toDouble())
 
+        attributes.apply {
+            session.terminatedBy?.let { put("terminated_by", it) }
+
+            session.errorCode?.let { put("error_code", it) }
+            session.errorType?.let { put("error_type", it) }
+        }
         Metrics.counter(ATTEMPTS, attributes).increment()
 
         session.duration?.let { duration ->
