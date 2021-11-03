@@ -133,9 +133,7 @@ open class SipCallHandler : AbstractVerticle() {
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
             .expireAt { _, sessions -> terminateCallSessionsAt(sessions) }
-            .onExpire { now, _, sessions ->
-                terminateCallSessions(now, sessions)
-            }
+            .onExpire { now, _, sessions -> terminateCallSessions(now, sessions) }
             .build(vertx)
 
         activeSessionCounters = PeriodicallyExpiringHashMap.Builder<String, AtomicInteger>()
