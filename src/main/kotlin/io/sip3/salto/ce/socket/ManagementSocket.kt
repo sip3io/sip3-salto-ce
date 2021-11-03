@@ -19,6 +19,7 @@ package io.sip3.salto.ce.socket
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.host.HostRegistry
@@ -59,8 +60,8 @@ open class ManagementSocket : AbstractVerticle() {
 
     private lateinit var socket: DatagramSocket
 
-    private val remoteHosts = mutableMapOf<String, RemoteHost>()
-    private var sendSdpSessions = false
+    private lateinit var remoteHosts: PeriodicallyExpiringHashMap<String, RemoteHost>
+    private var mediaEnabledHostsCounter: Int = 0
 
     override fun start() {
         config().getJsonObject("mongo")?.let { config ->
@@ -85,17 +86,14 @@ open class ManagementSocket : AbstractVerticle() {
 
         startUdpServer()
 
-        vertx.setPeriodic(expirationDelay) {
-            val now = System.currentTimeMillis()
-
-            remoteHosts.filterValues { it.lastUpdate + expirationTimeout < now }
-                .forEach { (name, remoteHost) ->
-                    logger.info { "Expired: $remoteHost" }
-                    remoteHosts.remove(name)
-                }
-
-            sendSdpSessions = remoteHosts.any { (_, host) -> host.mediaEnabled }
-        }
+        remoteHosts = PeriodicallyExpiringHashMap.Builder<String, RemoteHost>()
+            .delay(expirationDelay)
+            .expireAt { _, host -> host.lastUpdate + expirationTimeout }
+            .onExpire { _, host ->
+                logger.info { "Expired: $host" }
+                if (host.mediaEnabled) mediaEnabledHostsCounter--
+            }
+            .build(vertx)
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
             try {
@@ -155,17 +153,21 @@ open class ManagementSocket : AbstractVerticle() {
                 val port = socketAddress.port()
                 val senderUri = URI("${uri.scheme}://$host:$port")
 
-                remoteHosts.computeIfAbsent(config?.getJsonObject("host")?.getString("name") ?: payload.getString("name")) { name ->
+                val name = config?.getJsonObject("host")?.getString("name") ?: payload.getString("name")
+                remoteHosts.getOrPut(name) {
                     logger.info { "Registered from `$senderUri`: $payload" }
-                    return@computeIfAbsent RemoteHost(name)
+                    return@getOrPut RemoteHost(name)
                 }.apply {
                     uri = senderUri
                     config?.getJsonObject("host")?.let { hostRegistry.save(it) }
 
-                    val rtpEnabled = config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false
-                    val rtcpEnabled = config?.getJsonObject("rtcp")?.getBoolean("enabled") ?: false
-                    mediaEnabled = rtpEnabled || rtcpEnabled
-                    sendSdpSessions = sendSdpSessions || mediaEnabled
+                    val rtpOrRtcpEnabled = (config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false)
+                            || (config?.getJsonObject("rtcp")?.getBoolean("enabled") ?: false)
+
+                    if (mediaEnabled != rtpOrRtcpEnabled) {
+                        mediaEnabled = rtpOrRtcpEnabled
+                        if (mediaEnabled) mediaEnabledHostsCounter++ else mediaEnabledHostsCounter--
+                    }
 
                     lastUpdate = System.currentTimeMillis()
                 }
@@ -173,7 +175,7 @@ open class ManagementSocket : AbstractVerticle() {
             TYPE_SHUTDOWN -> {
                 val name = payload.getString("name")
                 logger.info { "Handling `shutdown` command received via management socket: $message" }
-                remoteHosts[name]?.apply {
+                remoteHosts.get(name)?.apply {
                     logger.info { "Shutting down the `$name` via management socket..." }
                     socket.send(message.toBuffer(), uri.port, uri.host) {}
                 }
@@ -183,7 +185,7 @@ open class ManagementSocket : AbstractVerticle() {
     }
 
     open fun publishMediaControl(mediaControl: MediaControl) {
-        if (!sendSdpSessions) return
+        if (mediaEnabledHostsCounter <= 0) return
 
         val message = JsonObject().apply {
             put("type", TYPE_MEDIA_CONTROL)
@@ -193,16 +195,16 @@ open class ManagementSocket : AbstractVerticle() {
         when (publishMediaControlMode) {
             // Mode 0: Send to all hosts
             0 -> {
-                remoteHosts.forEach { (_, host) -> sendMediaControlIfNeeded(host, message) }
+                remoteHosts.forEach { _, host -> sendMediaControlIfNeeded(host, message) }
             }
             // Mode 1: Send to media participants only
             1 -> {
                 mediaControl.sdpSession.apply {
-                    remoteHosts[hostRegistry.getHostName(src.addr)]?.let {
-                        sendMediaControlIfNeeded(it, message)
+                    hostRegistry.getHostName(src.addr)?.let { srcHost ->
+                        remoteHosts.get(srcHost)?.let { sendMediaControlIfNeeded(it, message) }
                     }
-                    remoteHosts[hostRegistry.getHostName(dst.addr)]?.let {
-                        sendMediaControlIfNeeded(it, message)
+                    hostRegistry.getHostName(dst.addr)?.let { dstHost ->
+                        remoteHosts.get(dstHost)?.let { sendMediaControlIfNeeded(it, message) }
                     }
                 }
             }
@@ -215,7 +217,7 @@ open class ManagementSocket : AbstractVerticle() {
             put("payload", payload)
         }.toBuffer()
 
-        remoteHosts.forEach { (_, host) ->
+        remoteHosts.forEach { _, host ->
             try {
                 socket.send(message, host.uri.port, host.uri.host) {}
             } catch (e: Exception) {

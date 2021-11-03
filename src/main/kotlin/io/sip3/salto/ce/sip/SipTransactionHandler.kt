@@ -118,14 +118,8 @@ open class SipTransactionHandler : AbstractVerticle() {
         transactions = PeriodicallyExpiringHashMap.Builder<String, SipTransaction>()
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
-            .expireAt { _, v ->
-                // 1. Wait `termination-timeout` if transaction was terminated
-                // 2. Wait `response-timeout` if transaction was created but hasn't received any response yet
-                // 3. Wait `aggregation-timeout` if transaction was created and has received response with non final status code
-                v.terminatedAt?.let { it + terminationTimeout }
-                    ?: (v.createdAt + (v.establishedAt?.let { aggregationTimeout } ?: responseTimeout))
-            }
-            .onExpire { _, v -> routeTransaction(v) }
+            .expireAt { _, transaction -> terminateTransactionAt(transaction) }
+            .onExpire { _, transaction -> routeTransaction(transaction) }
             .build(vertx)
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
@@ -158,6 +152,14 @@ open class SipTransactionHandler : AbstractVerticle() {
         if (transaction.cseqMethod == "INVITE" && transaction.request?.hasSdp() == true && transaction.response?.hasSdp() == true) {
             vertx.eventBus().localSend(RoutesCE.media + "_sdp", transaction)
         }
+    }
+
+    open fun terminateTransactionAt(transaction: SipTransaction): Long {
+        // 1. Wait `termination-timeout` if transaction was terminated
+        // 2. Wait `response-timeout` if transaction was created but hasn't received any response yet
+        // 3. Wait `aggregation-timeout` if transaction was created and has received response with non final status code
+        return transaction.terminatedAt?.let { it + terminationTimeout }
+            ?: (transaction.createdAt + (transaction.establishedAt?.let { aggregationTimeout } ?: responseTimeout))
     }
 
     open fun routeTransaction(transaction: SipTransaction) {

@@ -417,7 +417,7 @@ class SipCallHandlerTest : VertxTest() {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
                             put("expiration-delay", 100)
-                            put("aggregation-timeout", 100)
+                            put("aggregation-timeout", 200)
                         })
                     })
                 })

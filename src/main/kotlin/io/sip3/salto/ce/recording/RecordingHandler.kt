@@ -76,8 +76,8 @@ open class RecordingHandler : AbstractVerticle() {
         recordings = PeriodicallyExpiringHashMap.Builder<String, Recording>()
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
-            .expireAt { _, v -> v.createdAt + aggregationTimeout }
-            .onExpire { _, v -> writeToDatabase(v) }
+            .expireAt { _, recording -> recording.createdAt + aggregationTimeout }
+            .onExpire { _, recording -> writeToDatabase(recording) }
             .build(vertx)
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rec) { event ->

@@ -116,21 +116,21 @@ open class RtprHandler : AbstractVerticle() {
         mediaControls = PeriodicallyExpiringHashMap.Builder<String, MediaControl>()
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
-            .expireAt { _, v -> v.timestamp + aggregationTimeout }
+            .expireAt { _, mediaControl -> mediaControl.timestamp + aggregationTimeout }
             .build(vertx)
 
         rtp = PeriodicallyExpiringHashMap.Builder<String, RtprSession>()
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
-            .expireAt { _, v -> v.terminatedAt + aggregationTimeout }
-            .onExpire { _, v -> terminateRtprSession(v) }
+            .expireAt { _, session -> session.terminatedAt + aggregationTimeout }
+            .onExpire { _, session -> terminateRtprSession(session) }
             .build(vertx)
 
         rtcp = PeriodicallyExpiringHashMap.Builder<String, RtprSession>()
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
-            .expireAt { _, v -> v.terminatedAt + aggregationTimeout }
-            .onExpire { _, v -> terminateRtprSession(v) }
+            .expireAt { _, session -> session.terminatedAt + aggregationTimeout }
+            .onExpire { _, session -> terminateRtprSession(session) }
             .build(vertx)
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
