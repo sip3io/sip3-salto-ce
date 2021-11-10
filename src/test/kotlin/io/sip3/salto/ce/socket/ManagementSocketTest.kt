@@ -162,7 +162,9 @@ class ManagementSocketTest : VertxTest() {
             execute = {
                 socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
 
-                vertx.eventBus().localSend(RoutesCE.media + "_control", mediaControl)
+                vertx.setTimer(100) {
+                    vertx.eventBus().localSend(RoutesCE.media + "_control", mediaControl)
+                }
             },
             assert = {
                 socket = vertx.createDatagramSocket()
@@ -182,7 +184,7 @@ class ManagementSocketTest : VertxTest() {
     }
 
     @Test
-    fun `Send 'media_recording_reset' commmand to agents`() {
+    fun `Send 'media_recording_reset' command to agents`() {
         every {
             HostRegistry.save(any())
         } just Runs
