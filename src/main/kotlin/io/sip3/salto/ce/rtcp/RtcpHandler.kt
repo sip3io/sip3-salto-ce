@@ -76,7 +76,7 @@ open class RtcpHandler : AbstractVerticle() {
         streams = PeriodicallyExpiringHashMap.Builder<Long, RtcpStream>()
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
-            .expireAt { _, v -> v.lastPacketTimestamp + aggregationTimeout }
+            .expireAt { _, stream -> stream.lastPacketTimestamp + aggregationTimeout }
             .build(vertx)
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtcp) { event ->

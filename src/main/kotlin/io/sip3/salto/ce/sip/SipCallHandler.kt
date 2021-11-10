@@ -17,9 +17,9 @@
 package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -37,6 +37,7 @@ import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -73,7 +74,6 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
-    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 1000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 2000
@@ -84,7 +84,8 @@ open class SipCallHandler : AbstractVerticle() {
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
-    private var activeSessions = mutableMapOf<String, MutableMap<String, SipSession>>()
+    private lateinit var activeSessions: PeriodicallyExpiringHashMap<String, MutableMap<String, SipSession>>
+    private lateinit var activeSessionCounters: PeriodicallyExpiringHashMap<String, AtomicInteger>
 
     private lateinit var udfExecutor: UdfExecutor
     private lateinit var attributesRegistry: AttributesRegistry
@@ -94,9 +95,6 @@ open class SipCallHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("call")?.let { config ->
-            config.getLong("trim-to-size-delay")?.let {
-                trimToSizeDelay = it
-            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -131,12 +129,18 @@ open class SipCallHandler : AbstractVerticle() {
         udfExecutor = UdfExecutor(vertx)
         attributesRegistry = AttributesRegistry(vertx, config())
 
-        vertx.setPeriodic(trimToSizeDelay) {
-            activeSessions = MutableMapUtil.mutableMapOf(activeSessions)
-        }
-        vertx.setPeriodic(expirationDelay) {
-            terminateExpiredCallSessions()
-        }
+        activeSessions = PeriodicallyExpiringHashMap.Builder<String, MutableMap<String, SipSession>>()
+            .delay(expirationDelay)
+            .period((aggregationTimeout / expirationDelay).toInt())
+            .expireAt { _, sessions -> terminateCallSessionsAt(sessions) }
+            .onExpire { now, _, sessions -> terminateCallSessions(now, sessions) }
+            .build(vertx)
+
+        activeSessionCounters = PeriodicallyExpiringHashMap.Builder<String, AtomicInteger>()
+            .delay(expirationDelay)
+            .expireAt { _, counter -> if (counter.get() > 0) Long.MAX_VALUE else Long.MIN_VALUE }
+            .onRemain { hostsKey, counter -> calculateActiveCallSessions(hostsKey, counter) }
+            .build(vertx)
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(PREFIX).await()
@@ -152,6 +156,8 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun handle(transaction: SipTransaction) {
+        activeSessions.touch(transaction.callId)
+
         when (transaction.cseqMethod) {
             "INVITE" -> terminateInviteTransaction(transaction)
             "BYE" -> terminateByeTransaction(transaction)
@@ -174,6 +180,9 @@ open class SipCallHandler : AbstractVerticle() {
                     writeAttributes(session)
                     writeToDatabase(PREFIX, session, upsert = true)
                     sendToCorrelationHandlerIfNeeded(session)
+
+                    val activeSessionCountersKey = "${session.srcAddr.host ?: ""}:${session.dstAddr.host ?: ""}"
+                    activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.incrementAndGet()
                 }
                 activeSessions.getOrPut(transaction.callId) { mutableMapOf() }.put(transaction.legId, session)
             }
@@ -248,38 +257,29 @@ open class SipCallHandler : AbstractVerticle() {
         }
     }
 
-    open fun terminateExpiredCallSessions() {
-        val now = System.currentTimeMillis()
+    open fun terminateCallSessionsAt(sessions: Map<String, SipSession>): Long {
+        return sessions.map { (_, session) -> terminateCallSessionAt(session) }.minOrNull() ?: Long.MIN_VALUE
+    }
 
-        activeSessions.filter { (_, sessions) ->
-            sessions.filterValues { session ->
-                val expiresAt = if (session.state == UNKNOWN) {
-                    session.createdAt + terminationTimeout
-                } else {
-                    session.terminatedAt?.let { it + terminationTimeout }
-                        ?: session.answeredAt?.let { it + durationTimeout }
-                        ?: session.createdAt + aggregationTimeout
-                }
-                val isExpired = expiresAt < now
+    open fun terminateCallSessionAt(session: SipSession): Long {
+        return when (session.state) {
+            UNKNOWN -> {
+                session.createdAt + terminationTimeout
+            }
+            else -> {
+                session.terminatedAt?.let { it + terminationTimeout }
+                    ?: (session.answeredAt?.let { it + durationTimeout }) ?: (session.createdAt + aggregationTimeout)
+            }
+        }
+    }
 
-                if (!isExpired && session.state == ANSWERED) {
-                    val attributes = excludeSessionAttributes(session.attributes).apply {
-                        session.srcAddr.host?.let { put("src_host", it) }
-                        session.dstAddr.host?.let { put("dst_host", it) }
-                    }
-
-                    Metrics.counter(ESTABLISHED, attributes).increment()
-                }
-
-                return@filterValues isExpired
-            }.forEach { (sid, session) ->
-                sessions.remove(sid)
+    open fun terminateCallSessions(now: Long, sessions: Map<String, SipSession>) {
+        sessions.forEach { (_, session) ->
+            if (terminateCallSessionAt(session) > now) {
+                activeSessions.getOrPut(session.callId) { mutableMapOf() }.put(session.legId, session)
+            } else {
                 terminateCallSession(session)
             }
-
-            return@filter sessions.isEmpty()
-        }.forEach { (callId, _) ->
-            activeSessions.remove(callId)
         }
     }
 
@@ -289,8 +289,11 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         val state = session.state
-        if (state == ANSWERED && session.duration == null) {
-            session.attributes[Attributes.expired] = true
+        if (state == ANSWERED) {
+            if (session.duration == null) session.attributes[Attributes.expired] = true
+
+            val activeSessionCountersKey = "${session.srcAddr.host ?: ""}:${session.dstAddr.host ?: ""}"
+            activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.decrementAndGet()
         }
 
         udfExecutor.execute(RoutesCE.sip_call_udf,
@@ -346,6 +349,17 @@ open class SipCallHandler : AbstractVerticle() {
                 calculateCallSessionMetrics(session)
             }
         )
+    }
+
+    open fun calculateActiveCallSessions(hostsKey: String, counter: AtomicInteger) {
+        val hosts = hostsKey.split(":")
+
+        val attributes = mutableMapOf<String, String>().apply {
+            if (hosts[0].isNotBlank()) put("src_host", hosts[0])
+            if (hosts[1].isNotBlank()) put("dst_host", hosts[1])
+        }
+
+        Metrics.counter(ESTABLISHED, attributes).increment(counter.toDouble())
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
@@ -558,6 +572,10 @@ open class SipCallHandler : AbstractVerticle() {
         var retransmits = 0
 
         var attributes = mutableMapOf<String, Any>()
+
+        val legId: String by lazy {
+            srcAddr.compositeKey(dstAddr)
+        }
 
         fun addInviteTransaction(transaction: SipTransaction) {
             transactions++

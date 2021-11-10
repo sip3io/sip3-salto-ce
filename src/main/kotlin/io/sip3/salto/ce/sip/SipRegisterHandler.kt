@@ -17,9 +17,9 @@
 package io.sip3.salto.ce.sip
 
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.MutableMapUtil
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -65,7 +66,6 @@ open class SipRegisterHandler : AbstractVerticle() {
     }
 
     private var timeSuffix: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
-    private var trimToSizeDelay: Long = 3600000
     private var expirationDelay: Long = 1000
     private var aggregationTimeout: Long = 10000
     private var updatePeriod: Long = 60000
@@ -74,8 +74,9 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
-    private var activeRegistrations = mutableMapOf<String, SipRegistration>()
-    private var activeSessions = mutableMapOf<String, SipSession>()
+    private lateinit var activeRegistrations: PeriodicallyExpiringHashMap<String, SipRegistration>
+    private lateinit var activeSessions: PeriodicallyExpiringHashMap<String, SipSession>
+    private lateinit var activeSessionCounters: PeriodicallyExpiringHashMap<String, AtomicInteger>
 
     private lateinit var attributesRegistry: AttributesRegistry
 
@@ -84,9 +85,6 @@ open class SipRegisterHandler : AbstractVerticle() {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("register")?.let { config ->
-            config.getLong("trim-to-size-delay")?.let {
-                trimToSizeDelay = it
-            }
             config.getLong("expiration-delay")?.let {
                 expirationDelay = it
             }
@@ -114,18 +112,26 @@ open class SipRegisterHandler : AbstractVerticle() {
 
         attributesRegistry = AttributesRegistry(vertx, config())
 
-        vertx.setPeriodic(trimToSizeDelay) {
-            activeRegistrations = MutableMapUtil.mutableMapOf(activeRegistrations)
-            activeSessions = MutableMapUtil.mutableMapOf(activeSessions)
-        }
-        vertx.setPeriodic(expirationDelay) {
-            try {
-                terminateExpiredRegistrations()
-                terminateExpiredSessions()
-            } catch (e: Exception) {
-                logger.error("SipRegisterHandler `terminateExpiredRegistrations()` or `terminateExpiredSessions()` failed.", e)
-            }
-        }
+        activeRegistrations = PeriodicallyExpiringHashMap.Builder<String, SipRegistration>()
+            .delay(expirationDelay)
+            .period((aggregationTimeout / expirationDelay).toInt())
+            .expireAt { _, registration -> registration.createdAt + aggregationTimeout }
+            .onExpire { _, registration -> terminateRegistration(registration) }
+            .build(vertx)
+
+        activeSessions = PeriodicallyExpiringHashMap.Builder<String, SipSession>()
+            .delay(expirationDelay)
+            .period((aggregationTimeout / expirationDelay).toInt())
+            .expireAt { _, session -> terminateSessionAt(session) }
+            .onRemain { now, _, session -> updateSession(now, session) }
+            .onExpire { _, session -> terminateSession(session) }
+            .build(vertx)
+
+        activeSessionCounters = PeriodicallyExpiringHashMap.Builder<String, AtomicInteger>()
+            .delay(expirationDelay)
+            .expireAt { _, counter -> if (counter.get() > 0) Long.MAX_VALUE else Long.MIN_VALUE }
+            .onRemain { hostsKey, counter -> calculateActiveSessions(hostsKey, counter) }
+            .build(vertx)
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(PREFIX).await()
@@ -143,7 +149,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     open fun handle(transaction: SipTransaction) {
         val id = "${transaction.legId}:${transaction.callId}"
 
-        val registration = activeRegistrations[id] ?: SipRegistration()
+        val registration = activeRegistrations.get(id) ?: SipRegistration()
         registration.addRegisterTransaction(transaction)
 
         when (registration.state) {
@@ -157,6 +163,9 @@ open class SipRegisterHandler : AbstractVerticle() {
                 session.addSipRegistration(registration)
                 activeRegistrations.remove(id)
 
+                val activeSessionCountersKey = "${session.srcAddr.host ?: ""}:${session.dstAddr.host ?: ""}"
+                activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.incrementAndGet()
+
                 session.overlappedInterval?.let { interval ->
                     val attributes = excludeRegistrationAttributes(registration.attributes).apply {
                         registration.srcAddr.host?.let { put("src_host", it) }
@@ -169,7 +178,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                 }
             }
             else -> {
-                activeRegistrations[id] = registration
+                activeRegistrations.put(id, registration)
             }
         }
     }
@@ -196,16 +205,6 @@ open class SipRegisterHandler : AbstractVerticle() {
         }
     }
 
-    open fun terminateExpiredRegistrations() {
-        val now = System.currentTimeMillis()
-
-        activeRegistrations.filterValues { it.createdAt + aggregationTimeout < now }
-            .forEach { (id, registration) ->
-                activeRegistrations.remove(id)
-                terminateRegistration(registration)
-            }
-    }
-
     open fun terminateRegistration(registration: SipRegistration) {
         if (registration.terminatedAt == null) {
             registration.terminatedAt = System.currentTimeMillis()
@@ -215,47 +214,25 @@ open class SipRegisterHandler : AbstractVerticle() {
         writeToDatabase(PREFIX, registration, false)
     }
 
-    private fun terminateExpiredSessions() {
-        val now = System.currentTimeMillis()
+    open fun terminateSessionAt(session: SipSession): Long {
+        var expireAt = (session.expiresAt ?: session.terminatedAt ?: session.createdAt) + aggregationTimeout
 
-        activeSessions.filterValues { session ->
-            val expiresAt = session.expiresAt ?: session.terminatedAt ?: session.createdAt
+        if (expireAt > session.createdAt + durationTimeout) {
+            session.terminatedAt = expireAt - aggregationTimeout
+            expireAt = session.createdAt + durationTimeout
+        }
 
-            // Check if registration exceeded `durationTimeout`
-            if (session.createdAt + durationTimeout < now) {
-                session.terminatedAt = expiresAt
+        return expireAt
+    }
 
-                return@filterValues true
-            }
+    private fun updateSession(now: Long, session: SipSession) {
+        val updatedAt = session.updatedAt
 
-            if (expiresAt + aggregationTimeout >= now) {
-                // Check `updated_at` and write to database if needed
-                val updatedAt = session.updatedAt
-                if (!session.synced && (updatedAt == null || updatedAt + updatePeriod < now)) {
-                    session.updatedAt = now
-                    writeAttributes(session)
-                    writeToDatabase(PREFIX, session, updatedAt != null)
-                    session.synced = true
-                }
-
-                // Calculate `active` registrations
-                if (expiresAt >= now) {
-                    val attributes = excludeRegistrationAttributes(session.attributes).apply {
-                        session.srcAddr.host?.let { put("src_host", it) }
-                        session.dstAddr.host?.let { put("dst_host", it) }
-                    }
-                    Metrics.counter(ACTIVE, attributes).increment()
-                }
-
-                return@filterValues false
-            } else {
-                session.terminatedAt = expiresAt
-
-                return@filterValues true
-            }
-        }.forEach { (id, session) ->
-            activeSessions.remove(id)
-            terminateSession(session)
+        if (!session.synced && (updatedAt == null || updatedAt + updatePeriod < now)) {
+            session.updatedAt = now
+            writeAttributes(session)
+            writeToDatabase(PREFIX, session, updatedAt != null)
+            session.synced = true
         }
     }
 
@@ -268,6 +245,20 @@ open class SipRegisterHandler : AbstractVerticle() {
 
         writeAttributes(session)
         writeToDatabase(PREFIX, session, true)
+
+        val activeSessionCountersKey = "${session.srcAddr.host ?: ""}:${session.dstAddr.host ?: ""}"
+        activeSessionCounters.get(activeSessionCountersKey)?.decrementAndGet()
+    }
+
+    open fun calculateActiveSessions(hostsKey: String, counter: AtomicInteger) {
+        val hosts = hostsKey.split(":")
+
+        val attributes = mutableMapOf<String, String>().apply {
+            if (hosts[0].isNotBlank()) put("src_host", hosts[0])
+            if (hosts[1].isNotBlank()) put("dst_host", hosts[1])
+        }
+
+        Metrics.counter(ACTIVE, attributes).increment(counter.toDouble())
     }
 
     open fun writeAttributes(registration: SipRegistration) {

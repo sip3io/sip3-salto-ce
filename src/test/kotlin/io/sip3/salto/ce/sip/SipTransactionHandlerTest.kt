@@ -369,8 +369,8 @@ class SipTransactionHandlerTest : VertxTest() {
                     put("sip", JsonObject().apply {
                         put("transaction", JsonObject().apply {
                             put("expiration-delay", 100)
-                            put("aggregation-timeout", 100)
-                            put("termination-timeout", 100)
+                            put("aggregation-timeout", 200)
+                            put("termination-timeout", 200)
                         })
                     })
                 })
