@@ -175,7 +175,9 @@ open class ManagementSocket : AbstractVerticle() {
             TYPE_SHUTDOWN -> {
                 val name = payload.getString("name")
                 logger.info { "Handling `shutdown` command received via management socket: $message" }
-                remoteHosts.get(name)?.apply {
+                remoteHosts.remove(name)?.apply {
+                    if (mediaEnabled) mediaEnabledHostsCounter--
+
                     logger.info { "Shutting down the `$name` via management socket..." }
                     socket.send(message.toBuffer(), uri.port, uri.host) {}
                 }
