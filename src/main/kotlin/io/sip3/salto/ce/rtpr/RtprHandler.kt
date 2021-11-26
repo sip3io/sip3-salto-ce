@@ -20,7 +20,6 @@ import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.localSend
@@ -32,7 +31,6 @@ import io.sip3.salto.ce.util.DurationUtil
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
@@ -74,14 +72,12 @@ open class RtprHandler : AbstractVerticle() {
     private var rFactorThreshold: Float = 85F
     private var rFactorDistributions = TreeSet<Int>()
     private var durationDistributions = TreeMap<Long, String>()
-    private var bulkPacketLimit = 1024
 
     private var instances: Int = 1
 
     private lateinit var mediaControls: PeriodicallyExpiringHashMap<String, MediaControl>
     private lateinit var rtp: PeriodicallyExpiringHashMap<String, RtprSession>
     private lateinit var rtcp: PeriodicallyExpiringHashMap<String, RtprSession>
-    private lateinit var bulks: PeriodicallyExpiringHashMap<String, RtprBulk>
 
     override fun start() {
         config().getString("time-suffix")?.let {
@@ -110,9 +106,6 @@ open class RtprHandler : AbstractVerticle() {
             config.getJsonArray("duration-distributions")?.forEach {
                 durationDistributions[DurationUtil.parseDuration(it as String).toMillis()] = it
             }
-            config.getInteger("bulk-packet-limit")?.let {
-                bulkPacketLimit = it
-            }
         }
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
@@ -136,23 +129,6 @@ open class RtprHandler : AbstractVerticle() {
             .period((aggregationTimeout / expirationDelay).toInt())
             .expireAt { _, session -> session.terminatedAt + aggregationTimeout }
             .onExpire { _, session -> terminateRtprSession(session) }
-            .build(vertx)
-
-        bulks = PeriodicallyExpiringHashMap.Builder<String, RtprBulk>()
-            .delay(expirationDelay)
-            .period((aggregationTimeout / expirationDelay).toInt())
-            .expireAt { _, bulk -> bulk.updatedAt + aggregationTimeout }
-            .onRemain { _, bulk ->
-                if (bulk.expectedPackets >= bulkPacketLimit) {
-                    writeToDatabase(bulk)
-                    bulk.clear()
-                }
-            }
-            .onExpire { _, bulk ->
-                if (bulk.expectedPackets > 0) {
-                    writeToDatabase(bulk)
-                }
-            }
             .build(vertx)
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
@@ -245,10 +221,7 @@ open class RtprHandler : AbstractVerticle() {
             }
         }
 
-        val bulkId = "$prefix:${packet.srcAddr.sdpSessionId()}:${packet.dstAddr.sdpSessionId()}:${session?.callId ?: ""}"
-        bulks.getOrPut(bulkId) { RtprBulk("${prefix}_raw", packet.srcAddr, packet.dstAddr) }.apply {
-            add(report)
-        }
+        vertx.eventBus().localSend(RoutesCE.rtpr + "_bulk_writer", Pair(packet, report))
 
         if (!cumulativeMetrics) {
             calculateMetrics(prefix, packet.srcAddr, packet.dstAddr, report)
@@ -339,82 +312,6 @@ open class RtprHandler : AbstractVerticle() {
             } else {
                 Metrics.counter(prefix + UNDEFINED, attributes).increment()
             }
-        }
-    }
-
-    open fun writeToDatabase(bulk: RtprBulk) {
-        val firstReport = bulk.reports.first()
-        val collection = bulk.prefix + "_" + timeSuffix.format(firstReport.createdAt)
-
-        val operation = JsonObject().apply {
-            put("document", JsonObject().apply {
-                put("reported_at", firstReport.reportedAt)
-                put("created_at", firstReport.createdAt)
-                firstReport.callId?.let { put("call_id", firstReport) }
-
-                val src = bulk.srcAddr
-                put("src_addr", src.addr)
-                put("src_port", src.port)
-                src.host?.let { put("src_host", it) }
-
-                val dst = bulk.dstAddr
-                put("dst_addr", dst.addr)
-                put("dst_port", dst.port)
-                dst.host?.let { put("dst_host", it) }
-
-                bulk.reports
-                    .map { report ->
-                        JsonObject().apply {
-                            put("reported_at", report.reportedAt)
-                            put("created_at", report.createdAt)
-
-                            put("payload_type", report.payloadType.toInt())
-                            put("ssrc", report.ssrc)
-                            report.callId?.let { put("call_id", it) }
-                            put("codec", report.codecName ?: "UNDEFINED(${report.payloadType})")
-                            put("duration", report.duration)
-
-                            put("packets", JsonObject().apply {
-                                put("expected", report.expectedPacketCount)
-                                put("received", report.receivedPacketCount)
-                                put("lost", report.lostPacketCount)
-                                put("rejected", report.rejectedPacketCount)
-                            })
-
-                            put("jitter", JsonObject().apply {
-                                put("last", report.lastJitter.toDouble())
-                                put("avg", report.avgJitter.toDouble())
-                                put("min", report.minJitter.toDouble())
-                                put("max", report.maxJitter.toDouble())
-                            })
-
-                            put("r_factor", report.rFactor.toDouble())
-                            put("mos", report.mos.toDouble())
-                            put("fraction_lost", report.fractionLost.toDouble())
-                        }
-                    }
-                    .also { put("reports", it) }
-            })
-        }
-
-        vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
-    }
-
-    inner class RtprBulk(val prefix: String, val srcAddr: Address, val dstAddr: Address) {
-
-        var updatedAt = System.currentTimeMillis()
-        val reports = mutableListOf<RtpReportPayload>()
-
-        var expectedPackets = 0
-
-        fun add(report: RtpReportPayload) {
-            reports.add(report)
-            expectedPackets += report.expectedPacketCount
-        }
-
-        fun clear() {
-            reports.clear()
-            expectedPackets = 0
         }
     }
 }
