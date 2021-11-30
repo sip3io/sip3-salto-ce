@@ -179,34 +179,6 @@ class RtprStreamTest {
 
         assertTrue(stream.codecNames.contains(RTPR_1.codecName))
         assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
-
-        assertEquals(RTPR_2.mos.toDouble(), stream.lastMos)
-        assertEquals(RTPR_2.rFactor.toDouble(), stream.lastRFactor)
-    }
-
-    @Test
-    fun `Validate RtprStream 'merge()' method from RTP`() {
-        val stream = RtprStream(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            RtpReportPayload().apply {
-                decode(RTPR_1.encode())
-            }.let { add(it) }
-        }
-
-        val stream2 = RtprStream(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            add(RTPR_2)
-        }
-
-        stream.merge(stream2)
-
-        assertEquals(2, stream.reportCount)
-
-        assertEquals(RTPR_1.createdAt, stream.createdAt)
-        assertEquals(RTPR_2.createdAt + RTPR_2.duration, stream.terminatedAt)
-
-        assertTrue(stream.codecNames.contains(RTPR_1.codecName))
-        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
     }
 
     @Test

@@ -57,6 +57,7 @@ open class RtprHandler : AbstractVerticle() {
         const val EXPECTED_PACKETS = "_expected-packets"
         const val LOST_PACKETS = "_lost-packets"
         const val REJECTED_PACKETS = "_rejected-packets"
+        const val MARKER_PACKETS = "_marker-packets"
 
         const val DURATION = "_duration"
 
@@ -297,6 +298,9 @@ open class RtprHandler : AbstractVerticle() {
             Metrics.summary(prefix + EXPECTED_PACKETS, attributes).record(expectedPacketCount.toDouble())
             Metrics.summary(prefix + LOST_PACKETS, attributes).record(lostPacketCount.toDouble())
             Metrics.summary(prefix + REJECTED_PACKETS, attributes).record(rejectedPacketCount.toDouble())
+            if (report.source == RtpReportPayload.SOURCE_RTP) {
+                Metrics.summary(prefix + MARKER_PACKETS, attributes).record(markerPacketCount.toDouble())
+            }
 
             if (callId != null && codecName != null) {
                 Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)

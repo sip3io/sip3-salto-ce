@@ -80,7 +80,7 @@ class RtprBulkWriter : AbstractVerticle() {
         }
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
-            val index = vertx.sharedData().getLocalCounter(RoutesCE.rtpr).await()
+            val index = vertx.sharedData().getLocalCounter(RoutesCE.rtpr + "_bulk_writer").await()
             vertx.eventBus()
                 .localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_bulk_writer_${index.andIncrement.await()}") { event ->
                     try {
@@ -91,23 +91,6 @@ class RtprBulkWriter : AbstractVerticle() {
                     }
                 }
         }
-    }
-
-    open fun route(packet: Packet, report: RtpReportPayload) {
-        val index = (packet.srcAddr.port + packet.dstAddr.port).hashCode() % instances
-        vertx.eventBus().localSend(RoutesCE.rtpr + "_${index}", Pair(packet, report))
-    }
-
-    private fun handle(packet: Packet, report: RtpReportPayload) {
-        val bulkId = "${packet.srcAddr.port}:${packet.dstAddr.port}:${report.callId}"
-        val bulks = when (report.source) {
-            RtpReportPayload.SOURCE_RTP -> rtp
-            RtpReportPayload.SOURCE_RTCP -> rtcp
-            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
-        }
-
-        val rtprBulk = bulks.getOrPut(bulkId) { RtprBulk(packet.srcAddr, packet.dstAddr) }
-        rtprBulk.add(report)
     }
 
     private fun onRemain(source: String, bulk: RtprBulk) {
@@ -123,6 +106,23 @@ class RtprBulkWriter : AbstractVerticle() {
         }
     }
 
+    open fun route(packet: Packet, report: RtpReportPayload) {
+        val index = (packet.srcAddr.port + packet.dstAddr.port).hashCode() % instances
+        vertx.eventBus().localSend(RoutesCE.rtpr + "_bulk_writer_${index}", Pair(packet, report))
+    }
+
+    private fun handle(packet: Packet, report: RtpReportPayload) {
+        val bulkId = "${packet.srcAddr.port}:${packet.dstAddr.port}:${report.callId}"
+        val bulks = when (report.source) {
+            RtpReportPayload.SOURCE_RTP -> rtp
+            RtpReportPayload.SOURCE_RTCP -> rtcp
+            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
+        }
+
+        val rtprBulk = bulks.getOrPut(bulkId) { RtprBulk(packet.srcAddr, packet.dstAddr) }
+        rtprBulk.add(report)
+    }
+
     open fun writeToDatabase(prefix: String, bulk: RtprBulk) {
         val firstReport = bulk.reports.first()
         val collection = prefix + "_" + timeSuffix.format(firstReport.createdAt)
@@ -131,7 +131,7 @@ class RtprBulkWriter : AbstractVerticle() {
             put("document", JsonObject().apply {
                 put("reported_at", firstReport.reportedAt)
                 put("created_at", firstReport.createdAt)
-                firstReport.callId?.let { put("call_id", firstReport) }
+                firstReport.callId?.let { put("call_id", it) }
 
                 val src = bulk.srcAddr
                 put("src_addr", src.addr)
@@ -143,38 +143,35 @@ class RtprBulkWriter : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
-                bulk.reports
-                    .map { report ->
-                        JsonObject().apply {
-                            put("reported_at", report.reportedAt)
-                            put("created_at", report.createdAt)
+                bulk.reports.map { report ->
+                    JsonObject().apply {
+                        put("reported_at", report.reportedAt)
+                        put("created_at", report.createdAt)
 
-                            put("payload_type", report.payloadType.toInt())
-                            put("ssrc", report.ssrc)
-                            report.callId?.let { put("call_id", it) }
-                            put("codec", report.codecName ?: "UNDEFINED(${report.payloadType})")
-                            put("duration", report.duration)
+                        put("payload_type", report.payloadType.toInt())
+                        put("ssrc", report.ssrc)
+                        put("codec", report.codecName ?: "UNDEFINED(${report.payloadType})")
+                        put("duration", report.duration)
 
-                            put("packets", JsonObject().apply {
-                                put("expected", report.expectedPacketCount)
-                                put("received", report.receivedPacketCount)
-                                put("lost", report.lostPacketCount)
-                                put("rejected", report.rejectedPacketCount)
-                            })
+                        put("packets", JsonObject().apply {
+                            put("expected", report.expectedPacketCount)
+                            put("received", report.receivedPacketCount)
+                            put("lost", report.lostPacketCount)
+                            put("rejected", report.rejectedPacketCount)
+                        })
 
-                            put("jitter", JsonObject().apply {
-                                put("last", report.lastJitter.toDouble())
-                                put("avg", report.avgJitter.toDouble())
-                                put("min", report.minJitter.toDouble())
-                                put("max", report.maxJitter.toDouble())
-                            })
+                        put("jitter", JsonObject().apply {
+                            put("last", report.lastJitter.toDouble())
+                            put("avg", report.avgJitter.toDouble())
+                            put("min", report.minJitter.toDouble())
+                            put("max", report.maxJitter.toDouble())
+                        })
 
-                            put("r_factor", report.rFactor.toDouble())
-                            put("mos", report.mos.toDouble())
-                            put("fraction_lost", report.fractionLost.toDouble())
-                        }
+                        put("r_factor", report.rFactor.toDouble())
+                        put("mos", report.mos.toDouble())
+                        put("fraction_lost", report.fractionLost.toDouble())
                     }
-                    .also { put("reports", it) }
+                }.also { put("reports", it) }
             })
         }
 
@@ -192,11 +189,13 @@ class RtprBulkWriter : AbstractVerticle() {
         fun add(report: RtpReportPayload) {
             reports.add(report)
             expectedPackets += report.expectedPacketCount
+            updatedAt = System.currentTimeMillis()
         }
 
         fun clear() {
             reports.clear()
             expectedPackets = 0
+            updatedAt = System.currentTimeMillis()
         }
     }
 }

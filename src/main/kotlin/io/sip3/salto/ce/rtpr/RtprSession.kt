@@ -62,7 +62,7 @@ class RtprSession {
         }
     }
 
-    var createdAt: Long = 0L
+    var createdAt: Long = Long.MAX_VALUE
     var terminatedAt: Long = 0L
 
     lateinit var srcAddr: Address
@@ -108,9 +108,6 @@ class RtprSession {
     val duration: Long
         get() = terminatedAt - createdAt
 
-    var lastRFactor = 0.0
-    var lastMos = 1.0
-
     fun add(packet: Packet, payload: RtpReportPayload) {
         val isForward = if (source == RtpReportPayload.SOURCE_RTP) {
             packet.srcAddr.equals(srcAddr) || packet.dstAddr.equals(dstAddr)
@@ -122,17 +119,13 @@ class RtprSession {
         if (isForward) {
             if (forward == null) forward = RtprStream(packet, rFactorThreshold)
             forward!!.add(payload)
+            createdAt = min(createdAt, forward!!.createdAt)
+            terminatedAt = max(terminatedAt, forward!!.terminatedAt)
         } else {
             if (reverse == null) reverse = RtprStream(packet, rFactorThreshold)
             reverse!!.add(payload)
+            createdAt = min(createdAt, reverse!!.createdAt)
+            terminatedAt = max(terminatedAt, reverse!!.terminatedAt)
         }
-
-        // Update timestamps
-        createdAt = min(forward?.createdAt ?: Long.MAX_VALUE, reverse?.createdAt ?: Long.MAX_VALUE)
-        terminatedAt = max(forward?.terminatedAt ?: Long.MIN_VALUE, reverse?.terminatedAt ?: Long.MIN_VALUE)
-
-        // Update last QoS values
-        lastRFactor = payload.rFactor.toDouble()
-        lastMos = payload.mos.toDouble()
     }
 }

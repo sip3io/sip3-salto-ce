@@ -20,6 +20,8 @@ import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil
+import kotlin.math.max
+import kotlin.math.min
 
 class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
 
@@ -28,7 +30,10 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
 
     var srcAddr = packet.srcAddr
     var dstAddr = packet.dstAddr
-    lateinit var report: RtpReportPayload
+
+    var report: RtpReportPayload = RtpReportPayload().apply {
+        createdAt = System.currentTimeMillis()
+    }
 
     val source: Byte
         get() = report.source
@@ -44,87 +49,47 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
     val rFactor: Double?
         get() = report.rFactor.takeIf { it != 0F }?.toDouble()
 
-    var lastMos: Double? = null
-    var lastRFactor: Double? = null
-
     var reportCount = 0
     var badReportCount = 0
 
     fun add(payload: RtpReportPayload) {
-        if (reportCount == 0) {
-            report = payload
-            createdAt = payload.createdAt
-            terminatedAt = payload.createdAt + payload.duration
-            report.codecName?.let { codecNames.add(it) }
-        } else {
-            mergeReport(payload)
-        }
+        codecNames.add(payload.codecName ?: "UNDEFINED(${payload.payloadType})")
+
+        report.mergeIn(payload)
+
+        createdAt = report.createdAt
+        terminatedAt = report.createdAt + report.duration
 
         reportCount++
         rFactorThreshold?.let { if (report.rFactor in 0F..rFactorThreshold) badReportCount++ }
-
-        lastMos = payload.mos.toDouble()
-        lastRFactor = payload.rFactor.toDouble()
     }
 
-    fun merge(other: RtprStream) {
-        mergeReport(other.report, other.reportCount)
+    private fun RtpReportPayload.mergeIn(other: RtpReportPayload) {
+        if (source.toInt() == -1) source = other.source
+        if (ssrc == 0L) ssrc = other.ssrc
+        if (callId == null) callId = other.callId
+        if (codecName == null) codecName = other.codecName
 
-        reportCount += other.reportCount
-        badReportCount += other.badReportCount
-    }
+        expectedPacketCount += other.expectedPacketCount
+        receivedPacketCount += other.receivedPacketCount
+        rejectedPacketCount += other.rejectedPacketCount
+        lostPacketCount += other.lostPacketCount
+        markerPacketCount += other.markerPacketCount
 
-    private fun mergeReport(payload: RtpReportPayload, reportCountIncrement: Int = 1) {
-        report.apply {
-            if (codecName == null) {
-                payload.codecName?.let { codecName = it }
-            }
+        duration += other.duration
 
-            codecNames.add(payload.codecName ?: "UNDEFINED($payloadType)")
+        if (reportedAt < other.reportedAt) lastJitter = other.lastJitter
+        avgJitter = (avgJitter * reportCount + other.avgJitter) / (reportCount + 1)
+        minJitter = min(minJitter, lastJitter)
+        maxJitter = max(maxJitter, lastJitter)
 
-            if (callId == null) {
-                payload.callId?.let { callId = it }
-            }
-
-            expectedPacketCount += payload.expectedPacketCount
-            receivedPacketCount += payload.receivedPacketCount
-            rejectedPacketCount += payload.rejectedPacketCount
-            lostPacketCount += payload.lostPacketCount
-
-            duration += payload.duration
-            fractionLost = lostPacketCount.toFloat() / expectedPacketCount
-
-            lastJitter = payload.lastJitter
-            avgJitter = (avgJitter * reportCount + payload.avgJitter * reportCountIncrement) /
-                    (reportCount + reportCountIncrement)
-
-            if (maxJitter < lastJitter) {
-                maxJitter = lastJitter
-            }
-            if (minJitter > lastJitter) {
-                minJitter = lastJitter
-            }
-
-            if (payload.rFactor > 0.0F) {
-                if (rFactor > 0.0F) {
-                    rFactor = (rFactor * reportCount + payload.rFactor * reportCountIncrement) /
-                            (reportCount + reportCountIncrement)
-                } else {
-                    rFactor = payload.rFactor
-                }
-
-                // MoS
-                mos = MediaUtil.computeMos(rFactor)
-            }
+        if (rFactor > 0.0F || other.rFactor > 0.0F) {
+            rFactor = (rFactor * reportCount + other.rFactor) / (reportCount + 1)
+            mos = MediaUtil.computeMos(rFactor)
         }
+        fractionLost = lostPacketCount.toFloat() / expectedPacketCount
 
-        if (createdAt > payload.createdAt) {
-            createdAt = payload.createdAt
-            report.createdAt = payload.createdAt
-        }
-
-        if (payload.createdAt + payload.duration > terminatedAt) {
-            terminatedAt = payload.createdAt + payload.duration
-        }
+        createdAt = min(createdAt, other.createdAt)
+        reportedAt = max(reportedAt, other.reportedAt)
     }
 }

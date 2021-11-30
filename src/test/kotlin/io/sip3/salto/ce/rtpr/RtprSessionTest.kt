@@ -216,9 +216,6 @@ class RtprSessionTest {
         assertEquals(RTPR_1.mos.toDouble(), session.forward!!.mos)
         assertEquals(RTPR_1.rFactor.toDouble(), session.forward!!.rFactor)
 
-        assertEquals(RTPR_1.mos.toDouble(), session.lastMos)
-        assertEquals(RTPR_1.rFactor.toDouble(), session.lastRFactor)
-
         session.add(PACKET_2, RTPR_2)
         assertEquals(2, session.reportCount)
         assertEquals(RTPR_2, session.reverse!!.report)
@@ -229,9 +226,6 @@ class RtprSessionTest {
         assertTrue(session.codecs.contains(RTPR_2.codecName))
         assertEquals(RTPR_2.mos.toDouble(), session.reverse!!.mos)
         assertEquals(RTPR_2.rFactor.toDouble(), session.reverse!!.rFactor)
-
-        assertEquals(RTPR_2.mos.toDouble(), session.lastMos)
-        assertEquals(RTPR_2.rFactor.toDouble(), session.lastRFactor)
     }
 
     @Test
