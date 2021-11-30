@@ -31,6 +31,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.util.MediaUtil
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.get
 import org.junit.jupiter.api.AfterEach
@@ -78,7 +79,7 @@ class RtprSessionHandlerTest : VertxTest() {
 
             rFactor = 12F
             mos = 13F
-            fractionLost = 14F
+            fractionLost = 5 / 3F
 
             reportedAt = 1579511172674
             createdAt = 1579522272674
@@ -113,7 +114,7 @@ class RtprSessionHandlerTest : VertxTest() {
 
             rFactor = 13F
             mos = 14F
-            fractionLost = 15F
+            fractionLost = 6 / 4F
 
             reportedAt = 1579511272674
             createdAt = 1579522372674
@@ -201,7 +202,7 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals(0, document.getInteger("bad_report_fraction"))
 
                         assertEquals(12.0, document.getJsonArray("r_factor").first())
-                        assertEquals(13.0, document.getJsonArray("mos").first())
+                        assertEquals(MediaUtil.computeMos(12.0F), (document.getJsonArray("mos").first() as Double).toFloat())
 
 
                         assertEquals(false, document.getBoolean("one_way"))
@@ -222,7 +223,7 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertJitter(RTPR_1, document.getJsonObject("jitter"), 0)
 
                         assertEquals(RTPR_1.rFactor, (document.getJsonArray("r_factor").first() as Double).toFloat())
-                        assertEquals(RTPR_1.mos, (document.getJsonArray("mos").first() as Double).toFloat())
+                        assertEquals(MediaUtil.computeMos(RTPR_1.rFactor), (document.getJsonArray("mos").first() as Double).toFloat())
                         assertEquals(RTPR_1.fractionLost, (document.getJsonArray("fraction_lost").first() as Double).toFloat())
 
                         assertEquals("in", document.getJsonArray("direction").last())
@@ -233,7 +234,7 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertJitter(RTPR_2, document.getJsonObject("jitter"), 1)
 
                         assertEquals(RTPR_2.rFactor, (document.getJsonArray("r_factor").last() as Double).toFloat())
-                        assertEquals(RTPR_2.mos, (document.getJsonArray("mos").last() as Double).toFloat())
+                        assertEquals(MediaUtil.computeMos(RTPR_2.rFactor), (document.getJsonArray("mos").last() as Double).toFloat())
                         assertEquals(RTPR_2.fractionLost, (document.getJsonArray("fraction_lost").last() as Double).toFloat())
 
                     }
@@ -308,7 +309,7 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals("", attributes["src_addr"])
                         assertEquals("SomeHost", attributes["src_host"])
                         assertEquals("", attributes["dst_addr"])
-                        assertEquals(13.0, attributes["mos"])
+                        assertEquals(MediaUtil.computeMos(12.0F), (attributes["mos"] as Double).toFloat())
                         assertEquals(12.0, attributes["r_factor"])
                         assertEquals(0.0, attributes["bad_report_fraction"])
                         assertEquals(false, attributes["one_way"])

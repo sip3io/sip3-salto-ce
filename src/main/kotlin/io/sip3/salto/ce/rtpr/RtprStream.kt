@@ -65,10 +65,11 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
     }
 
     private fun RtpReportPayload.mergeIn(other: RtpReportPayload) {
-        if (source.toInt() == -1) source = other.source
+        if (source < 0) source = other.source
         if (ssrc == 0L) ssrc = other.ssrc
         if (callId == null) callId = other.callId
         if (codecName == null) codecName = other.codecName
+        if (payloadType < 0) payloadType = other.payloadType
 
         expectedPacketCount += other.expectedPacketCount
         receivedPacketCount += other.receivedPacketCount
@@ -80,8 +81,8 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
 
         if (reportedAt < other.reportedAt) lastJitter = other.lastJitter
         avgJitter = (avgJitter * reportCount + other.avgJitter) / (reportCount + 1)
-        minJitter = min(minJitter, lastJitter)
-        maxJitter = max(maxJitter, lastJitter)
+        minJitter = min(minJitter, other.minJitter)
+        maxJitter = max(maxJitter, other.maxJitter)
 
         if (rFactor > 0.0F || other.rFactor > 0.0F) {
             rFactor = (rFactor * reportCount + other.rFactor) / (reportCount + 1)
