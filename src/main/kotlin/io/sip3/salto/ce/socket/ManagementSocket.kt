@@ -20,7 +20,6 @@ import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
-import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.host.HostRegistry
 import io.vertx.core.AbstractVerticle
@@ -49,8 +48,6 @@ open class ManagementSocket : AbstractVerticle() {
         const val TYPE_MEDIA_RECORDING_RESET = "media_recording_reset"
     }
 
-    private var client: io.vertx.ext.mongo.MongoClient? = null
-
     private lateinit var hostRegistry: HostRegistry
 
     private lateinit var uri: URI
@@ -64,10 +61,6 @@ open class ManagementSocket : AbstractVerticle() {
     private var mediaEnabledHostsCounter: Int = 0
 
     override fun start() {
-        config().getJsonObject("mongo")?.let { config ->
-            client = MongoClient.createShared(vertx, config)
-        }
-
         hostRegistry = HostRegistry.getInstance(vertx, config())
 
         config().getJsonObject("management").let { config ->

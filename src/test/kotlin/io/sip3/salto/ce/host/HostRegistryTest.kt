@@ -99,8 +99,10 @@ class HostRegistryTest : VertxTest() {
 
                 hostRegistry = HostRegistry.getInstance(vertx, JsonObject().apply {
                     put("mongo", JsonObject().apply {
-                        put("uri", MongoExtension.MONGO_URI)
-                        put("db", "sip3")
+                        put("management", JsonObject().apply {
+                            put("uri", MongoExtension.MONGO_URI)
+                            put("db", "sip3")
+                        })
                     })
                     put("hosts", JsonObject().apply {
                         put("check-period", 500L)
