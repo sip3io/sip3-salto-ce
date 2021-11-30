@@ -56,7 +56,7 @@ object HostRegistry {
             checkPeriod = it
         }
         config.getJsonObject("mongo")?.let {
-            client = MongoClient.createShared(vertx!!, it)
+            client = MongoClient.createShared(vertx!!, it.getJsonObject("management") ?: it)
         }
 
         if (client != null) {

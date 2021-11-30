@@ -93,6 +93,9 @@ server:
 #  db: sip3
 #  bulk-size: 1
 #  update-period: 300000
+#  management:
+#    uri: mongodb://127.0.0.1:27017
+#    db: sip3
 #  collections:
 #    - prefix: attributes
 #      indexes:
