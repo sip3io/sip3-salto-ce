@@ -20,7 +20,6 @@ import io.netty.buffer.Unpooled
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
-import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.localSend
@@ -32,7 +31,6 @@ import io.sip3.salto.ce.util.DurationUtil
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
@@ -59,6 +57,7 @@ open class RtprHandler : AbstractVerticle() {
         const val EXPECTED_PACKETS = "_expected-packets"
         const val LOST_PACKETS = "_lost-packets"
         const val REJECTED_PACKETS = "_rejected-packets"
+        const val MARKER_PACKETS = "_marker-packets"
 
         const val DURATION = "_duration"
 
@@ -222,7 +221,8 @@ open class RtprHandler : AbstractVerticle() {
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_update", session)
             }
         }
-        writeToDatabase("${prefix}_raw", packet, report)
+
+        vertx.eventBus().localSend(RoutesCE.rtpr + "_bulk_writer", Pair(packet, report))
 
         if (!cumulativeMetrics) {
             calculateMetrics(prefix, packet.srcAddr, packet.dstAddr, report)
@@ -298,6 +298,9 @@ open class RtprHandler : AbstractVerticle() {
             Metrics.summary(prefix + EXPECTED_PACKETS, attributes).record(expectedPacketCount.toDouble())
             Metrics.summary(prefix + LOST_PACKETS, attributes).record(lostPacketCount.toDouble())
             Metrics.summary(prefix + REJECTED_PACKETS, attributes).record(rejectedPacketCount.toDouble())
+            if (report.source == RtpReportPayload.SOURCE_RTP) {
+                Metrics.summary(prefix + MARKER_PACKETS, attributes).record(markerPacketCount.toDouble())
+            }
 
             if (callId != null && codecName != null) {
                 Metrics.timer(prefix + DURATION, attributes).record(duration.toLong(), TimeUnit.MILLISECONDS)
@@ -314,52 +317,5 @@ open class RtprHandler : AbstractVerticle() {
                 Metrics.counter(prefix + UNDEFINED, attributes).increment()
             }
         }
-    }
-
-    open fun writeToDatabase(prefix: String, packet: Packet, report: RtpReportPayload) {
-        val collection = prefix + "_" + timeSuffix.format(report.createdAt)
-
-        val operation = JsonObject().apply {
-            put("document", JsonObject().apply {
-                put("reported_at", report.reportedAt)
-                put("created_at", report.createdAt)
-
-                val src = packet.srcAddr
-                put("src_addr", src.addr)
-                put("src_port", src.port)
-                src.host?.let { put("src_host", it) }
-
-                val dst = packet.dstAddr
-                put("dst_addr", dst.addr)
-                put("dst_port", dst.port)
-                dst.host?.let { put("dst_host", it) }
-
-                put("payload_type", report.payloadType.toInt())
-                put("ssrc", report.ssrc)
-                report.callId?.let { put("call_id", it) }
-                put("codec", report.codecName ?: "UNDEFINED(${report.payloadType})")
-                put("duration", report.duration)
-
-                put("packets", JsonObject().apply {
-                    put("expected", report.expectedPacketCount)
-                    put("received", report.receivedPacketCount)
-                    put("lost", report.lostPacketCount)
-                    put("rejected", report.rejectedPacketCount)
-                })
-
-                put("jitter", JsonObject().apply {
-                    put("last", report.lastJitter.toDouble())
-                    put("avg", report.avgJitter.toDouble())
-                    put("min", report.minJitter.toDouble())
-                    put("max", report.maxJitter.toDouble())
-                })
-
-                put("r_factor", report.rFactor.toDouble())
-                put("mos", report.mos.toDouble())
-                put("fraction_lost", report.fractionLost.toDouble())
-            })
-        }
-
-        vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 }

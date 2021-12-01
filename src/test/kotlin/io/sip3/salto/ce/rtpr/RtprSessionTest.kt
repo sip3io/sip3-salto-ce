@@ -19,6 +19,7 @@ package io.sip3.salto.ce.rtpr
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.salto.ce.domain.Packet
+import io.sip3.salto.ce.util.MediaUtil
 import io.sip3.salto.ce.util.rtcpAddress
 import io.sip3.salto.ce.util.rtpAddress
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -83,7 +84,7 @@ class RtprSessionTest {
 
             rFactor = 12F
             mos = 13F
-            fractionLost = 14F
+            fractionLost = lostPacketCount / expectedPacketCount.toFloat()
 
             reportedAt = 1579544472674
             createdAt = 1579522272674
@@ -111,7 +112,7 @@ class RtprSessionTest {
 
             rFactor = 13F
             mos = 14F
-            fractionLost = 15F
+            fractionLost = lostPacketCount / expectedPacketCount.toFloat()
 
             reportedAt = 1579555572674
             createdAt = 1579533372674
@@ -207,31 +208,23 @@ class RtprSessionTest {
         session.add(PACKET_1, RTPR_1)
 
         assertEquals(1, session.reportCount)
-        assertEquals(RTPR_1, session.forward!!.report)
+        assertReport(RtprStreamTest.RTPR_1, session.forward!!.report)
 
         assertEquals(RTPR_1.createdAt, session.createdAt)
         assertEquals(RTPR_1.createdAt + RTPR_1.duration, session.terminatedAt)
 
         assertTrue(session.codecs.contains(RTPR_1.codecName))
-        assertEquals(RTPR_1.mos.toDouble(), session.forward!!.mos)
-        assertEquals(RTPR_1.rFactor.toDouble(), session.forward!!.rFactor)
-
-        assertEquals(RTPR_1.mos.toDouble(), session.lastMos)
-        assertEquals(RTPR_1.rFactor.toDouble(), session.lastRFactor)
 
         session.add(PACKET_2, RTPR_2)
         assertEquals(2, session.reportCount)
-        assertEquals(RTPR_2, session.reverse!!.report)
+        assertReport(RTPR_2, session.reverse!!.report)
 
         assertEquals(RTPR_1.createdAt, session.createdAt)
         assertEquals(RTPR_2.createdAt + RTPR_2.duration, session.terminatedAt)
 
         assertTrue(session.codecs.contains(RTPR_2.codecName))
-        assertEquals(RTPR_2.mos.toDouble(), session.reverse!!.mos)
-        assertEquals(RTPR_2.rFactor.toDouble(), session.reverse!!.rFactor)
-
-        assertEquals(RTPR_2.mos.toDouble(), session.lastMos)
-        assertEquals(RTPR_2.rFactor.toDouble(), session.lastRFactor)
+        assertEquals(MediaUtil.computeMos(RTPR_2.rFactor), session.reverse!!.mos!!.toFloat())
+        assertEquals(RTPR_2.rFactor, session.reverse!!.rFactor!!.toFloat())
     }
 
     @Test
@@ -244,13 +237,40 @@ class RtprSessionTest {
         session.add(PACKET_1_RTCP, RTPR_1_RTCP)
 
         assertEquals(1, session.reportCount)
-        assertEquals(RTPR_1_RTCP, session.forward!!.report)
+        assertReport(RtprStreamTest.RTPR_1_RTCP, session.forward!!.report)
 
         assertEquals(RTPR_1_RTCP.createdAt, session.createdAt)
         assertEquals(RTPR_1_RTCP.createdAt + RTPR_1_RTCP.duration, session.terminatedAt)
 
         assertTrue(session.codecs.contains(RTPR_1_RTCP.codecName))
-        assertEquals(RTPR_1_RTCP.mos.toDouble(), session.forward!!.mos)
-        assertEquals(RTPR_1_RTCP.rFactor.toDouble(), session.forward!!.rFactor)
+        assertEquals(RTPR_1_RTCP.rFactor, session.forward!!.rFactor!!.toFloat())
+    }
+
+    private fun assertReport(origin: RtpReportPayload, report: RtpReportPayload) {
+        report.apply {
+            assertEquals(origin.source, source)
+
+            assertEquals(origin.reportedAt, reportedAt)
+            assertEquals(origin.createdAt, createdAt)
+            assertEquals(origin.duration, duration)
+
+            assertEquals(origin.codecName, codecName)
+            assertEquals(origin.callId, callId)
+            assertEquals(origin.ssrc, ssrc)
+
+            assertEquals(origin.expectedPacketCount, expectedPacketCount)
+            assertEquals(origin.lostPacketCount, lostPacketCount)
+            assertEquals(origin.receivedPacketCount, receivedPacketCount)
+            assertEquals(origin.rejectedPacketCount, rejectedPacketCount)
+            assertEquals(origin.markerPacketCount, markerPacketCount)
+            assertEquals(origin.fractionLost, fractionLost)
+
+            assertEquals(origin.minJitter, minJitter)
+            assertEquals(origin.maxJitter, maxJitter)
+            assertEquals(origin.avgJitter, avgJitter)
+            assertEquals(origin.lastJitter, lastJitter)
+            assertEquals(origin.rFactor, rFactor)
+            assertEquals(MediaUtil.computeMos(origin.rFactor), mos)
+        }
     }
 }

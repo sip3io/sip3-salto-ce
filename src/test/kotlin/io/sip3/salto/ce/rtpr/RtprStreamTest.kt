@@ -83,7 +83,7 @@ class RtprStreamTest {
 
             rFactor = 12F
             mos = 13F
-            fractionLost = 14F
+            fractionLost = lostPacketCount / expectedPacketCount.toFloat()
 
             reportedAt = 1579544472674
             createdAt = 1579522272674
@@ -111,7 +111,7 @@ class RtprStreamTest {
 
             rFactor = 13F
             mos = 14F
-            fractionLost = 15F
+            fractionLost = lostPacketCount / expectedPacketCount.toFloat()
 
             reportedAt = 1579555572674
             createdAt = 1579533372674
@@ -139,7 +139,7 @@ class RtprStreamTest {
 
             rFactor = 12F
             mos = 13F
-            fractionLost = 14F
+            fractionLost = lostPacketCount / expectedPacketCount.toFloat()
 
             reportedAt = 1579511172674
             createdAt = 1579522272674
@@ -179,34 +179,6 @@ class RtprStreamTest {
 
         assertTrue(stream.codecNames.contains(RTPR_1.codecName))
         assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
-
-        assertEquals(RTPR_2.mos.toDouble(), stream.lastMos)
-        assertEquals(RTPR_2.rFactor.toDouble(), stream.lastRFactor)
-    }
-
-    @Test
-    fun `Validate RtprStream 'merge()' method from RTP`() {
-        val stream = RtprStream(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            RtpReportPayload().apply {
-                decode(RTPR_1.encode())
-            }.let { add(it) }
-        }
-
-        val stream2 = RtprStream(PACKET_1).apply {
-            mediaControl = MEDIA_CONTROL
-            add(RTPR_2)
-        }
-
-        stream.merge(stream2)
-
-        assertEquals(2, stream.reportCount)
-
-        assertEquals(RTPR_1.createdAt, stream.createdAt)
-        assertEquals(RTPR_2.createdAt + RTPR_2.duration, stream.terminatedAt)
-
-        assertTrue(stream.codecNames.contains(RTPR_1.codecName))
-        assertEquals((RTPR_1.rFactor + RTPR_2.rFactor) / 2.toDouble(), stream.rFactor)
     }
 
     @Test
@@ -228,13 +200,35 @@ class RtprStreamTest {
         }
 
         assertEquals(1, stream.reportCount)
-        assertEquals(RTPR_1_RTCP, stream.report)
+        stream.report.apply {
+            assertEquals(RTPR_1_RTCP.source, source)
+
+            assertEquals(RTPR_1_RTCP.reportedAt, reportedAt)
+            assertEquals(RTPR_1_RTCP.createdAt, createdAt)
+            assertEquals(RTPR_1_RTCP.duration, duration)
+
+            assertEquals(RTPR_1_RTCP.codecName, codecName)
+            assertEquals(RTPR_1_RTCP.callId, callId)
+            assertEquals(RTPR_1_RTCP.ssrc, ssrc)
+
+            assertEquals(RTPR_1_RTCP.expectedPacketCount, expectedPacketCount)
+            assertEquals(RTPR_1_RTCP.lostPacketCount, lostPacketCount)
+            assertEquals(RTPR_1_RTCP.receivedPacketCount, receivedPacketCount)
+            assertEquals(RTPR_1_RTCP.rejectedPacketCount, rejectedPacketCount)
+            assertEquals(RTPR_1_RTCP.markerPacketCount, markerPacketCount)
+            assertEquals(RTPR_1_RTCP.fractionLost, fractionLost)
+
+            assertEquals(RTPR_1_RTCP.minJitter, minJitter)
+            assertEquals(RTPR_1_RTCP.maxJitter, maxJitter)
+            assertEquals(RTPR_1_RTCP.avgJitter, avgJitter)
+            assertEquals(RTPR_1_RTCP.lastJitter, lastJitter)
+            assertEquals(RTPR_1_RTCP.rFactor, rFactor)
+        }
 
         assertEquals(RTPR_1_RTCP.createdAt, stream.createdAt)
+        assertEquals(RTPR_1_RTCP.reportedAt, stream.report.reportedAt)
         assertEquals(RTPR_1_RTCP.createdAt + RTPR_1_RTCP.duration, stream.terminatedAt)
 
         assertTrue(stream.codecNames.contains(RTPR_1_RTCP.codecName))
-        assertEquals(RTPR_1_RTCP.mos.toDouble(), stream.mos)
-        assertEquals(RTPR_1_RTCP.rFactor.toDouble(), stream.rFactor)
     }
 }
