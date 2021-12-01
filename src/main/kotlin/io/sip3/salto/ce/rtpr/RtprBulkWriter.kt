@@ -91,7 +91,7 @@ class RtprBulkWriter : AbstractVerticle() {
                 val (packet, report) = event.body()
                 route(packet, report)
             } catch (e: Exception) {
-                logger.error(e) { "RtprBulkWriter 'handleRaw()' failed." }
+                logger.error(e) { "RtprBulkWriter 'route()' failed." }
             }
         }
 
