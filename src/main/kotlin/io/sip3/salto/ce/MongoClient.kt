@@ -24,9 +24,12 @@ object MongoClient {
 
     fun createShared(vertx: Vertx, config: JsonObject): MongoClient {
         // Let's do properties remapping because Vert.x MongoDB client options are such a disaster in terms of grouping and naming conventions.
+        val uri = config.getString("uri") ?: throw IllegalArgumentException("uri")
+        val db = config.getString("db") ?: throw IllegalArgumentException("db")
+
         return MongoClient.createShared(vertx, JsonObject().apply {
-            put("connection_string", config.getString("uri")) ?: throw IllegalArgumentException("uri")
-            put("db_name", config.getString("db")) ?: throw IllegalArgumentException("db")
+            put("connection_string", uri)
+            put("db_name", db)
 
             config.getJsonObject("auth")?.let { auth ->
                 auth.getString("user")?.let {
@@ -54,6 +57,6 @@ object MongoClient {
                     put("trustAll", it)
                 }
             }
-        })
+        }, "$uri:$db")
     }
 }
