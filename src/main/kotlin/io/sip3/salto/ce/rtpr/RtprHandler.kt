@@ -262,6 +262,16 @@ open class RtprHandler : AbstractVerticle() {
 
             // MoS
             report.mos = computeMos(report.rFactor)
+
+            // Convert jitter to ms for RTCP
+            if (isRtcp) {
+                report.apply {
+                    lastJitter = lastJitter / codec.clockRate * 1000F
+                    avgJitter = avgJitter / codec.clockRate * 1000F
+                    minJitter = minJitter / codec.clockRate * 1000F
+                    maxJitter = maxJitter / codec.clockRate * 1000F
+                }
+            }
         }
     }
 
