@@ -42,6 +42,8 @@ class RtprHandlerTest : VertxTest() {
 
     companion object {
 
+        val NOW = System.currentTimeMillis()
+
         val SRC_ADDR = Address().apply {
             addr = "10.10.10.10"
             port = 10500
@@ -87,8 +89,8 @@ class RtprHandlerTest : VertxTest() {
             mos = 13F
             fractionLost = lostPacketCount / expectedPacketCount.toFloat()
 
-            reportedAt = 1579511172674
-            createdAt = 1579522272674
+            reportedAt = NOW
+            createdAt = NOW - 10000L
         }
 
         // Periodic RTP report without Call-ID
@@ -113,14 +115,14 @@ class RtprHandlerTest : VertxTest() {
             rFactor = 45F
             fractionLost = lostPacketCount / expectedPacketCount.toFloat()
 
-            reportedAt = 1579511172674
-            createdAt = 1579522272674
+            reportedAt = NOW
+            createdAt = NOW - 10000L
         }
 
 
         // Packet with periodic RTP report with RTP source
         val PACKET_1 = Packet().apply {
-            createdAt = System.currentTimeMillis()
+            createdAt = NOW
             srcAddr = SRC_ADDR
             dstAddr = DST_ADDR
             payload = RTPR_1.encode().getBytes()
@@ -128,7 +130,7 @@ class RtprHandlerTest : VertxTest() {
 
         // Packet with periodic RTP report without Call-ID
         val PACKET_2 = Packet().apply {
-            createdAt = System.currentTimeMillis()
+            createdAt = NOW
             srcAddr = DST_ADDR_RTCP
             dstAddr = SRC_ADDR_RTCP
             payload = RTPR_2.encode().getBytes()
@@ -136,7 +138,7 @@ class RtprHandlerTest : VertxTest() {
 
         // Media Control
         val MEDIA_CONTROL = MediaControl().apply {
-            timestamp = System.currentTimeMillis()
+            timestamp = NOW
 
             callId = "callId_uuid@domain.io"
 
