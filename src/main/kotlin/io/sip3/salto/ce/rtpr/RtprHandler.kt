@@ -31,6 +31,7 @@ import io.sip3.salto.ce.util.DurationUtil
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
 import io.vertx.core.AbstractVerticle
+import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
@@ -40,6 +41,7 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.CoroutineContext
+import kotlin.math.abs
 
 /**
  * Handles RTP reports
@@ -50,6 +52,9 @@ open class RtprHandler : AbstractVerticle() {
     private val logger = KotlinLogging.logger {}
 
     companion object {
+
+        val EXPECTED_PACKET_RANGE = 1..4096
+        const val MAX_TIMESTAMP_DRIFT = 600000L
 
         const val JITTER = "_jitter"
         const val R_FACTOR = "_r-factor"
@@ -192,6 +197,11 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun handle(packet: Packet, report: RtpReportPayload) {
+        if (!validate(packet, report)) {
+            logger.debug { "Handle invalid RTP Report. Report: ${JsonObject.mapFrom(report)}" }
+            return
+        }
+
         val source = report.source
         val (prefix, sessions) = when (source) {
             RtpReportPayload.SOURCE_RTP -> Pair("rtpr_rtp", rtp)
@@ -227,6 +237,11 @@ open class RtprHandler : AbstractVerticle() {
         if (!cumulativeMetrics) {
             calculateMetrics(prefix, packet.srcAddr, packet.dstAddr, report)
         }
+    }
+
+    private fun validate(packet: Packet, report: RtpReportPayload): Boolean {
+        return (report.expectedPacketCount in EXPECTED_PACKET_RANGE)
+                && abs(report.createdAt - packet.createdAt) < MAX_TIMESTAMP_DRIFT
     }
 
     open fun updateWithMediaControl(report: RtpReportPayload, mediaControl: MediaControl) {
