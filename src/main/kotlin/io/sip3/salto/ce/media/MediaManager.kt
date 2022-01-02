@@ -100,8 +100,8 @@ open class MediaManager : AbstractVerticle() {
             timestamp = transaction.createdAt
 
             callId = transaction.callId
-            caller = transaction.caller
-            callee = transaction.callee
+            caller = (transaction.attributes["caller"] as? String) ?: transaction.caller
+            callee = (transaction.attributes["callee"] as? String) ?: transaction.callee
 
             this.sdpSession = sdpSession
 

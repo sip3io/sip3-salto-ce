@@ -202,6 +202,45 @@ class MediaManagerTest : VertxTest() {
     }
 
     @Test
+    fun `Validate MediaControl publish with 'caller' in attributes`() {
+        val transaction = SipTransaction().apply {
+            addPacket(PACKET_REQUEST_1)
+            addPacket(PACKET_RESPONSE_1)
+            attributes["caller"] = "replaced"
+        }
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(MediaManager::class)
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.media + "_sdp", transaction)
+            },
+            assert = {
+                vertx.eventBus().localConsumer<SipTransaction>(RoutesCE.sdp + "_session") { event ->
+                    event.localReply(SDP_SESSION)
+                }
+
+                vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
+                    val mediaControl = event.body()
+                    context.verify {
+                        assertEquals(transaction.createdAt, mediaControl.timestamp)
+                        assertEquals(transaction.callId, mediaControl.callId)
+                        assertEquals(SDP_SESSION, mediaControl.sdpSession)
+
+                        assertEquals("replaced", mediaControl.caller)
+                        assertEquals(transaction.callee, mediaControl.callee)
+
+                        assertNull(mediaControl.recording)
+                    }
+
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
     fun `Validate MediaControl publish with recording`() {
         val transaction = SipTransaction().apply {
             addPacket(PACKET_REQUEST_1)
