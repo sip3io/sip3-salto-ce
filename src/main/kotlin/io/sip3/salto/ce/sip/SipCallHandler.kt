@@ -523,6 +523,7 @@ open class SipCallHandler : AbstractVerticle() {
                     put("transactions", session.transactions)
                     put("retransmits", session.retransmits)
 
+                    session.attributes[Attributes.debug]?.let { put("debug", it) }
                     excludeSessionAttributes(session.attributes).forEach { (name, value) -> put(name, value) }
                 }
             })
