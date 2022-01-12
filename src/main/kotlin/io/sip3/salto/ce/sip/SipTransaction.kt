@@ -20,6 +20,7 @@ import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.message.SIPResponse
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.domain.AttributeValue
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.*
 
@@ -68,7 +69,7 @@ class SipTransaction {
     var request: SIPRequest? = null
     var response: SIPResponse? = null
 
-    var attributes = mutableMapOf<String, Any>()
+    var attributes = mutableMapOf<String, AttributeValue>()
 
     val legId: String by lazy {
         srcAddr.compositeKey(dstAddr)

@@ -26,6 +26,7 @@ import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
+import io.sip3.salto.ce.domain.AttributeValue
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.cseqMethod
 import io.sip3.salto.ce.util.hasSdp
@@ -66,7 +67,6 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var responseTimeout: Long = 3000
     private var aggregationTimeout: Long = 60000
     private var terminationTimeout: Long = 4500
-    private var excludedAttributes = emptyList<String>()
     private var saveSipMessagePayloadMode = 0
 
     private var recordIpAddressesAttributes = false
@@ -93,9 +93,6 @@ open class SipTransactionHandler : AbstractVerticle() {
             }
             config.getLong("termination-timeout")?.let {
                 terminationTimeout = it
-            }
-            config.getJsonArray("excluded-attributes")?.let {
-                excludedAttributes = it.map(Any::toString)
             }
             config.getInteger("save-sip-message-payload-mode")?.let {
                 saveSipMessagePayloadMode = it
@@ -184,28 +181,33 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     private fun calculateTransactionMetrics(prefix: String, transaction: SipTransaction) {
         transaction.terminatedAt?.let { terminatedAt ->
-            val attributes = excludeTransactionAttributes(transaction.attributes).apply {
-                transaction.srcAddr.host?.let { put(Attributes.src_host, it) }
-                transaction.dstAddr.host?.let { put(Attributes.dst_host, it) }
-            }
+            val attributes = excludeTransactionAttributes(transaction.attributes)
+                .filterValues { v -> v.mode.metrics }
+                .mapValues { (_, v) -> v.value }
+                .toMutableMap()
+                .apply {
+                    transaction.srcAddr.host?.let { put(Attributes.src_host, it) }
+                    transaction.dstAddr.host?.let { put(Attributes.dst_host, it) }
+                }
 
             Metrics.timer(prefix + "_$RESPONSE_DELAY", attributes).record(terminatedAt - transaction.createdAt, TimeUnit.MILLISECONDS)
         }
     }
 
-    private fun excludeTransactionAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
+    private fun excludeTransactionAttributes(attributes: Map<String, AttributeValue>): MutableMap<String, AttributeValue> {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
             remove(Attributes.debug)
-            excludedAttributes.forEach { remove(it) }
         }
     }
 
     open fun writeAttributes(transaction: SipTransaction) {
         val attributes = transaction.attributes
+            .filterValues { v -> v.mode.db }
+            .mapValues { (_, v) -> if (!v.mode.options && v.value is String) "" else v.value }
             .toMutableMap()
             .apply {
                 put(Attributes.method, transaction.cseqMethod)
@@ -268,7 +270,9 @@ open class SipTransactionHandler : AbstractVerticle() {
 
                 put("retransmits", transaction.retransmits)
 
-                transaction.attributes.forEach { (name, value) -> put(name, value) }
+                transaction.attributes
+                    .filterValues { v -> v.mode.db }
+                    .forEach { (name, value) -> put(name, value) }
             })
         }
 

@@ -25,6 +25,7 @@ import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.domain.AttributeValue
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
@@ -70,7 +71,6 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var aggregationTimeout: Long = 10000
     private var updatePeriod: Long = 60000
     private var durationTimeout: Long = 900000
-    private var excludedAttributes = emptyList<String>()
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
@@ -96,9 +96,6 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
             config.getLong("duration-timeout")?.let {
                 durationTimeout = it
-            }
-            config.getJsonArray("excluded-attributes")?.let {
-                excludedAttributes = it.map(Any::toString)
             }
         }
         config().getJsonObject("attributes")?.let { config ->
@@ -167,10 +164,15 @@ open class SipRegisterHandler : AbstractVerticle() {
                 activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.incrementAndGet()
 
                 session.overlappedInterval?.let { interval ->
-                    val attributes = excludeRegistrationAttributes(registration.attributes).apply {
-                        registration.srcAddr.host?.let { put("src_host", it) }
-                        registration.dstAddr.host?.let { put("dst_host", it) }
-                    }
+                    val attributes = excludeRegistrationAttributes(registration.attributes)
+                        .filterValues { v -> v.mode.metrics }
+                        .mapValues { (_, v) -> v.value }
+                        .toMutableMap()
+                        .apply {
+                            registration.srcAddr.host?.let { put("src_host", it) }
+                            registration.dstAddr.host?.let { put("dst_host", it) }
+                        }
+
                     Metrics.timer(OVERLAPPED_INTERVAL, attributes).record(interval, TimeUnit.MILLISECONDS)
                     session.overlappedFraction?.let {
                         Metrics.summary(OVERLAPPED_FRACTION, attributes).record(it)
@@ -187,6 +189,9 @@ open class SipRegisterHandler : AbstractVerticle() {
         val createdAt = registration.createdAt
 
         val attributes = excludeRegistrationAttributes(registration.attributes)
+            .filterValues { v -> v.mode.metrics }
+            .mapValues { (_, v) -> v.value }
+            .toMutableMap()
             .apply {
                 registration.srcAddr.host?.let { put("src_host", it) }
                 registration.dstAddr.host?.let { put("dst_host", it) }
@@ -263,6 +268,8 @@ open class SipRegisterHandler : AbstractVerticle() {
 
     open fun writeAttributes(registration: SipRegistration) {
         val attributes = registration.attributes
+            .filterValues { v -> v.mode.db }
+            .mapValues { (_, v) -> if (!v.mode.options && v.value is String) "" else v.value }
             .toMutableMap()
             .apply {
                 put(Attributes.method, "REGISTER")
@@ -355,7 +362,9 @@ open class SipRegisterHandler : AbstractVerticle() {
                     put("transactions", registration.transactions)
                     put("retransmits", registration.retransmits)
 
-                    registration.attributes.forEach { (name, value) -> put(name, value) }
+                    registration.attributes
+                        .filterValues { v -> v.mode.db }
+                        .forEach { (name, value) -> put(name, value) }
                 }
 
                 if (registration is SipSession) {
@@ -388,14 +397,13 @@ open class SipRegisterHandler : AbstractVerticle() {
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
     }
 
-    private fun excludeRegistrationAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
+    private fun excludeRegistrationAttributes(attributes: Map<String, AttributeValue>): MutableMap<String, AttributeValue> {
         return attributes.toMutableMap().apply {
             remove(Attributes.caller)
             remove(Attributes.callee)
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
             remove(Attributes.debug)
-            excludedAttributes.forEach { remove(it) }
         }
     }
 
@@ -466,7 +474,7 @@ open class SipRegisterHandler : AbstractVerticle() {
 
         var expires: Long = 0L
 
-        var attributes = mutableMapOf<String, Any>()
+        var attributes = mutableMapOf<String, AttributeValue>()
 
         fun addRegisterTransaction(transaction: SipTransaction) {
             transactions++
