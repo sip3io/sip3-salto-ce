@@ -25,6 +25,8 @@ import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.util.toDatabaseAttributes
+import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
@@ -70,7 +72,6 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var aggregationTimeout: Long = 10000
     private var updatePeriod: Long = 60000
     private var durationTimeout: Long = 900000
-    private var excludedAttributes = emptyList<String>()
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
@@ -96,9 +97,6 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
             config.getLong("duration-timeout")?.let {
                 durationTimeout = it
-            }
-            config.getJsonArray("excluded-attributes")?.let {
-                excludedAttributes = it.map(Any::toString)
             }
         }
         config().getJsonObject("attributes")?.let { config ->
@@ -167,10 +165,12 @@ open class SipRegisterHandler : AbstractVerticle() {
                 activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.incrementAndGet()
 
                 session.overlappedInterval?.let { interval ->
-                    val attributes = excludeRegistrationAttributes(registration.attributes).apply {
-                        registration.srcAddr.host?.let { put("src_host", it) }
-                        registration.dstAddr.host?.let { put("dst_host", it) }
-                    }
+                    val attributes = excludeRegistrationAttributes(registration.attributes)
+                        .toMetricsAttributes()
+                        .apply {
+                            registration.srcAddr.host?.let { put("src_host", it) }
+                            registration.dstAddr.host?.let { put("dst_host", it) }
+                        }
                     Metrics.timer(OVERLAPPED_INTERVAL, attributes).record(interval, TimeUnit.MILLISECONDS)
                     session.overlappedFraction?.let {
                         Metrics.summary(OVERLAPPED_FRACTION, attributes).record(it)
@@ -187,6 +187,7 @@ open class SipRegisterHandler : AbstractVerticle() {
         val createdAt = registration.createdAt
 
         val attributes = excludeRegistrationAttributes(registration.attributes)
+            .toMetricsAttributes()
             .apply {
                 registration.srcAddr.host?.let { put("src_host", it) }
                 registration.dstAddr.host?.let { put("dst_host", it) }
@@ -263,7 +264,7 @@ open class SipRegisterHandler : AbstractVerticle() {
 
     open fun writeAttributes(registration: SipRegistration) {
         val attributes = registration.attributes
-            .toMutableMap()
+            .toDatabaseAttributes()
             .apply {
                 put(Attributes.method, "REGISTER")
                 put(Attributes.state, registration.state)
@@ -355,7 +356,9 @@ open class SipRegisterHandler : AbstractVerticle() {
                     put("transactions", registration.transactions)
                     put("retransmits", registration.retransmits)
 
-                    registration.attributes.forEach { (name, value) -> put(name, value) }
+                    registration.attributes
+                        .toDatabaseAttributes()
+                        .forEach { (name, value) -> put(name, value) }
                 }
 
                 if (registration is SipSession) {
@@ -395,7 +398,6 @@ open class SipRegisterHandler : AbstractVerticle() {
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
             remove(Attributes.debug)
-            excludedAttributes.forEach { remove(it) }
         }
     }
 

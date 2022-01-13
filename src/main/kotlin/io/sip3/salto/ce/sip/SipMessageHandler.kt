@@ -162,21 +162,23 @@ open class SipMessageHandler : AbstractVerticle() {
     }
 
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
-        val attributes = (packet.attributes?.toMutableMap() ?: mutableMapOf()).apply {
-            packet.srcAddr.host?.let { put(Attributes.src_host, it) }
-            packet.dstAddr.host?.let { put(Attributes.dst_host, it) }
-            message.statusCode()?.let {
-                put("status_type", "${it / 100}xx")
-                put("status_code", it)
+        val attributes = (packet.attributes?.toMutableMap() ?: mutableMapOf())
+            .toMetricsAttributes()
+            .apply {
+                packet.srcAddr.host?.let { put(Attributes.src_host, it) }
+                packet.dstAddr.host?.let { put(Attributes.dst_host, it) }
+                message.statusCode()?.let {
+                    put("status_type", "${it / 100}xx")
+                    put("status_code", it)
+                }
+                message.method()?.let { put("method", it) }
+                message.cseqMethod()?.let { put("cseq_method", it) }
+                remove(Attributes.caller)
+                remove(Attributes.callee)
+                remove(Attributes.x_call_id)
+                remove(Attributes.recording_mode)
+                remove(Attributes.debug)
             }
-            message.method()?.let { put("method", it) }
-            message.cseqMethod()?.let { put("cseq_method", it) }
-            remove(Attributes.caller)
-            remove(Attributes.callee)
-            remove(Attributes.x_call_id)
-            remove(Attributes.recording_mode)
-            remove(Attributes.debug)
-        }
 
         Metrics.counter(prefix + "_messages", attributes).increment()
     }

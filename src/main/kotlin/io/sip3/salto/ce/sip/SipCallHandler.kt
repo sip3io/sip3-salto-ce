@@ -27,6 +27,8 @@ import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.sip3.salto.ce.util.DurationUtil
+import io.sip3.salto.ce.util.toDatabaseAttributes
+import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
@@ -79,7 +81,6 @@ open class SipCallHandler : AbstractVerticle() {
     private var terminationTimeout: Long = 2000
     private var durationTimeout: Long = 3600000
     private var durationDistributions = TreeMap<Long, String>()
-    private var excludedAttributes = emptyList<String>()
     private var correlationRole: String? = null
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
@@ -109,9 +110,6 @@ open class SipCallHandler : AbstractVerticle() {
             }
             config.getJsonArray("duration-distributions")?.forEach {
                 durationDistributions[DurationUtil.parseDuration(it as String).toMillis()] = it
-            }
-            config.getJsonArray("excluded-attributes")?.let {
-                excludedAttributes = it.map(Any::toString)
             }
             config.getJsonObject("correlation")?.getString("role")?.let {
                 correlationRole = it
@@ -197,10 +195,12 @@ open class SipCallHandler : AbstractVerticle() {
     open fun calculateInviteTransactionMetrics(transaction: SipTransaction) {
         val createdAt = transaction.createdAt
 
-        val attributes = excludeSessionAttributes(transaction.attributes).apply {
-            transaction.srcAddr.host?.let { put("src_host", it) }
-            transaction.dstAddr.host?.let { put("dst_host", it) }
-        }
+        val attributes = excludeSessionAttributes(transaction.attributes)
+            .toMetricsAttributes()
+            .apply {
+                transaction.srcAddr.host?.let { put("src_host", it) }
+                transaction.dstAddr.host?.let { put("dst_host", it) }
+            }
 
         transaction.tryingAt?.let { tryingAt ->
             if (createdAt < tryingAt) {
@@ -245,10 +245,12 @@ open class SipCallHandler : AbstractVerticle() {
     open fun calculateByeTransactionMetrics(transaction: SipTransaction) {
         val createdAt = transaction.createdAt
 
-        val attributes = excludeSessionAttributes(transaction.attributes).apply {
-            transaction.srcAddr.host?.let { put("src_host", it) }
-            transaction.dstAddr.host?.let { put("dst_host", it) }
-        }
+        val attributes = excludeSessionAttributes(transaction.attributes)
+            .toMetricsAttributes()
+            .apply {
+                transaction.srcAddr.host?.let { put("src_host", it) }
+                transaction.dstAddr.host?.let { put("dst_host", it) }
+            }
 
         transaction.terminatedAt?.let { terminatedAt ->
             if (createdAt < terminatedAt) {
@@ -363,11 +365,14 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
-        val attributes = excludeSessionAttributes(session.attributes).apply {
-            put(Attributes.state, session.state)
-            session.srcAddr.host?.let { put("src_host", it) }
-            session.dstAddr.host?.let { put("dst_host", it) }
-        }
+        val attributes = excludeSessionAttributes(session.attributes)
+            .toMetricsAttributes()
+            .apply {
+                put(Attributes.state, session.state)
+                session.srcAddr.host?.let { put("src_host", it) }
+                session.dstAddr.host?.let { put("dst_host", it) }
+            }
+
         Metrics.counter(TRANSACTIONS, attributes).increment(session.transactions.toDouble())
         Metrics.counter(RETRANSMITS, attributes).increment(session.retransmits.toDouble())
 
@@ -389,7 +394,7 @@ open class SipCallHandler : AbstractVerticle() {
 
     open fun writeAttributes(session: SipSession) {
         val attributes = session.attributes
-            .toMutableMap()
+            .toDatabaseAttributes()
             .apply {
                 put(Attributes.method, "INVITE")
                 put(Attributes.state, session.state)
@@ -524,7 +529,9 @@ open class SipCallHandler : AbstractVerticle() {
                     put("retransmits", session.retransmits)
 
                     session.attributes[Attributes.debug]?.let { put("debug", it) }
-                    excludeSessionAttributes(session.attributes).forEach { (name, value) -> put(name, value) }
+                    excludeSessionAttributes(session.attributes)
+                        .toDatabaseAttributes()
+                        .forEach { (name, value) -> put(name, value) }
                 }
             })
         }
@@ -539,7 +546,6 @@ open class SipCallHandler : AbstractVerticle() {
             remove(Attributes.x_call_id)
             remove(Attributes.recording_mode)
             remove(Attributes.debug)
-            excludedAttributes.forEach { remove(it) }
         }
     }
 
