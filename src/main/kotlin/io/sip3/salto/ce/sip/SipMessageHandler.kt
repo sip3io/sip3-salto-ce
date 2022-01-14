@@ -162,7 +162,7 @@ open class SipMessageHandler : AbstractVerticle() {
     }
 
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
-        val attributes = (packet.attributes?.toMutableMap() ?: mutableMapOf())
+        val attributes = (packet.attributes ?: mutableMapOf())
             .toMetricsAttributes()
             .apply {
                 packet.srcAddr.host?.let { put(Attributes.src_host, it) }

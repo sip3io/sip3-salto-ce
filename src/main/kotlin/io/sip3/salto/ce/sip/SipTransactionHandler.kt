@@ -50,6 +50,14 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     companion object {
 
+        val EXCLUDED_ATTRIBUTES = listOf(
+            Attributes.caller,
+            Attributes.callee,
+            Attributes.x_call_id,
+            Attributes.recording_mode,
+            Attributes.debug
+        )
+
         val PREFIX = RoutesCE.sip + "_transaction"
 
         const val RESPONSE_DELAY = "response-delay"
@@ -178,24 +186,14 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     private fun calculateTransactionMetrics(prefix: String, transaction: SipTransaction) {
         transaction.terminatedAt?.let { terminatedAt ->
-            val attributes = excludeTransactionAttributes(transaction.attributes)
-                .toMetricsAttributes()
+            val attributes = transaction.attributes
+                .toMetricsAttributes(EXCLUDED_ATTRIBUTES)
                 .apply {
                     transaction.srcAddr.host?.let { put(Attributes.src_host, it) }
                     transaction.dstAddr.host?.let { put(Attributes.dst_host, it) }
                 }
 
             Metrics.timer(prefix + "_$RESPONSE_DELAY", attributes).record(terminatedAt - transaction.createdAt, TimeUnit.MILLISECONDS)
-        }
-    }
-
-    private fun excludeTransactionAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
-        return attributes.toMutableMap().apply {
-            remove(Attributes.caller)
-            remove(Attributes.callee)
-            remove(Attributes.x_call_id)
-            remove(Attributes.recording_mode)
-            remove(Attributes.debug)
         }
     }
 

@@ -47,6 +47,28 @@ class AttributeUtilTest {
         val metricsAttributes = attributes.toMetricsAttributes()
         assertEquals(5, metricsAttributes.size)
         assertTrue(metricsAttributes.keys.none { it.contains(":") })
+    }
 
+    @Test
+    fun `Validate attributes exclusion parsing`() {
+        val attributes = mutableMapOf(
+            "uda_without_prefix" to "with_options",
+            ":uda_empty_prefix" to true,
+            "d:uda_database_only" to "no_options",
+            "o:uda_options_only" to "with_options",
+            "m:uda_metrics_only" to "no_options",
+            "do:uda_database_with_options" to "with_options",
+            "dm:uda_all_without_options" to "no_options",
+            "om:uda_options_with_metrics" to "with_options",
+            "dom:uda_all_modes" to true
+        )
+
+        val excludedAttributes = listOf("uda_database_with_options", "uda_all_modes")
+
+        val databaseAttributes = attributes.toDatabaseAttributes(excludedAttributes)
+        assertFalse(databaseAttributes.keys.any { excludedAttributes.contains(it) })
+
+        val metricsAttributes = attributes.toMetricsAttributes(excludedAttributes)
+        assertFalse(metricsAttributes.keys.any { excludedAttributes.contains(it) })
     }
 }

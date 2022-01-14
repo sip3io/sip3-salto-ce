@@ -52,6 +52,14 @@ open class SipCallHandler : AbstractVerticle() {
 
     companion object {
 
+        val EXCLUDED_ATTRIBUTES = listOf(
+            Attributes.caller,
+            Attributes.callee,
+            Attributes.x_call_id,
+            Attributes.recording_mode,
+            Attributes.debug
+        )
+
         // Prefix
         const val PREFIX = "sip_call"
 
@@ -195,8 +203,8 @@ open class SipCallHandler : AbstractVerticle() {
     open fun calculateInviteTransactionMetrics(transaction: SipTransaction) {
         val createdAt = transaction.createdAt
 
-        val attributes = excludeSessionAttributes(transaction.attributes)
-            .toMetricsAttributes()
+        val attributes = transaction.attributes
+            .toMetricsAttributes(EXCLUDED_ATTRIBUTES)
             .apply {
                 transaction.srcAddr.host?.let { put("src_host", it) }
                 transaction.dstAddr.host?.let { put("dst_host", it) }
@@ -245,8 +253,8 @@ open class SipCallHandler : AbstractVerticle() {
     open fun calculateByeTransactionMetrics(transaction: SipTransaction) {
         val createdAt = transaction.createdAt
 
-        val attributes = excludeSessionAttributes(transaction.attributes)
-            .toMetricsAttributes()
+        val attributes = transaction.attributes
+            .toMetricsAttributes(EXCLUDED_ATTRIBUTES)
             .apply {
                 transaction.srcAddr.host?.let { put("src_host", it) }
                 transaction.dstAddr.host?.let { put("dst_host", it) }
@@ -365,8 +373,8 @@ open class SipCallHandler : AbstractVerticle() {
     }
 
     open fun calculateCallSessionMetrics(session: SipSession) {
-        val attributes = excludeSessionAttributes(session.attributes)
-            .toMetricsAttributes()
+        val attributes = session.attributes
+            .toMetricsAttributes(EXCLUDED_ATTRIBUTES)
             .apply {
                 put(Attributes.state, session.state)
                 session.srcAddr.host?.let { put("src_host", it) }
@@ -529,24 +537,14 @@ open class SipCallHandler : AbstractVerticle() {
                     put("retransmits", session.retransmits)
 
                     session.attributes[Attributes.debug]?.let { put("debug", it) }
-                    excludeSessionAttributes(session.attributes)
-                        .toDatabaseAttributes()
+                    session.attributes
+                        .toDatabaseAttributes(EXCLUDED_ATTRIBUTES)
                         .forEach { (name, value) -> put(name, value) }
                 }
             })
         }
 
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
-    }
-
-    private fun excludeSessionAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
-        return attributes.toMutableMap().apply {
-            remove(Attributes.caller)
-            remove(Attributes.callee)
-            remove(Attributes.x_call_id)
-            remove(Attributes.recording_mode)
-            remove(Attributes.debug)
-        }
     }
 
     inner class SipSession {

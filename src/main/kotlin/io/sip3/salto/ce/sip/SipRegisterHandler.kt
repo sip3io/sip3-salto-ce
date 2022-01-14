@@ -49,6 +49,14 @@ open class SipRegisterHandler : AbstractVerticle() {
 
     companion object {
 
+        val EXCLUDED_ATTRIBUTES = listOf(
+            Attributes.caller,
+            Attributes.callee,
+            Attributes.x_call_id,
+            Attributes.recording_mode,
+            Attributes.debug
+        )
+
         // Prefix
         const val PREFIX = "sip_register"
 
@@ -165,8 +173,8 @@ open class SipRegisterHandler : AbstractVerticle() {
                 activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.incrementAndGet()
 
                 session.overlappedInterval?.let { interval ->
-                    val attributes = excludeRegistrationAttributes(registration.attributes)
-                        .toMetricsAttributes()
+                    val attributes = registration.attributes
+                        .toMetricsAttributes(EXCLUDED_ATTRIBUTES)
                         .apply {
                             registration.srcAddr.host?.let { put("src_host", it) }
                             registration.dstAddr.host?.let { put("dst_host", it) }
@@ -186,8 +194,8 @@ open class SipRegisterHandler : AbstractVerticle() {
     open fun calculateRegistrationMetrics(registration: SipRegistration) {
         val createdAt = registration.createdAt
 
-        val attributes = excludeRegistrationAttributes(registration.attributes)
-            .toMetricsAttributes()
+        val attributes = registration.attributes
+            .toMetricsAttributes(EXCLUDED_ATTRIBUTES)
             .apply {
                 registration.srcAddr.host?.let { put("src_host", it) }
                 registration.dstAddr.host?.let { put("dst_host", it) }
@@ -389,16 +397,6 @@ open class SipRegisterHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().localSend(RoutesCE.mongo_bulk_writer, Pair(collection, operation))
-    }
-
-    private fun excludeRegistrationAttributes(attributes: Map<String, Any>): MutableMap<String, Any> {
-        return attributes.toMutableMap().apply {
-            remove(Attributes.caller)
-            remove(Attributes.callee)
-            remove(Attributes.x_call_id)
-            remove(Attributes.recording_mode)
-            remove(Attributes.debug)
-        }
     }
 
     inner class SipSession : SipRegistration() {
