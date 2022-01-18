@@ -27,11 +27,14 @@ import mu.KotlinLogging
 /**
  * Parses SIP messages
  */
-class SipMessageParser(val supportedMethods: Set<String>, val extensionHeaders: Set<String> = emptySet()) {
+class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_ALL, val extensionHeaders: Set<String> = emptySet()) {
 
     private val logger = KotlinLogging.logger {}
 
     companion object {
+
+        const val MODE_ALL = 0
+        const val MODE_EXTENSION_HEADERS = 1
 
         const val CR: Byte = 0x0d
         const val LF: Byte = 0x0a
@@ -107,7 +110,7 @@ class SipMessageParser(val supportedMethods: Set<String>, val extensionHeaders: 
         return payload[offset] == CR && payload[offset + 1] == LF
     }
 
-    inner class StringMessageParser() : StringMsgParser() {
+    inner class StringMessageParser : StringMsgParser() {
 
         var skipMessage = false
 
@@ -120,7 +123,7 @@ class SipMessageParser(val supportedMethods: Set<String>, val extensionHeaders: 
         }
 
         override fun processHeader(header: String?, message: SIPMessage, parseExceptionListener: ParseExceptionListener?, rawMessage: ByteArray) {
-            if (header.isNullOrEmpty()) {
+            if (header.isNullOrEmpty() || skipMessage) {
                 return
             }
 
@@ -134,20 +137,20 @@ class SipMessageParser(val supportedMethods: Set<String>, val extensionHeaders: 
                         skipMessage = !supportedMethods.contains((cseq as CSeq).method)
                     }
                 }
-                "to", "t" -> if (!skipMessage) ToParser(header + "\n").parse() else null
-                "from", "f" -> if (!skipMessage) FromParser(header + "\n").parse() else null
-                "via", "v" -> if (!skipMessage) ViaParser(header + "\n").parse() else null
-                "contact", "m" -> if (!skipMessage) ContactParser(header + "\n").parse() else null
-                "content-type", "c" -> if (!skipMessage) ContentTypeParser(header + "\n").parse() else null
-                "call-id", "i" -> if (!skipMessage) CallIDParser(header + "\n").parse() else null
-                "route" -> if (!skipMessage) RouteParser(header + "\n").parse() else null
-                "record-route" -> if (!skipMessage) RecordRouteParser(header + "\n").parse() else null
-                "max-forwards" -> if (!skipMessage) MaxForwardsParser(header + "\n").parse() else null
-                "expires" -> if (!skipMessage) ExpiresParser(header + "\n").parse() else null
+                "to", "t" -> ToParser(header + "\n").parse()
+                "from", "f" -> FromParser(header + "\n").parse()
+                "via", "v" -> ViaParser(header + "\n").parse()
+                "contact", "m" -> ContactParser(header + "\n").parse()
+                "content-type", "c" -> ContentTypeParser(header + "\n").parse()
+                "call-id", "i" -> CallIDParser(header + "\n").parse()
+                "route" -> RouteParser(header + "\n").parse()
+                "record-route" -> RecordRouteParser(header + "\n").parse()
+                "max-forwards" -> MaxForwardsParser(header + "\n").parse()
+                "expires" -> ExpiresParser(header + "\n").parse()
                 else -> {
                     // These headers won't be used in the SIP3 aggregation logic
                     // So we can just attach them as generic `Extension` headers
-                    if (!skipMessage && extensionHeaders.contains(name)) {
+                    if (mode == MODE_ALL || extensionHeaders.contains(name)) {
                         ExtensionHeaderImpl().apply {
                             this.name = name
                             this.value = Lexer.getHeaderValue(header)?.trim()

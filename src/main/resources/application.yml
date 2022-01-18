@@ -33,7 +33,9 @@ server:
 #  message:
 #    exclusions: [MESSAGE, SUBSCRIBE, NOTIFY, OPTIONS]
 #    x-correlation-header: X-Call-ID
-#    extension-headers: [User-Agent, Reason, Diversion]
+#    parser:
+#      mode: 1
+#      extension-headers: [User-Agent, Reason, Diversion]
 #  transaction:
 #    expiration-delay: 1000
 #    response-timeout: 3000
