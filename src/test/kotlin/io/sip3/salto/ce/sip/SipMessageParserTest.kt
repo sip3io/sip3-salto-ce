@@ -473,12 +473,31 @@ class SipMessageParserTest {
     }
 
     @Test
-    fun `Parse single SIP messages with extension headers`() {
-        val messages = SipMessageParser(supportedMethods = setOf("INVITE"), extensionHeaders = setOf("Supported", "X-Diversion")).parse(PACKET_3)
+    fun `Parse single SIP message with extension headers`() {
+        val messages = SipMessageParser(
+            supportedMethods = setOf("INVITE"),
+            mode = SipMessageParser.MODE_EXTENSION_HEADERS,
+            extensionHeaders = setOf("Supported", "X-Diversion")
+        ).parse(PACKET_3)
         assertEquals(1, messages.size)
 
         val (_, message) = messages[0]
         assertNull(message.getHeader("Allow-Events"))
         assertNotNull(message.getHeader("Supported"))
+    }
+
+    @Test
+    fun `Parse single SIP message when SipMessageParser mode is MODE_ALL`() {
+        val messages = SipMessageParser(
+            supportedMethods = setOf("INVITE"),
+            mode = SipMessageParser.MODE_ALL,
+            extensionHeaders = setOf("Supported", "X-Diversion")
+        ).parse(PACKET_3)
+        assertEquals(1, messages.size)
+
+        val (_, message) = messages[0]
+        assertNotNull(message.getHeader("Allow-Events"))
+        assertNotNull(message.getHeader("Supported"))
+        assertNotNull(message.getHeader("X-Diversion"))
     }
 }

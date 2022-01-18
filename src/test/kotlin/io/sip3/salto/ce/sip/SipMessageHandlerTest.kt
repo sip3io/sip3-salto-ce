@@ -234,7 +234,10 @@ class SipMessageHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("message", JsonObject().apply {
-                            put("extension-headers", listOf("User-Agent"))
+                            put("parser", JsonObject().apply {
+                                put("mode", 1)
+                                put("extension-headers", listOf("User-Agent"))
+                            })
                         })
                     })
                 })
