@@ -355,8 +355,8 @@ open class SipRegisterHandler : AbstractVerticle() {
                     registration.srcAddr.host?.let { put("src_host", it) }
                     registration.dstAddr.host?.let { put("dst_host", it) }
 
-                    put("caller", registration.caller)
-                    put("callee", registration.callee)
+                    put("caller", registration.attributes[Attributes.caller] ?: registration.caller)
+                    put("callee", registration.attributes[Attributes.callee] ?: registration.callee)
 
                     registration.errorCode?.let { put("error_code", it) }
                     registration.errorType?.let { put("error_type", it) }
