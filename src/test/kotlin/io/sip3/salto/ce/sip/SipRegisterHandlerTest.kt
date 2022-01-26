@@ -22,6 +22,7 @@ import io.mockk.junit5.MockKExtension
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.commons.vertx.util.setPeriodic
+import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
@@ -583,6 +584,49 @@ class SipRegisterHandlerTest : VertxTest() {
                             assertEquals("403", getString("error_code"))
                             assertEquals("client", getString("error_type"))
                         }
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Aggregate 'failed' registration with replaced 'caller' and 'callee'`() {
+        val transaction403 = SipTransaction().apply {
+            addPacket(PACKET_7)
+            addPacket(PACKET_8)
+            attributes[Attributes.caller] = "replaced"
+            attributes[Attributes.callee] = "replaced"
+        }
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("register", JsonObject().apply {
+                            put("expiration-delay", 100)
+                            put("aggregation-timeout", 200)
+                            put("duration-timeout", 200)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 3000) {
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction403)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (collection, operation) = event.body()
+
+                    val document = operation.getJsonObject("document")
+
+                    context.verify {
+                        assertTrue(collection.startsWith("sip_register_index_"))
+                        assertEquals("replaced", document.getString("caller"))
+                        assertEquals("replaced", document.getString("callee"))
                     }
                     context.completeNow()
                 }
