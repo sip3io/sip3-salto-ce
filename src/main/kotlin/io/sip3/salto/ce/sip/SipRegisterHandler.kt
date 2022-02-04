@@ -165,12 +165,14 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
             REGISTERED -> {
                 calculateRegistrationMetrics(registration)
-                val session = activeSessions.getOrPut(id) { SipSession() }
+                val session = activeSessions.getOrPut(id) {
+                    val activeSessionCountersKey = "${transaction.srcAddr.host ?: ""}:${transaction.dstAddr.host ?: ""}"
+                    activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.incrementAndGet()
+
+                    SipSession()
+                }
                 session.addSipRegistration(registration)
                 activeRegistrations.remove(id)
-
-                val activeSessionCountersKey = "${session.srcAddr.host ?: ""}:${session.dstAddr.host ?: ""}"
-                activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.incrementAndGet()
 
                 session.overlappedInterval?.let { interval ->
                     val attributes = registration.attributes
