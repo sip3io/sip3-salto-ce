@@ -169,7 +169,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                     val activeSessionCountersKey = "${transaction.srcAddr.host ?: ""}:${transaction.dstAddr.host ?: ""}"
                     activeSessionCounters.getOrPut(activeSessionCountersKey) { AtomicInteger(0) }.incrementAndGet()
 
-                    SipSession()
+                    return@getOrPut SipSession()
                 }
                 session.addSipRegistration(registration)
                 activeRegistrations.remove(id)
