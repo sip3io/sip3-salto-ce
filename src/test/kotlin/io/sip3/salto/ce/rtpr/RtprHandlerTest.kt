@@ -181,6 +181,9 @@ class RtprHandlerTest : VertxTest() {
             execute = {
                 vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_2, RTPR_2))
+
+                val sessionId = PACKET_2.srcAddr.compositeKey(PACKET_2.dstAddr) { it.sdpSessionId() }
+                vertx.eventBus().localSend(RoutesCE.rec + "_completed", sessionId)
             },
             assert = {
                 vertx.eventBus().consumer<RtprSession>(RoutesCE.rtpr + "_session") { event ->
@@ -199,6 +202,7 @@ class RtprHandlerTest : VertxTest() {
                             assertEquals(DST_ADDR_RTCP, dstAddr)
                             assertEquals(SRC_ADDR_RTCP, srcAddr)
 
+                            assertTrue(recorded)
                             forward!!.report.apply {
                                 assertEquals(MediaUtil.computeMos(rFactor), mos)
                                 assertEquals(42.12473F, rFactor)

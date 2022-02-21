@@ -305,7 +305,7 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals("rtp", prefixSlot.captured)
 
                         val attributes = attributesSlot.captured
-                        assertEquals(7, attributes.size)
+                        assertEquals(8, attributes.size)
                         assertEquals("", attributes["src_addr"])
                         assertEquals("SomeHost", attributes["src_host"])
                         assertEquals("", attributes["dst_addr"])
@@ -313,6 +313,7 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals(12.0, attributes["r_factor"])
                         assertEquals(0.0, attributes["bad_report_fraction"])
                         assertEquals(false, attributes["one_way"])
+                        assertEquals(false, attributes["recorded"])
                     }
                     context.completeNow()
                 }
