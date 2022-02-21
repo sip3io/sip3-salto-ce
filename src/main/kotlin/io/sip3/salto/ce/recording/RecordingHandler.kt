@@ -22,6 +22,7 @@ import io.sip3.commons.domain.payload.RecordingPayload
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
+import io.sip3.commons.vertx.util.localPublish
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
@@ -77,7 +78,7 @@ open class RecordingHandler : AbstractVerticle() {
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
             .expireAt { _, recording -> recording.createdAt + aggregationTimeout }
-            .onExpire { _, recording -> writeToDatabase(recording) }
+            .onExpire { _, recording -> onExpire(recording) }
             .build(vertx)
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rec) { event ->
@@ -101,6 +102,13 @@ open class RecordingHandler : AbstractVerticle() {
                     }
                 }
         }
+    }
+
+    open fun onExpire(recording: Recording) {
+        writeToDatabase(recording)
+
+        val sessionId = recording.srcAddr.compositeKey(recording.dstAddr) { it.sdpSessionId() }
+        vertx.eventBus().localPublish(RoutesCE.rec + "_completed", sessionId)
     }
 
     open fun handle(packet: Packet) {

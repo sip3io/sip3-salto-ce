@@ -142,6 +142,11 @@ open class RtprHandler : AbstractVerticle() {
             handleMediaControl(mediaControl)
         }
 
+        vertx.eventBus().localConsumer<String>(RoutesCE.rec + "_completed") { event ->
+            val sessionId = event.body()
+            handleRecordingCompleted(sessionId)
+        }
+
         vertx.eventBus().localConsumer<Packet>(RoutesCE.rtpr) { event ->
             try {
                 val packet = event.body()
@@ -180,6 +185,11 @@ open class RtprHandler : AbstractVerticle() {
             mediaControls.put(dst.rtpId, mediaControl)
             mediaControls.put(dst.rtcpId, mediaControl)
         }
+    }
+
+    open fun handleRecordingCompleted(sessionId: String) {
+        rtp.get(sessionId)?.recorded = true
+        rtcp.get(sessionId)?.recorded = true
     }
 
     open fun handleRaw(packet: Packet) {

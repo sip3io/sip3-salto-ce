@@ -111,6 +111,7 @@ open class RtprSessionHandler : AbstractVerticle() {
 
             put(Attributes.bad_report_fraction, session.badReportFraction)
             put(Attributes.one_way, session.isOneWay)
+            put(Attributes.recorded, session.recorded)
         }
 
         val prefix = when (session.source) {
@@ -160,6 +161,7 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("call_id", session.mediaControl.callId)
                 put("caller", session.mediaControl.caller)
                 put("callee", session.mediaControl.callee)
+                put("recorded", session.recorded)
 
                 put("duration", session.duration)
 

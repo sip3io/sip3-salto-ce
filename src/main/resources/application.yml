@@ -142,7 +142,7 @@ server:
 #      max-collections: 30
 #    - prefix: rtpr_rtp_index
 #      indexes:
-#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, caller, callee, mos, r_factor, codec, one_way, duration, bad_report_fraction]
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, caller, callee, recorded, mos, r_factor, codec, one_way, duration, bad_report_fraction]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rtpr_rtp_raw
@@ -152,7 +152,7 @@ server:
 #      max-collections: 30
 #    - prefix: rtpr_rtcp_index
 #      indexes:
-#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, caller, callee, mos, r_factor, codec, one_way, duration, bad_report_fraction]
+#        ascending: [created_at, src_addr, src_host, dst_addr, dst_host, caller, callee, recorded, mos, r_factor, codec, one_way, duration, bad_report_fraction]
 #        hashed: [call_id]
 #      max-collections: 30
 #    - prefix: rtpr_rtcp_raw
