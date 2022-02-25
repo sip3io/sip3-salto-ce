@@ -49,7 +49,7 @@ class RtprBulkWriterTest : VertxTest() {
         // Periodic RTP report with RTP source
         val RTPR_1 = RtpReportPayload().apply {
             source = RtpReportPayload.SOURCE_RTP
-            cumulative = false
+            recorded = false
             payloadType = 1
             ssrc = 2
             callId = "callId_uuid@domain.io"
@@ -78,7 +78,7 @@ class RtprBulkWriterTest : VertxTest() {
         // Periodic RTP report without Call-ID
         val RTPR_2 = RtpReportPayload().apply {
             source = RtpReportPayload.SOURCE_RTP
-            cumulative = false
+            recorded = false
             payloadType = 1
             ssrc = 2
             callId = "callId_uuid@domain.io"

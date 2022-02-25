@@ -104,13 +104,15 @@ open class RtprSessionHandler : AbstractVerticle() {
             put(Attributes.dst_addr, if (recordIpAddressesAttributes) dst.addr else "")
             dst.host?.let { put(Attributes.dst_host, it) }
 
+            if (session.recorded) put(Attributes.recorded, true)
+
             (session.forward ?: session.reverse)?.let { stream ->
                 stream.mos?.let { put(Attributes.mos, it) }
                 stream.rFactor?.let { put(Attributes.r_factor, it) }
             }
 
             put(Attributes.bad_report_fraction, session.badReportFraction)
-            put(Attributes.one_way, session.isOneWay)
+            if (session.isOneWay) put(Attributes.one_way, true)
         }
 
         val prefix = when (session.source) {
@@ -157,6 +159,8 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
+                if (session.recorded) put("recorded", true)
+
                 put("call_id", session.mediaControl.callId)
                 put("caller", session.mediaControl.caller)
                 put("callee", session.mediaControl.callee)
@@ -167,7 +171,7 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("bad_report_count", session.badReportCount)
                 put("bad_report_fraction", session.badReportFraction)
 
-                put("one_way", session.isOneWay)
+                if (session.isOneWay) put("one_way", true)
 
                 val directions = mutableListOf<String>().apply {
                     if (session.forward != null) add("out")

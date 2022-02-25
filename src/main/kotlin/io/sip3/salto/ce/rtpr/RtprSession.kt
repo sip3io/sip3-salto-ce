@@ -71,6 +71,8 @@ class RtprSession {
     var source: Byte = RtpReportPayload.SOURCE_RTP
     lateinit var mediaControl: MediaControl
 
+    var recorded = false
+
     var rFactorThreshold: Float? = null
 
     var forward: RtprStream? = null
@@ -127,5 +129,7 @@ class RtprSession {
             createdAt = min(createdAt, reverse!!.createdAt)
             terminatedAt = max(terminatedAt, reverse!!.terminatedAt)
         }
+
+        recorded = payload.recorded || recorded
     }
 }

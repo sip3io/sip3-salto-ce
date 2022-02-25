@@ -41,6 +41,7 @@ object Attributes {
     const val terminated_by = "terminated_by"
     const val transactions = "transactions"
     const val retransmits = "retransmits"
+    const val recorded = "recorded"
     const val mos = "mos"
     const val r_factor = "r_factor"
     const val ranked = "ranked"
