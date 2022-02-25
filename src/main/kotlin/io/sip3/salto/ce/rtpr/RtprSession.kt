@@ -129,5 +129,7 @@ class RtprSession {
             createdAt = min(createdAt, reverse!!.createdAt)
             terminatedAt = max(terminatedAt, reverse!!.terminatedAt)
         }
+
+        recorded = payload.recorded || recorded
     }
 }
