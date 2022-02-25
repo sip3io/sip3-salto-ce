@@ -67,7 +67,7 @@ class RtprHandlerTest : VertxTest() {
         // Periodic RTP report with RTP source
         val RTPR_1 = RtpReportPayload().apply {
             source = RtpReportPayload.SOURCE_RTP
-            cumulative = false
+            recorded = true
             payloadType = 1
             ssrc = 2
             callId = "callId_uuid@domain.io"
@@ -96,7 +96,7 @@ class RtprHandlerTest : VertxTest() {
         // Periodic RTP report without Call-ID
         val RTPR_2 = RtpReportPayload().apply {
             source = RtpReportPayload.SOURCE_RTCP
-            cumulative = false
+            recorded = false
             payloadType = 0
             ssrc = 2
 
@@ -181,9 +181,6 @@ class RtprHandlerTest : VertxTest() {
             execute = {
                 vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
                 vertx.eventBus().localSend(RoutesCE.rtpr + "_rtcp", Pair(PACKET_2, RTPR_2))
-
-                val sessionId = PACKET_2.srcAddr.compositeKey(PACKET_2.dstAddr) { it.sdpSessionId() }
-                vertx.eventBus().localSend(RoutesCE.rec + "_completed", sessionId)
             },
             assert = {
                 vertx.eventBus().consumer<RtprSession>(RoutesCE.rtpr + "_session") { event ->
@@ -202,7 +199,7 @@ class RtprHandlerTest : VertxTest() {
                             assertEquals(DST_ADDR_RTCP, dstAddr)
                             assertEquals(SRC_ADDR_RTCP, srcAddr)
 
-                            assertTrue(recorded)
+                            assertFalse(recorded)
                             forward!!.report.apply {
                                 assertEquals(MediaUtil.computeMos(rFactor), mos)
                                 assertEquals(42.12473F, rFactor)

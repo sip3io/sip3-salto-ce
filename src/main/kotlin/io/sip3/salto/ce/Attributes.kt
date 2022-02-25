@@ -41,6 +41,7 @@ object Attributes {
     const val terminated_by = "terminated_by"
     const val transactions = "transactions"
     const val retransmits = "retransmits"
+    const val recorded = "recorded"
     const val mos = "mos"
     const val r_factor = "r_factor"
     const val ranked = "ranked"
@@ -49,7 +50,6 @@ object Attributes {
     const val bad_report_fraction = "bad_report_fraction"
     const val overlapped_interval = "overlapped_interval"
     const val overlapped_fraction = "overlapped_fraction"
-    const val recorded = "recorded"
     const val recording_mode = "recording_mode"
     const val debug = "debug"
 }

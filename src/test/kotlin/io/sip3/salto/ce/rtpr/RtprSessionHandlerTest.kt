@@ -35,8 +35,7 @@ import io.sip3.salto.ce.util.MediaUtil
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.get
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -205,7 +204,7 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals(MediaUtil.computeMos(12.0F), (document.getJsonArray("mos").first() as Double).toFloat())
 
 
-                        assertEquals(false, document.getBoolean("one_way"))
+                        assertNull(document.getBoolean("one_way"))
 
                         assertEquals(MEDIA_CONTROL.callId, document.getString("call_id"))
                         assertEquals(MEDIA_CONTROL.caller, document.getString("caller"))
@@ -305,15 +304,15 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals("rtp", prefixSlot.captured)
 
                         val attributes = attributesSlot.captured
-                        assertEquals(8, attributes.size)
+                        assertEquals(6, attributes.size)
                         assertEquals("", attributes["src_addr"])
                         assertEquals("SomeHost", attributes["src_host"])
                         assertEquals("", attributes["dst_addr"])
                         assertEquals(MediaUtil.computeMos(12.0F), (attributes["mos"] as Double).toFloat())
                         assertEquals(12.0, attributes["r_factor"])
                         assertEquals(0.0, attributes["bad_report_fraction"])
-                        assertEquals(false, attributes["one_way"])
-                        assertEquals(false, attributes["recorded"])
+                        assertNull(attributes["one_way"])
+                        assertNull(attributes["recorded"])
                     }
                     context.completeNow()
                 }
