@@ -129,7 +129,7 @@ open class SipRegisterHandler : AbstractVerticle() {
             .delay(expirationDelay)
             .period((aggregationTimeout / expirationDelay).toInt())
             .expireAt { _, session -> terminateSessionAt(session) }
-            .onRemain { now, _, session -> updateSession(now, session) }
+            .onRemain { now, _, session -> onRemain(now, session) }
             .onExpire { _, session -> terminateSession(session) }
             .build(vertx)
 
@@ -226,25 +226,34 @@ open class SipRegisterHandler : AbstractVerticle() {
     }
 
     open fun terminateSessionAt(session: SipSession): Long {
-        var expireAt = (session.expiresAt ?: session.terminatedAt ?: session.createdAt) + aggregationTimeout
-
-        if (expireAt > session.createdAt + durationTimeout) {
-            session.terminatedAt = expireAt - aggregationTimeout
-            expireAt = session.createdAt + durationTimeout
-        }
-
-        return expireAt
+        return (session.expiresAt ?: session.terminatedAt ?: session.createdAt) + aggregationTimeout
     }
 
-    private fun updateSession(now: Long, session: SipSession) {
-        val updatedAt = session.updatedAt
+    private fun onRemain(now: Long, session: SipSession) {
+        if (terminateSessionAt(session) > session.createdAt + durationTimeout && session.registrations.size > 2) {
+            val lastRegistration = session.registrations.removeLast()
+            syncSession(now, session)
 
-        if (!session.synced && (updatedAt == null || updatedAt + updatePeriod < now)) {
-            session.updatedAt = now
-            writeAttributes(session)
-            writeToDatabase(PREFIX, session, updatedAt != null)
-            session.synced = true
+            // Reset session
+            session.createdAt = lastRegistration.first
+            session.terminatedAt = null
+            session.retransmits = 0
+            session.transactions = 0
+            session.registrations.add(lastRegistration)
         }
+
+        if (!session.synced && (session.updatedAt == null || session.updatedAt!! + updatePeriod < now)) {
+            syncSession(now, session)
+        }
+    }
+
+    private fun syncSession(now: Long, session: SipSession) {
+        val updatedAt = session.updatedAt
+        session.updatedAt = now
+        writeAttributes(session)
+        writeToDatabase(PREFIX, session, updatedAt != null)
+        session.registrations.clear()
+        session.synced = true
     }
 
     private fun terminateSession(session: SipSession) {
@@ -384,7 +393,6 @@ open class SipRegisterHandler : AbstractVerticle() {
                                 put("terminated_at", terminatedAt)
                             }
                         }
-                    registration.registrations.clear()
 
                     if (upsert) {
                         document = JsonObject()
@@ -442,6 +450,10 @@ open class SipRegisterHandler : AbstractVerticle() {
             registrations.add(Pair(registration.createdAt, registration.expiresAt ?: registration.terminatedAt ?: registration.createdAt))
 
             registration.attributes.forEach { (name, value) -> attributes[name] = value }
+        }
+
+        fun shift() {
+
         }
     }
 
