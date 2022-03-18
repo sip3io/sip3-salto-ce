@@ -407,7 +407,7 @@ class SipRegisterHandlerTest : VertxTest() {
                         put("register", JsonObject().apply {
                             put("expiration-delay", 100)
                             put("aggregation-timeout", 1000)
-                            put("duration-timeout", 5000)
+                            put("duration-timeout", 200000)
                             put("update-period", 200)
                         })
                     })

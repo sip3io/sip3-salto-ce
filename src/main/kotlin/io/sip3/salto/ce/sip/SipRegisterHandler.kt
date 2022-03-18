@@ -230,26 +230,27 @@ open class SipRegisterHandler : AbstractVerticle() {
     }
 
     private fun onRemain(now: Long, session: SipSession) {
-        if (terminateSessionAt(session) > session.createdAt + durationTimeout && session.registrations.size > 2) {
+        if (terminateSessionAt(session) > session.createdAt + durationTimeout && session.registrations.isNotEmpty()) {
             val lastRegistration = session.registrations.removeLast()
-            syncSession(now, session)
+            syncSession(session)
 
             // Reset session
             session.createdAt = lastRegistration.first
             session.terminatedAt = null
+            session.updatedAt = null
             session.retransmits = 0
             session.transactions = 0
             session.registrations.add(lastRegistration)
         }
 
         if (!session.synced && (session.updatedAt == null || session.updatedAt!! + updatePeriod < now)) {
-            syncSession(now, session)
+            syncSession(session)
+            session.updatedAt = now
         }
     }
 
-    private fun syncSession(now: Long, session: SipSession) {
+    private fun syncSession(session: SipSession) {
         val updatedAt = session.updatedAt
-        session.updatedAt = now
         writeAttributes(session)
         writeToDatabase(PREFIX, session, updatedAt != null)
         session.registrations.clear()
