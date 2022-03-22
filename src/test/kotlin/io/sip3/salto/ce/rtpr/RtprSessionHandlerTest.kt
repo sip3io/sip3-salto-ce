@@ -89,6 +89,7 @@ class RtprSessionHandlerTest : VertxTest() {
             srcAddr = SRC_ADDR
             dstAddr = DST_ADDR
             payload = RTPR_1.encode().getBytes()
+            attributes = mutableMapOf("custom_attr" to "value")
         }
 
         val RTPR_2 = RtpReportPayload().apply {
@@ -236,6 +237,7 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals(MediaUtil.computeMos(RTPR_2.rFactor), (document.getJsonArray("mos").last() as Double).toFloat())
                         assertEquals(RTPR_2.fractionLost, (document.getJsonArray("fraction_lost").last() as Double).toFloat())
 
+                        assertEquals(RtprSessionTest.PACKET_1.attributes!!.get("custom_attr"), document.getString("custom_attr"))
                     }
 
                     context.completeNow()
@@ -304,13 +306,14 @@ class RtprSessionHandlerTest : VertxTest() {
                         assertEquals("rtp", prefixSlot.captured)
 
                         val attributes = attributesSlot.captured
-                        assertEquals(6, attributes.size)
+                        assertEquals(7, attributes.size)
                         assertEquals("", attributes["src_addr"])
                         assertEquals("SomeHost", attributes["src_host"])
                         assertEquals("", attributes["dst_addr"])
                         assertEquals(MediaUtil.computeMos(12.0F), (attributes["mos"] as Double).toFloat())
                         assertEquals(12.0, attributes["r_factor"])
                         assertEquals(0.0, attributes["bad_report_fraction"])
+                        assertEquals(PACKET_1.attributes!!["custom_attr"], attributes["custom_attr"])
                         assertNull(attributes["one_way"])
                         assertNull(attributes["recorded"])
                     }
