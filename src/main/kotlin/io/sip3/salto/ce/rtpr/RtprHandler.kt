@@ -25,11 +25,11 @@ import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.DurationUtil
 import io.sip3.salto.ce.util.MediaUtil.R0
 import io.sip3.salto.ce.util.MediaUtil.computeMos
+import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.await
@@ -233,10 +233,6 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         vertx.eventBus().localSend(RoutesCE.rtpr + "_bulk_writer", Pair(packet, report))
-
-        if (!cumulativeMetrics) {
-            calculateMetrics(prefix, packet.srcAddr, packet.dstAddr, report)
-        }
     }
 
     private fun validate(packet: Packet, report: RtpReportPayload): Boolean {
@@ -298,25 +294,27 @@ open class RtprHandler : AbstractVerticle() {
     }
 
     open fun terminateRtprStream(stream: RtprStream) {
-        if (cumulativeMetrics) {
-            val prefix = when (stream.source) {
-                RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
-                RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp"
-                else -> throw IllegalArgumentException("Unsupported RTP Report source: '${stream.source}'")
-            }
-            calculateMetrics(prefix, stream.srcAddr, stream.dstAddr, stream.report)
+        val prefix = when (stream.source) {
+            RtpReportPayload.SOURCE_RTP -> "rtpr_rtp"
+            RtpReportPayload.SOURCE_RTCP -> "rtpr_rtcp"
+            else -> throw IllegalArgumentException("Unsupported RTP Report source: '${stream.source}'")
         }
+        calculateMetrics(prefix, stream)
     }
 
-    open fun calculateMetrics(prefix: String, src: Address, dst: Address, report: RtpReportPayload) {
+    open fun calculateMetrics(prefix: String, stream: RtprStream) {
+        val report = stream.report
         val attributes = mutableMapOf<String, Any>().apply {
-            src.host?.let { put("src_host", it) }
-            dst.host?.let { put("dst_host", it) }
+            stream.srcAddr.host?.let { put("src_host", it) }
+            stream.dstAddr.host?.let { put("dst_host", it) }
             report.codecName?.let { put("codec", it) }
 
             if (report.expectedPacketCount >= minExpectedPackets) {
                 put(Attributes.ranked, true)
             }
+
+            stream.attributes.toMetricsAttributes()
+                .forEach { (name, value) -> put(name, value) }
         }
 
         report.apply {
