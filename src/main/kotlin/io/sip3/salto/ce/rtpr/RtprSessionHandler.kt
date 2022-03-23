@@ -24,6 +24,8 @@ import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
+import io.sip3.salto.ce.util.toDatabaseAttributes
+import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
 import mu.KotlinLogging
@@ -115,6 +117,10 @@ open class RtprSessionHandler : AbstractVerticle() {
             if (session.isOneWay) put(Attributes.one_way, true)
         }
 
+        session.attributes
+            .toDatabaseAttributes()
+            .forEach { (name, value) -> attributes[name] = value }
+
         val prefix = when (session.source) {
             RtpReportPayload.SOURCE_RTP -> "rtp"
             RtpReportPayload.SOURCE_RTCP -> "rtcp"
@@ -127,7 +133,7 @@ open class RtprSessionHandler : AbstractVerticle() {
 
     open fun calculateMetrics(prefix: String, session: RtprSession) {
         session.apply {
-            val attributes = mutableMapOf<String, Any>().apply {
+            val attributes = session.attributes.toMetricsAttributes().apply {
                 srcAddr.host?.let { put("src_host", it) }
                 dstAddr.host?.let { put("dst_host", it) }
                 codecs.firstOrNull()?.let { put("codec", it) }
@@ -205,6 +211,10 @@ open class RtprSessionHandler : AbstractVerticle() {
                 })
 
                 put("fraction_lost", reports.map { it.fractionLost.toDouble() })
+
+                session.attributes
+                    .toDatabaseAttributes()
+                    .forEach { (name, value) -> put(name, value) }
             })
         }
 

@@ -149,6 +149,7 @@ class RtprSessionTest {
         val PACKET_1 = Packet().apply {
             srcAddr = MEDIA_CONTROL.sdpSession.src.rtpAddress()
             dstAddr = MEDIA_CONTROL.sdpSession.dst.rtpAddress()
+            attributes = mutableMapOf("custom_attr" to "value")
         }
 
         val PACKET_1_RTCP = Packet().apply {
@@ -221,6 +222,8 @@ class RtprSessionTest {
 
         assertEquals(RTPR_1.createdAt, session.createdAt)
         assertEquals(RTPR_2.createdAt + RTPR_2.duration, session.terminatedAt)
+
+        assertEquals(PACKET_1.attributes!!.get("custom_attr"), session.attributes.get("custom_attr"))
 
         assertTrue(session.codecs.contains(RTPR_2.codecName))
         assertEquals(MediaUtil.computeMos(RTPR_2.rFactor), session.reverse!!.mos!!.toFloat())

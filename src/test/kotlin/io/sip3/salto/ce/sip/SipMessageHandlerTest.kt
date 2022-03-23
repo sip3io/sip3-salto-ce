@@ -172,6 +172,7 @@ class SipMessageHandlerTest : VertxTest() {
                         a=ptime:20
 
                     """.trimIndent().toByteArray()
+            attributes = mutableMapOf("custom_attr" to "value")
         }
     }
 
@@ -332,6 +333,7 @@ class SipMessageHandlerTest : VertxTest() {
 
                     context.verify {
                         assertTrue((message.getHeader("X-Call-ID") as ExtensionHeader).value.isBlank())
+                        assertEquals(PACKET_4.attributes?.get("custom_attr"), packet.attributes!!.get("custom_attr"))
                         assertFalse(packet.attributes!!.containsKey("x_call_id"))
                     }
                     context.completeNow()

@@ -126,6 +126,7 @@ class RtprHandlerTest : VertxTest() {
             srcAddr = SRC_ADDR
             dstAddr = DST_ADDR
             payload = RTPR_1.encode().getBytes()
+            attributes = mutableMapOf("custom_attr" to "value")
         }
 
         // Packet with periodic RTP report without Call-ID
@@ -269,6 +270,8 @@ class RtprHandlerTest : VertxTest() {
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
                             assertReport(RTPR_1, session.forward!!.report)
+
+                            assertEquals(PACKET_1.attributes!!.get("custom_attr"), session.attributes.get("custom_attr"))
                         }
                     }
                     context.completeNow()

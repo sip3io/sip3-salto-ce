@@ -58,6 +58,8 @@ class RtprSession {
                         }
                     }
                 }
+
+                packet.attributes?.forEach { (name, value) -> attributes[name] = value }
             }
         }
     }
@@ -109,6 +111,8 @@ class RtprSession {
 
     val duration: Long
         get() = terminatedAt - createdAt
+
+    val attributes = mutableMapOf<String, Any>()
 
     fun add(packet: Packet, payload: RtpReportPayload) {
         val isForward = if (source == RtpReportPayload.SOURCE_RTP) {
