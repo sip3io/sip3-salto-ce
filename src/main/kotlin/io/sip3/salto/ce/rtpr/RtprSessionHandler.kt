@@ -24,7 +24,6 @@ import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
-import io.sip3.salto.ce.sip.SipCallHandler
 import io.sip3.salto.ce.util.toDatabaseAttributes
 import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
@@ -214,7 +213,7 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("fraction_lost", reports.map { it.fractionLost.toDouble() })
 
                 session.attributes
-                    .toDatabaseAttributes(SipCallHandler.EXCLUDED_ATTRIBUTES)
+                    .toDatabaseAttributes()
                     .forEach { (name, value) -> put(name, value) }
             })
         }
