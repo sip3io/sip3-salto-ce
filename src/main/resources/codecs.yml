@@ -44,7 +44,7 @@ codecs:
     bpl: 16.1
 
   - name: G729
-    payload_types: [ 1 ]
+    payload_types: [ 18 ]
     clock_rate: 8000
     ie: 10
     bpl: 19.0
