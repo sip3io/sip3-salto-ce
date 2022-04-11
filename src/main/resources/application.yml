@@ -50,11 +50,15 @@ server:
 #    duration-distributions: [10s, 30s, 1m, 5m, 1h]
 #    correlation:
 #      role: reporter|aggregator
+#    update-hint:
+#      call_id: hashed
 #  register:
 #    expiration-delay: 1000
 #    aggregation-timeout: 10000
 #    update-period: 60000
 #    duration-timeout: 900000
+#    update-hint:
+#      call_id: hashed
 #media:
 #  rtcp:
 #    expiration-delay: 1000

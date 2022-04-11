@@ -83,6 +83,10 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
+    private var updateHint: Any = JsonObject().apply {
+        put("call_id", "hashed")
+    }
+
     private lateinit var activeRegistrations: PeriodicallyExpiringHashMap<String, SipRegistration>
     private lateinit var activeSessions: PeriodicallyExpiringHashMap<String, SipSession>
     private lateinit var activeSessionCounters: PeriodicallyExpiringHashMap<String, AtomicInteger>
@@ -105,6 +109,9 @@ open class SipRegisterHandler : AbstractVerticle() {
             }
             config.getLong("duration-timeout")?.let {
                 durationTimeout = it
+            }
+            config.getValue("update-hint")?.let {
+                updateHint = it
             }
         }
         config().getJsonObject("attributes")?.let { config ->
@@ -325,6 +332,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                     dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
                     put("call_id", registration.callId)
                 })
+                put("hint", updateHint)
             }
             put("document", JsonObject().apply {
                 var document = this

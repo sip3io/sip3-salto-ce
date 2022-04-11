@@ -93,6 +93,10 @@ open class SipCallHandler : AbstractVerticle() {
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
+    private var updateHint: Any = JsonObject().apply {
+        put("call_id", "hashed")
+    }
+
     private lateinit var activeSessions: PeriodicallyExpiringHashMap<String, MutableMap<String, SipSession>>
     private lateinit var activeSessionCounters: PeriodicallyExpiringHashMap<String, AtomicInteger>
 
@@ -121,6 +125,9 @@ open class SipCallHandler : AbstractVerticle() {
             }
             config.getJsonObject("correlation")?.getString("role")?.let {
                 correlationRole = it
+            }
+            config.getValue("update-hint")?.let {
+                updateHint = it
             }
         }
         config().getJsonObject("attributes")?.let { config ->
@@ -487,6 +494,7 @@ open class SipCallHandler : AbstractVerticle() {
                     dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
                     put("call_id", session.callId)
                 })
+                put("hint", updateHint)
             }
             put("document", JsonObject().apply {
                 var document = this
