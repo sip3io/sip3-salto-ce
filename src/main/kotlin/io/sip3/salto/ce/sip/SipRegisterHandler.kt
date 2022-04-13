@@ -230,29 +230,23 @@ open class SipRegisterHandler : AbstractVerticle() {
     }
 
     private fun onRemain(now: Long, session: SipSession) {
-        if (terminateSessionAt(session) > session.createdAt + durationTimeout && session.registrations.isNotEmpty()) {
-            val lastRegistration = session.registrations.removeLast()
-            syncSession(session)
-
-            // Reset session
-            session.createdAt = lastRegistration.first
-            session.terminatedAt = null
-            session.updatedAt = null
-            session.retransmits = 0
-            session.transactions = 0
-            session.registrations.add(lastRegistration)
-        }
-
         if (!session.synced && (session.updatedAt == null || session.updatedAt!! + updatePeriod < now)) {
-            syncSession(session)
-            session.updatedAt = now
+            if (session.createdAt + durationTimeout < now) {
+                val lastRegistration = session.registrations.removeLast()
+                session.duration = (session.terminatedAt ?: session.expiresAt)!! - session.createdAt
+                syncSession(session, true)
+
+                session.reset(lastRegistration)
+            } else {
+                syncSession(session, session.updatedAt != null)
+                session.updatedAt = now
+            }
         }
     }
 
-    private fun syncSession(session: SipSession) {
-        val updatedAt = session.updatedAt
+    private fun syncSession(session: SipSession, upsert: Boolean) {
         writeAttributes(session)
-        writeToDatabase(PREFIX, session, updatedAt != null)
+        writeToDatabase(PREFIX, session, upsert)
         session.registrations.clear()
         session.synced = true
     }
@@ -453,8 +447,13 @@ open class SipRegisterHandler : AbstractVerticle() {
             registration.attributes.forEach { (name, value) -> attributes[name] = value }
         }
 
-        fun shift() {
-
+        fun reset(lastRegistration: Pair<Long, Long>) {
+            createdAt = lastRegistration.first
+            duration = null
+            updatedAt = null
+            retransmits = 0
+            transactions = 0
+            registrations.add(lastRegistration)
         }
     }
 
