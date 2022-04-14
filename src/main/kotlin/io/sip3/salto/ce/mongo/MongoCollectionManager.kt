@@ -18,7 +18,10 @@ package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.localReply
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoClient
+import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.CoroutineVerticle
@@ -71,12 +74,21 @@ class MongoCollectionManager : CoroutineVerticle() {
 
         defineTimeSuffixInterval()
 
-        manageCollections()
-        vertx.setPeriodic(updatePeriod) {
+        vertx.setPeriodic(0L, updatePeriod) {
             GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
                 manageCollections()
             }
         }
+
+        vertx.eventBus().localConsumer<String>(RoutesCE.mongo_collection_hint) { event ->
+            val prefix = event.body()
+            event.localReply(findHint(prefix))
+        }
+    }
+
+    private fun findHint(prefix: String): JsonObject? {
+        val collection = collections.firstOrNull { (it as JsonObject).getString("prefix") == prefix } as JsonObject?
+        return collection?.getJsonObject("hint")
     }
 
     private fun defineTimeSuffixInterval() {
