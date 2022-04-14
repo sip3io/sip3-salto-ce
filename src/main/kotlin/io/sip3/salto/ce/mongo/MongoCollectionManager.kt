@@ -22,7 +22,6 @@ import io.sip3.commons.vertx.util.localReply
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
-import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.CoroutineVerticle
 import io.vertx.kotlin.coroutines.await
@@ -57,7 +56,7 @@ class MongoCollectionManager : CoroutineVerticle() {
 
     private lateinit var client: io.vertx.ext.mongo.MongoClient
     private var updatePeriod: Long = 3600000
-    private var collections: JsonArray = JsonArray()
+    private var collections = mutableListOf<JsonObject>()
 
     override suspend fun start() {
         config.getString("time-suffix")?.let {
@@ -69,7 +68,9 @@ class MongoCollectionManager : CoroutineVerticle() {
         config.getJsonObject("mongo").let { config ->
             client = MongoClient.createShared(vertx, config)
             config.getLong("update-period")?.let { updatePeriod = it }
-            config.getJsonArray("collections")?.let { collections = it }
+            config.getJsonArray("collections")?.forEach {
+                collections.add(it as JsonObject)
+            }
         }
 
         defineTimeSuffixInterval()
@@ -87,8 +88,7 @@ class MongoCollectionManager : CoroutineVerticle() {
     }
 
     private fun findHint(prefix: String): JsonObject? {
-        val collection = collections.firstOrNull { (it as JsonObject).getString("prefix") == prefix } as JsonObject?
-        return collection?.getJsonObject("hint")
+        return collections.firstOrNull { it.getString("prefix") == prefix }?.getJsonObject("hint")
     }
 
     private fun defineTimeSuffixInterval() {
