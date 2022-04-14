@@ -20,6 +20,7 @@ import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -83,6 +84,10 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
+    private var hint: Any = JsonObject().apply {
+        put("call_id", "hashed")
+    }
+
     private lateinit var activeRegistrations: PeriodicallyExpiringHashMap<String, SipRegistration>
     private lateinit var activeSessions: PeriodicallyExpiringHashMap<String, SipSession>
     private lateinit var activeSessionCounters: PeriodicallyExpiringHashMap<String, AtomicInteger>
@@ -138,6 +143,15 @@ open class SipRegisterHandler : AbstractVerticle() {
             .expireAt { _, counter -> if (counter.get() > 0) Long.MAX_VALUE else Long.MIN_VALUE }
             .onRemain { hostsKey, counter -> calculateActiveSessions(hostsKey, counter) }
             .build(vertx)
+
+
+        vertx.eventBus().localRequest<JsonObject?>(RoutesCE.mongo_collection_hint, "${PREFIX}_index") { asr ->
+            if (asr.succeeded()) {
+                asr.result().body()?.let { hint = it }
+            } else {
+                logger.error(asr.cause()) { "SipRegisterHandler '${RoutesCE.mongo_collection_hint}' request failed." }
+            }
+        }
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
             val index = vertx.sharedData().getLocalCounter(PREFIX).await()
@@ -325,6 +339,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                     dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
                     put("call_id", registration.callId)
                 })
+                put("hint", hint)
             }
             put("document", JsonObject().apply {
                 var document = this

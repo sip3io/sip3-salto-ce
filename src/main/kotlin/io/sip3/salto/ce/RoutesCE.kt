@@ -51,4 +51,5 @@ interface RoutesCE : Routes {
 
     // Mongo
     val mongo_bulk_writer get() = "mongo_bulk_writer"
+    val mongo_collection_hint get() = "mongo_collection_hint"
 }
