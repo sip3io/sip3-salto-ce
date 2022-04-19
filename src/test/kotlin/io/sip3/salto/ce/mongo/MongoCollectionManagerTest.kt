@@ -18,12 +18,15 @@ package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoExtension
+import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
 import io.vertx.kotlin.coroutines.await
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -129,6 +132,49 @@ class MongoCollectionManagerTest : VertxTest() {
                     mongo.listIndexes(collection) { asr ->
                         if (asr.succeeded() && asr.result().size() > 1) {
                             context.completeNow()
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Read MongoDB collection hint`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
+                    put("time-suffix", "yyyyMMdd")
+                    put("mongo", JsonObject().apply {
+                        put("uri", MongoExtension.MONGO_URI)
+                        put("db", "sip3-hint")
+                        put("collections", JsonArray().apply {
+                            add(JsonObject().apply {
+                                put("prefix", "test_hint")
+                                put("indexes", JsonObject().apply {
+                                    put("ascending", listOf("name"))
+                                })
+                                put("hint", JsonObject().apply {
+                                    put("call_id", "hashed")
+                                })
+                            })
+                        })
+                    })
+                })
+            },
+            assert = {
+                vertx.setPeriodic(500, 100) {
+                    vertx.eventBus().localRequest<JsonObject?>(RoutesCE.mongo_collection_hint, "test_hint") { asr ->
+                        if (asr.succeeded() && asr.result().body() != null) {
+                            context.verify {
+                                assertEquals("hashed", asr.result().body()?.getString("call_id"))
+                            }
+
+                            vertx.eventBus().localRequest<JsonObject?>(RoutesCE.mongo_collection_hint, "test_hint_not_set") { asr2 ->
+                                if (asr2.succeeded() && asr2.result().body() == null) {
+                                    context.completeNow()
+                                }
+                            }
                         }
                     }
                 }
