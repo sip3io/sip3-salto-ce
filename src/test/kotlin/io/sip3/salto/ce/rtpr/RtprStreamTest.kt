@@ -163,13 +163,13 @@ class RtprStreamTest {
 
     @Test
     fun `Validate RtprStream 'add()' method from 2 RTP`() {
-        val stream = RtprStream(PACKET_1).apply {
+        val stream = RtprStream().apply {
             mediaControl = MEDIA_CONTROL
             RtpReportPayload().apply {
                 decode(RTPR_1.encode())
-            }.let { add(it) }
+            }.let { add(PACKET_1, it) }
 
-            add(RTPR_2)
+            add(PACKET_2, RTPR_2)
         }
 
         assertEquals(2, stream.reportCount)
@@ -183,9 +183,9 @@ class RtprStreamTest {
 
     @Test
     fun `Validate RtprStream R-Factor threshold`() {
-        val stream = RtprStream(PACKET_1, 50F).apply {
+        val stream = RtprStream(50F).apply {
             mediaControl = MEDIA_CONTROL
-            add(RTPR_1)
+            add(PACKET_1, RTPR_1)
         }
 
         assertEquals(1, stream.reportCount)
@@ -194,9 +194,9 @@ class RtprStreamTest {
 
     @Test
     fun `Validate RtprStream 'add()' method from RTCP`() {
-        val stream = RtprStream(PACKET_1_RTCP).apply {
+        val stream = RtprStream().apply {
             mediaControl = MEDIA_CONTROL
-            add(RTPR_1_RTCP)
+            add(PACKET_1_RTCP, RTPR_1_RTCP)
         }
 
         assertEquals(1, stream.reportCount)

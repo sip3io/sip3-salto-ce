@@ -18,18 +18,19 @@ package io.sip3.salto.ce.rtpr
 
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.payload.RtpReportPayload
+import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.MediaUtil
 import kotlin.math.max
 import kotlin.math.min
 
-class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
+class RtprStream(private val rFactorThreshold: Float? = null) {
 
     var createdAt: Long = 0L
     var terminatedAt: Long = 0L
 
-    var srcAddr = packet.srcAddr
-    var dstAddr = packet.dstAddr
+    lateinit var srcAddr: Address
+    lateinit var dstAddr: Address
 
     var report: RtpReportPayload = RtpReportPayload().apply {
         createdAt = System.currentTimeMillis()
@@ -52,7 +53,14 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
     var reportCount = 0
     var badReportCount = 0
 
-    fun add(payload: RtpReportPayload) {
+    val attributes = mutableMapOf<String, Any>()
+
+    fun add(packet: Packet, payload: RtpReportPayload) {
+        if (createdAt == 0L) {
+            srcAddr = packet.srcAddr
+            dstAddr = packet.dstAddr
+        }
+
         codecNames.add(payload.codecName ?: "UNDEFINED(${payload.payloadType})")
 
         report.mergeIn(payload)
@@ -62,6 +70,8 @@ class RtprStream(packet: Packet, private val rFactorThreshold: Float? = null) {
 
         reportCount++
         rFactorThreshold?.let { if (report.rFactor in 0F..rFactorThreshold) badReportCount++ }
+
+        packet.attributes?.forEach { (name, value) -> attributes[name] = value }
     }
 
     private fun RtpReportPayload.mergeIn(other: RtpReportPayload) {

@@ -126,6 +126,7 @@ class RtprHandlerTest : VertxTest() {
             srcAddr = SRC_ADDR
             dstAddr = DST_ADDR
             payload = RTPR_1.encode().getBytes()
+            attributes = mutableMapOf("custom_attr" to "value")
         }
 
         // Packet with periodic RTP report without Call-ID
@@ -134,6 +135,7 @@ class RtprHandlerTest : VertxTest() {
             srcAddr = DST_ADDR_RTCP
             dstAddr = SRC_ADDR_RTCP
             payload = RTPR_2.encode().getBytes()
+            attributes = mutableMapOf("custom_attr" to "value2")
         }
 
         // Media Control
@@ -269,6 +271,8 @@ class RtprHandlerTest : VertxTest() {
                             assertEquals(DST_ADDR, dstAddr)
                             assertEquals(SRC_ADDR, srcAddr)
                             assertReport(RTPR_1, session.forward!!.report)
+
+                            assertEquals(PACKET_1.attributes!!.get("custom_attr"), session.attributes.get("custom_attr"))
                         }
                     }
                     context.completeNow()
@@ -278,52 +282,7 @@ class RtprHandlerTest : VertxTest() {
     }
 
     @Test
-    fun `Calculate metrics for periodic RTP reports`() {
-        val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
-        Metrics.addRegistry(registry)
-
-        runTest(
-            deploy = {
-                vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
-                    put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("cumulative-metrics", false)
-                        })
-                    })
-                })
-            },
-            execute = {
-                vertx.eventBus().localPublish(RoutesCE.media + "_control", MEDIA_CONTROL)
-                vertx.eventBus().localSend(RoutesCE.rtpr, PACKET_1)
-            },
-            assert = {
-                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
-                    val (collection, _) = event.body()
-
-                    context.verify {
-                        assertTrue(collection.startsWith("rtpr_rtp_raw"))
-                    }
-                }
-
-                vertx.setPeriodic(200L) {
-                    registry.find("rtpr_rtp_r-factor").summaries()
-                        .firstOrNull { it.mean().toFloat() == RTPR_1.rFactor }
-                        ?.let { summary ->
-                            context.verify {
-                                val tags = summary.id.tags
-                                assertTrue(tags.isNotEmpty())
-                                assertTrue(tags.any { it.value == RTPR_1.codecName })
-                                assertTrue(tags.any { it.key == Attributes.ranked && it.value == "true" })
-                            }
-                            context.completeNow()
-                        }
-                }
-            }
-        )
-    }
-
-    @Test
-    fun `Calculate metrics for cumulative RTP Report`() {
+    fun `Calculate metrics for RTP Report`() {
         val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
         Metrics.addRegistry(registry)
 
@@ -352,6 +311,7 @@ class RtprHandlerTest : VertxTest() {
                                 assertTrue(tags.isNotEmpty())
                                 assertTrue(tags.any { it.value == MEDIA_CONTROL.sdpSession.codecs.first().name })
                                 assertTrue(tags.any { it.key == Attributes.ranked })
+                                assertTrue(tags.any { it.key == "custom_attr" })
                             }
                             context.completeNow()
                         }

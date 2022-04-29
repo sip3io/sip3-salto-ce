@@ -115,7 +115,7 @@ open class SipMessageHandler : AbstractVerticle() {
     }
 
     open fun handleSipMessage(packet: Packet, message: SIPMessage) {
-        packet.attributes = mutableMapOf()
+        if (packet.attributes == null) packet.attributes = mutableMapOf()
 
         // Find `x-correlation-header`
         (message.getHeader(xCorrelationHeader) as? ExtensionHeader)?.value?.let { value ->

@@ -20,6 +20,7 @@ import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
@@ -93,6 +94,10 @@ open class SipCallHandler : AbstractVerticle() {
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
+    private var hint = JsonObject().apply {
+        put("call_id", "hashed")
+    }
+
     private lateinit var activeSessions: PeriodicallyExpiringHashMap<String, MutableMap<String, SipSession>>
     private lateinit var activeSessionCounters: PeriodicallyExpiringHashMap<String, AtomicInteger>
 
@@ -134,6 +139,14 @@ open class SipCallHandler : AbstractVerticle() {
 
         udfExecutor = UdfExecutor(vertx)
         attributesRegistry = AttributesRegistry(vertx, config())
+
+        vertx.eventBus().localRequest<JsonObject?>(RoutesCE.mongo_collection_hint, "${PREFIX}_index") { asr ->
+            if (asr.succeeded()) {
+                asr.result().body()?.let { hint = it }
+            } else {
+                logger.error(asr.cause()) { "SipCallHandler '${RoutesCE.mongo_collection_hint}' request failed." }
+            }
+        }
 
         activeSessions = PeriodicallyExpiringHashMap.Builder<String, MutableMap<String, SipSession>>()
             .delay(expirationDelay)
@@ -487,6 +500,7 @@ open class SipCallHandler : AbstractVerticle() {
                     dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
                     put("call_id", session.callId)
                 })
+                put("hint", hint)
             }
             put("document", JsonObject().apply {
                 var document = this

@@ -110,6 +110,12 @@ class RtprSession {
     val duration: Long
         get() = terminatedAt - createdAt
 
+    val attributes: MutableMap<String, Any>
+        get() = mutableMapOf<String, Any>().apply {
+            forward?.attributes?.forEach { (name, value) -> put(name, value) }
+            reverse?.attributes?.forEach { (name, value) -> put(name, value) }
+        }
+
     fun add(packet: Packet, payload: RtpReportPayload) {
         val isForward = if (source == RtpReportPayload.SOURCE_RTP) {
             packet.srcAddr.equals(srcAddr) || packet.dstAddr.equals(dstAddr)
@@ -119,13 +125,13 @@ class RtprSession {
 
         // Update streams
         if (isForward) {
-            if (forward == null) forward = RtprStream(packet, rFactorThreshold)
-            forward!!.add(payload)
+            if (forward == null) forward = RtprStream(rFactorThreshold)
+            forward!!.add(packet, payload)
             createdAt = min(createdAt, forward!!.createdAt)
             terminatedAt = max(terminatedAt, forward!!.terminatedAt)
         } else {
-            if (reverse == null) reverse = RtprStream(packet, rFactorThreshold)
-            reverse!!.add(payload)
+            if (reverse == null) reverse = RtprStream(rFactorThreshold)
+            reverse!!.add(packet, payload)
             createdAt = min(createdAt, reverse!!.createdAt)
             terminatedAt = max(terminatedAt, reverse!!.terminatedAt)
         }
