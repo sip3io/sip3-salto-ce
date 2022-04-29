@@ -435,36 +435,36 @@ class SipRegisterHandlerTest : VertxTest() {
                             // Assert first write to DB for Registration SipSession
                             createdAt = System.currentTimeMillis()
                             document.apply {
-//                                assertEquals(PACKET_3.createdAt, getLong("created_at"))
-//                                assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
-//                                assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
-//                                assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
-//                                assertEquals(PACKET_3.dstAddr.port, getInteger("dst_port"))
-//                                assertNotNull(getString("call_id"))
-//                                assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
-//                                assertEquals(PACKET_3.createdAt + 120000, getLong("terminated_at"))
-//                                assertNull(getLong("duration"))
+                                assertEquals(PACKET_3.createdAt, getLong("created_at"))
+                                assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
+                                assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
+                                assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
+                                assertEquals(PACKET_3.dstAddr.port, getInteger("dst_port"))
+                                assertNotNull(getString("call_id"))
+                                assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
+                                assertEquals(PACKET_3.createdAt + 120000, getLong("terminated_at"))
+                                assertNull(getLong("duration"))
                             }
                         } else {
                             // Ensure no writes were performed without session updates in at least 3 update periods
                             assertTrue(System.currentTimeMillis() - createdAt!! > 700)
 
                             // Assert update session in DB
-//                            document.getJsonObject("\$setOnInsert").apply {
-//                                assertEquals(PACKET_3.createdAt, getLong("created_at"))
-//                                assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
-//                                assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
-//                                assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
-//                                assertEquals(PACKET_3.dstAddr.port, getInteger("dst_port"))
-//                                assertNotNull(getString("call_id"))
-//                            }
-//
-//                            document.getJsonObject("\$set").apply {
-//                                assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
-//                                assertEquals(PACKET_5.createdAt + 120000, getLong("terminated_at"))
-//                                assertEquals(30000L, getLong("overlapped_interval"))
-//                                assertEquals(0.25, getDouble("overlapped_fraction"))
-//                            }
+                            document.getJsonObject("\$setOnInsert").apply {
+                                assertEquals(PACKET_3.createdAt, getLong("created_at"))
+                                assertEquals(PACKET_3.srcAddr.addr, getString("src_addr"))
+                                assertEquals(PACKET_3.srcAddr.port, getInteger("src_port"))
+                                assertEquals(PACKET_3.dstAddr.addr, getString("dst_addr"))
+                                assertEquals(PACKET_3.dstAddr.port, getInteger("dst_port"))
+                                assertNotNull(getString("call_id"))
+                            }
+
+                            document.getJsonObject("\$set").apply {
+                                assertEquals(SipRegisterHandler.REGISTERED, getString("state"))
+                                assertEquals(PACKET_5.createdAt + 120000, getLong("terminated_at"))
+                                assertEquals(30000L, getLong("overlapped_interval"))
+                                assertEquals(0.25, getDouble("overlapped_fraction"))
+                            }
                             context.completeNow()
                         }
                     }
