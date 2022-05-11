@@ -203,9 +203,9 @@ open class RtprHandler : AbstractVerticle() {
         }
 
         val source = report.source
-        val (prefix, sessions) = when (source) {
-            RtpReportPayload.SOURCE_RTP -> Pair("rtpr_rtp", rtp)
-            RtpReportPayload.SOURCE_RTCP -> Pair("rtpr_rtcp", rtcp)
+        val sessions = when (source) {
+            RtpReportPayload.SOURCE_RTP -> rtp
+            RtpReportPayload.SOURCE_RTCP -> rtcp
             else -> throw IllegalArgumentException("Unsupported RTP Report source: '${report.source}'")
         }
 

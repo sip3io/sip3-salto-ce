@@ -385,6 +385,7 @@ class SipCallHandlerTest : VertxTest() {
     fun `Deploy multiple 'SipCallHandler' instances`() {
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject(), instances = 4)
             },
             execute = {
@@ -392,7 +393,7 @@ class SipCallHandlerTest : VertxTest() {
             },
             assert = {
                 vertx.setPeriodic(100) {
-                    val endpoints = vertx.eventBus().endpoints()
+                    val endpoints = vertx.eventBus().endpoints().filter { it.startsWith(SipCallHandler.PREFIX) }
                     if (endpoints.size == 4) {
                         context.verify {
                             (0..3).forEach { i ->
@@ -413,6 +414,7 @@ class SipCallHandlerTest : VertxTest() {
         }
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
@@ -463,6 +465,7 @@ class SipCallHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
@@ -523,6 +526,7 @@ class SipCallHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
@@ -605,6 +609,7 @@ class SipCallHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
@@ -672,6 +677,7 @@ class SipCallHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("attributes", JsonObject().apply {
                         put("record-call-users", true)
@@ -727,6 +733,7 @@ class SipCallHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
@@ -760,6 +767,19 @@ class SipCallHandlerTest : VertxTest() {
                 }
             }
         )
+    }
+
+    private fun mockMongoCollectionManager() {
+        vertx.eventBus().localConsumer<String>(RoutesCE.mongo_collection_hint) { event ->
+            val prefix = event.body()
+            context.verify {
+                assertEquals("sip_call_index", prefix)
+            }
+
+            event.reply(JsonObject().apply {
+                put("created_at", 1)
+            })
+        }
     }
 
     private fun SipTransaction.addPacket(packet: Packet) {
