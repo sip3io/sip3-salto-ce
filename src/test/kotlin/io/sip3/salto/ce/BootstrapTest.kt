@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 
-@ExtendWith(MockKExtension::class, MockKSingletonExtension::class)
+@ExtendWith(MockKExtension::class, MockKSingletonExtension::class, MongoExtension::class)
 class BootstrapTest : VertxTest() {
 
     companion object {
@@ -48,6 +48,11 @@ class BootstrapTest : VertxTest() {
                 vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
                     put("server", JsonObject().apply {
                         put("uri", "udp://0.0.0.0:${findRandomPort()}")
+                    })
+                    put("mongo", JsonObject().apply {
+                        put("uri", MongoExtension.MONGO_URI)
+                        put("db", "sip3-bootstrap-test")
+                        put("bulk-size", 1)
                     })
                 })
             },
@@ -76,6 +81,11 @@ class BootstrapTest : VertxTest() {
                     put("server", JsonObject().apply {
                         put("uri", "udp://0.0.0.0:${findRandomPort()}")
                     })
+                    put("mongo", JsonObject().apply {
+                        put("uri", MongoExtension.MONGO_URI)
+                        put("db", "sip3-bootstrap-test")
+                        put("bulk-size", 1)
+                    })
                 })
             },
             execute = {
@@ -102,6 +112,11 @@ class BootstrapTest : VertxTest() {
                 vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
                     put("server", JsonObject().apply {
                         put("uri", "udp://0.0.0.0:${findRandomPort()}")
+                    })
+                    put("mongo", JsonObject().apply {
+                        put("uri", MongoExtension.MONGO_URI)
+                        put("db", "sip3-bootstrap-test")
+                        put("bulk-size", 1)
                     })
                 })
             },

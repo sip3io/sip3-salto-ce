@@ -35,7 +35,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.coroutines.CoroutineContext
 
 @Instance
-class RtprBulkWriter : AbstractVerticle() {
+open class RtprBulkWriter : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 

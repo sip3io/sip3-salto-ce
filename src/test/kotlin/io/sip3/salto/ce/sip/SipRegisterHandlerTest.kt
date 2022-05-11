@@ -289,6 +289,7 @@ class SipRegisterHandlerTest : VertxTest() {
         }
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
@@ -345,6 +346,7 @@ class SipRegisterHandlerTest : VertxTest() {
         }
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
@@ -402,6 +404,7 @@ class SipRegisterHandlerTest : VertxTest() {
         }
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
@@ -483,6 +486,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
@@ -535,6 +539,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
@@ -592,6 +597,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
@@ -639,6 +645,7 @@ class SipRegisterHandlerTest : VertxTest() {
 
         runTest(
             deploy = {
+                mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
@@ -675,6 +682,19 @@ class SipRegisterHandlerTest : VertxTest() {
                 }
             }
         )
+    }
+
+    private fun mockMongoCollectionManager() {
+        vertx.eventBus().localConsumer<String>(RoutesCE.mongo_collection_hint) { event ->
+            val prefix = event.body()
+            context.verify {
+                assertEquals("sip_register_index", prefix)
+            }
+
+            event.reply(JsonObject().apply {
+                put("created_at", 1)
+            })
+        }
     }
 
     private fun SipTransaction.addPacket(packet: Packet) {
