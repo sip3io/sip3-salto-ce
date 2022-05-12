@@ -30,7 +30,7 @@ class MongoExtension : BeforeAllCallback {
         }
 
         val MONGO_URI
-            get() = "mongodb://${MONGODB_CONTAINER.containerIpAddress}:${MONGODB_CONTAINER.firstMappedPort}"
+            get() = "mongodb://${MONGODB_CONTAINER.host}:${MONGODB_CONTAINER.firstMappedPort}"
     }
 
     override fun beforeAll(context: ExtensionContext?) {
