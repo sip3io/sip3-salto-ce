@@ -180,6 +180,7 @@ open class SipCallHandler : AbstractVerticle() {
         when (transaction.cseqMethod) {
             "INVITE" -> terminateInviteTransaction(transaction)
             "BYE" -> terminateByeTransaction(transaction)
+            "INFO" -> terminateInfoTransaction(transaction)
         }
     }
 
@@ -261,6 +262,10 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         calculateByeTransactionMetrics(transaction)
+    }
+
+    open fun terminateInfoTransaction(transaction: SipTransaction) {
+        vertx.eventBus().localSend(RoutesCE.sip + "_info", transaction)
     }
 
     open fun calculateByeTransactionMetrics(transaction: SipTransaction) {
