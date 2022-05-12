@@ -114,7 +114,7 @@ class MongoCollectionManager : CoroutineVerticle() {
         collections.forEach { collection ->
             try {
                 // Drop old collections
-                dropOldCollections(collection as JsonObject)
+                dropOldCollections(collection)
 
                 // Create new collections if needed
                 timeSuffixes.forEach {
