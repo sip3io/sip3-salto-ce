@@ -336,12 +336,12 @@ open class SipRegisterHandler : AbstractVerticle() {
                 put("type", "UPDATE")
                 put("upsert", true)
                 put("filter", JsonObject().apply {
+                    put("call_id", registration.callId)
                     put("created_at", registration.createdAt)
                     val src = registration.srcAddr
                     src.host?.let { put("src_host", it) } ?: put("src_addr", src.addr)
                     val dst = registration.dstAddr
                     dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
-                    put("call_id", registration.callId)
                 })
                 put("hint", hint)
             }
