@@ -498,12 +498,12 @@ open class SipCallHandler : AbstractVerticle() {
                 put("type", "UPDATE")
                 put("upsert", true)
                 put("filter", JsonObject().apply {
+                    put("call_id", session.callId)
                     put("created_at", session.createdAt)
                     val src = session.srcAddr
                     src.host?.let { put("src_host", it) } ?: put("src_addr", src.addr)
                     val dst = session.dstAddr
                     dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
-                    put("call_id", session.callId)
                 })
                 put("hint", hint)
             }
