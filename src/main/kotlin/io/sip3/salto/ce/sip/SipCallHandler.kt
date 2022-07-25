@@ -94,9 +94,7 @@ open class SipCallHandler : AbstractVerticle() {
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
-    private var hint = JsonObject().apply {
-        put("call_id", "hashed")
-    }
+    private var hint: JsonObject? = null
 
     private lateinit var activeSessions: PeriodicallyExpiringHashMap<String, MutableMap<String, SipSession>>
     private lateinit var activeSessionCounters: PeriodicallyExpiringHashMap<String, AtomicInteger>
@@ -505,7 +503,7 @@ open class SipCallHandler : AbstractVerticle() {
                     val dst = session.dstAddr
                     dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
                 })
-                put("hint", hint)
+                hint?.let { put("hint", it) }
             }
             put("document", JsonObject().apply {
                 var document = this
