@@ -84,9 +84,7 @@ open class SipRegisterHandler : AbstractVerticle() {
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
 
-    private var hint: Any = JsonObject().apply {
-        put("call_id", "hashed")
-    }
+    private var hint: JsonObject? = null
 
     private lateinit var activeRegistrations: PeriodicallyExpiringHashMap<String, SipRegistration>
     private lateinit var activeSessions: PeriodicallyExpiringHashMap<String, SipSession>
@@ -343,7 +341,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                     val dst = registration.dstAddr
                     dst.host?.let { put("dst_host", it) } ?: put("dst_addr", dst.addr)
                 })
-                put("hint", hint)
+                hint?.let { put("hint", it) }
             }
             put("document", JsonObject().apply {
                 var document = this
