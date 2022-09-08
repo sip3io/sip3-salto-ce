@@ -70,7 +70,3 @@ object MongoClient {
         }, "$uri:$db")
     }
 }
-
-fun main() {
-    println(System.getProperty("mongo.auth.user"))
-}
