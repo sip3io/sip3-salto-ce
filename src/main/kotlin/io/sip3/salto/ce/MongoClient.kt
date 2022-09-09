@@ -28,9 +28,11 @@ object MongoClient {
         val db = config.getString("db") ?: throw IllegalArgumentException("db")
 
         return MongoClient.createShared(vertx, JsonObject().apply {
+            // URI and database
             put("connection_string", uri)
             put("db_name", db)
 
+            // Auth
             config.getJsonObject("auth")?.let { auth ->
                 auth.getString("user")?.let {
                     put("username", it)
@@ -40,6 +42,14 @@ object MongoClient {
                 }
             }
 
+            System.getProperty("mongo.auth.user")?.let {
+                put("username", it)
+            }
+            System.getProperty("mongo.auth.password")?.let {
+                put("password", it)
+            }
+
+            // SSL
             config.getJsonObject("ssl")?.let { ssl ->
                 ssl.getBoolean("enabled")?.let {
                     put("ssl", it)
