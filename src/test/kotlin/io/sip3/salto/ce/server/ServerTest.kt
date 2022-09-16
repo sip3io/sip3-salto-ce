@@ -17,11 +17,11 @@
 package io.sip3.salto.ce.server
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -48,7 +48,10 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createDatagramSocket().send(MESSAGE_1, port, "127.0.0.1").await()
+                vertx.setPeriodic(100L, 100L) {
+                    vertx.createDatagramSocket().send(MESSAGE_1, port, "127.0.0.1")
+                }
+
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
@@ -75,7 +78,11 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createNetClient().connect(port, "127.0.0.1").await().write(MESSAGE_2)
+                val netClient = vertx.createNetClient()
+                vertx.setPeriodic(100L, 100L) {
+                    netClient.connect(port, "127.0.0.1")
+                        .onSuccess { it.write(Buffer.buffer(MESSAGE_2)) }
+                }
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
@@ -102,7 +109,11 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createNetClient().connect(port, "127.0.0.1").await().write(Buffer.buffer(MESSAGE_3))
+                val netClient = vertx.createNetClient()
+                vertx.setPeriodic(100L, 100L) {
+                    netClient.connect(port, "127.0.0.1")
+                        .onSuccess { it.write(Buffer.buffer(MESSAGE_3)) }
+                }
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->
