@@ -81,47 +81,9 @@ class UdfManagerTest : VertxTest() {
         )
     }
 
-    @Test
-    fun `Deploy and re-deploy JavaScript UDF`() {
-        val message = "JavaScript is awesome"
-        val counter = AtomicInteger()
-
-        runTest(
-            deploy = {
-                vertx.orCreateContext.config().put("udf", JsonObject().apply {
-                    put("check-period", 1000)
-                })
-                UdfManager(vertx).start(tmpDir.toAbsolutePath().toString())
-            },
-            execute = {
-                var script = Paths.get(UDF_LOCATION, "UdfManagerTestV1.js")
-                script.copyTo(tmpDir.resolve("UdfManagerTest.js"), overwrite = true)
-                vertx.setPeriodic(200) {
-                    if (counter.get() == 1 && script == Paths.get(UDF_LOCATION, "UdfManagerTestV1.js")) {
-                        script = Paths.get(UDF_LOCATION, "UdfManagerTestV2.js")
-                        script.copyTo(tmpDir.resolve("UdfManagerTest.js"), overwrite = true)
-                    }
-                }
-                vertx.setPeriodic(500) {
-                    vertx.eventBus().localSend("js", message)
-                }
-            },
-            assert = {
-                vertx.eventBus().localConsumer<String>("js1") { counter.compareAndSet(0, 1) }
-                vertx.eventBus().localConsumer<String>("js2") { counter.compareAndSet(1, 2) }
-                vertx.setPeriodic(200) {
-                    if (counter.get() == 2) {
-                        context.completeNow()
-                    }
-                }
-            }
-        )
-    }
-
     @AfterEach
     fun deleteTemporaryDirectory() {
         Files.deleteIfExists(tmpDir.resolve("UdfManagerTest.groovy"))
-        Files.deleteIfExists(tmpDir.resolve("UdfManagerTest.js"))
         Files.deleteIfExists(tmpDir)
     }
 }

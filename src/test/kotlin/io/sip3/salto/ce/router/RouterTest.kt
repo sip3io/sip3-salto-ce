@@ -41,7 +41,6 @@ class RouterTest : VertxTest() {
     companion object {
 
         const val UDF_GROOVY = "src/test/resources/udf/RouterTest/RouterTest.groovy"
-        const val UDF_JS = "src/test/resources/udf/RouterTest/RouterTest.js"
     }
 
     @Test
@@ -195,73 +194,6 @@ class RouterTest : VertxTest() {
                     context.completeNow()
                 }
             }
-        )
-    }
-
-    @Test
-    fun `Apply Javascript UDF to filter SIP packets`() {
-        runTest(
-            deploy = {
-                vertx.deployVerticle(UDF_JS).await()
-                vertx.deployTestVerticle(Router::class, JsonObject().apply {
-                    put("udf", JsonObject().apply {
-                        put("check-period", 100)
-                        put("execution-timeout", 1000)
-                    })
-                })
-            },
-            execute = {
-                val sender1 = Address().apply {
-                    addr = "127.0.0.1"
-                    port = 5060
-                    host = "test"
-                }
-                val packet1 = Packet().apply {
-                    this.srcAddr = Address().apply {
-                        addr = "29.11.19.88"
-                        port = 30
-                    }
-                    this.dstAddr = Address().apply {
-                        addr = "23.08.20.15"
-                        port = 3
-                    }
-                    protocolCode = 3
-                }
-                val sender2 = Address().apply {
-                    addr = "127.0.0.1"
-                    port = 5060
-                    host = "sip3-captain"
-                }
-                val packet2 = Packet().apply {
-                    this.srcAddr = Address().apply {
-                        addr = "29.11.19.88"
-                        port = 30
-                        host = "Test"
-                    }
-                    this.dstAddr = Address().apply {
-                        addr = "23.08.20.15"
-                        port = 3
-                    }
-                    protocolCode = 3
-                }
-                vertx.setPeriodic(100) {
-                    if (vertx.eventBus().endpoints().contains("packet_udf")) {
-                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender1, listOf(packet1)))
-                        vertx.eventBus().localSend(RoutesCE.router, Pair(sender2, listOf(packet2)))
-                    }
-                }
-            },
-            assert = {
-                vertx.eventBus().consumer<Packet>(RoutesCE.sip) { event ->
-                    val packet = event.body()
-                    context.verify {
-                        assertTrue(packet is Packet)
-                        assertEquals("Test", packet.srcAddr.host)
-                    }
-                    context.completeNow()
-                }
-            },
-            timeout = 30000L
         )
     }
 }
