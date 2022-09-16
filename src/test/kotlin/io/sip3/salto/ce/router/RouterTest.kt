@@ -260,7 +260,8 @@ class RouterTest : VertxTest() {
                     }
                     context.completeNow()
                 }
-            }
+            },
+            timeout = 30000L
         )
     }
 }
