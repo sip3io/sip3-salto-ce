@@ -29,6 +29,7 @@ import io.sip3.salto.ce.host.HostRegistry
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.get
+import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -135,7 +136,7 @@ class RouterTest : VertxTest() {
     fun `Apply Groovy UDF to filter SIP packets`() {
         runTest(
             deploy = {
-                vertx.deployVerticle(UDF_GROOVY)
+                vertx.deployVerticle(UDF_GROOVY).await()
                 vertx.deployTestVerticle(Router::class, JsonObject().apply {
                     put("udf", JsonObject().apply {
                         put("check-period", 100)
@@ -201,7 +202,7 @@ class RouterTest : VertxTest() {
     fun `Apply Javascript UDF to filter SIP packets`() {
         runTest(
             deploy = {
-                vertx.deployVerticle(UDF_JS)
+                vertx.deployVerticle(UDF_JS).await()
                 vertx.deployTestVerticle(Router::class, JsonObject().apply {
                     put("udf", JsonObject().apply {
                         put("check-period", 100)
