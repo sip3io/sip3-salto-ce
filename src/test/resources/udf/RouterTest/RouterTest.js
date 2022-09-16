@@ -17,7 +17,9 @@
 vertx.eventBus().localConsumer("packet_udf", function (event) {
     var packet = event.body();
 
-    if (packet['sender_host'] == 'sip3-captain') {
+    var isFromCaptain = packet['sender_host'] === 'sip3-captain';
+    console.log("packet['sender_host'] === 'sip3-captain' is " + isFromCaptain);
+    if (isFromCaptain) {
         event.reply(true);
     } else {
         event.reply(false);
