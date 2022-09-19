@@ -36,7 +36,6 @@ class SipMessageHandlerTest : VertxTest() {
     companion object {
 
         const val UDF_GROOVY = "src/test/resources/udf/SipMessageHandlerTest/SipMessageHandlerTest.groovy"
-        const val UDF_JS = "src/test/resources/udf/SipMessageHandlerTest/SipMessageHandlerTest.js"
 
         val PACKET_1 = Packet().apply {
             createdAt = System.currentTimeMillis()
@@ -347,45 +346,6 @@ class SipMessageHandlerTest : VertxTest() {
         runTest(
             deploy = {
                 vertx.deployVerticle(UDF_GROOVY)
-                vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
-                    put("udf", JsonObject().apply {
-                        put("check-period", 100)
-                        put("execution-timeout", 100)
-                    })
-                })
-            },
-            execute = {
-                vertx.setPeriodic(1000) {
-                    val packet = Packet().apply {
-                        createdAt = PACKET_1.createdAt
-                        srcAddr = PACKET_1.srcAddr
-                        dstAddr = PACKET_1.dstAddr
-                        payload = PACKET_1.payload
-                    }
-                    vertx.eventBus().localSend(RoutesCE.sip, packet)
-                }
-            },
-            assert = {
-                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
-                    val (packet, _) = event.body()
-
-                    val attributes = packet.attributes
-                    if (attributes!!.isNotEmpty()) {
-                        context.verify {
-                            assertEquals(2, attributes.size)
-                        }
-                        context.completeNow()
-                    }
-                }
-            }
-        )
-    }
-
-    @Test
-    fun `Apply JavaScript UDF to packet with SIP message`() {
-        runTest(
-            deploy = {
-                vertx.deployVerticle(UDF_JS)
                 vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
                     put("udf", JsonObject().apply {
                         put("check-period", 100)

@@ -17,10 +17,12 @@
 package io.sip3.salto.ce.server
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.net.netClientOptionsOf
 import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -34,6 +36,7 @@ class ServerTest : VertxTest() {
         const val MESSAGE_1 = "SIP3 is awesome!"
         const val MESSAGE_2 = "HEP3 is awesome!"
         val MESSAGE_3 = byteArrayOf(0x02, 0x10, 0x02, 0x42)
+        val NET_CLIENT_OPTIONS = netClientOptionsOf(reconnectInterval = 100L, reconnectAttempts = 100)
     }
 
     @Test
@@ -48,7 +51,10 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createDatagramSocket().send(MESSAGE_1, port, "127.0.0.1").await()
+                vertx.setPeriodic(100L, 100L) {
+                    vertx.createDatagramSocket().send(MESSAGE_1, port, "127.0.0.1")
+                }
+
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
@@ -75,7 +81,9 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createNetClient().connect(port, "127.0.0.1").await().write(MESSAGE_2)
+                vertx.createNetClient(NET_CLIENT_OPTIONS)
+                    .connect(port, "127.0.0.1").await()
+                    .write(Buffer.buffer(MESSAGE_2))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
@@ -102,7 +110,9 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
-                vertx.createNetClient().connect(port, "127.0.0.1").await().write(Buffer.buffer(MESSAGE_3))
+                vertx.createNetClient(NET_CLIENT_OPTIONS)
+                    .connect(port, "127.0.0.1").await()
+                    .write(Buffer.buffer(MESSAGE_3))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->

@@ -73,39 +73,6 @@ class BootstrapTest : VertxTest() {
     }
 
     @Test
-    fun `Deploy and test JavaScript UDF`() {
-        val message = "JavaScript is awesome"
-        runTest(
-            deploy = {
-                vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
-                    put("server", JsonObject().apply {
-                        put("uri", "udp://0.0.0.0:${findRandomPort()}")
-                    })
-                    put("mongo", JsonObject().apply {
-                        put("uri", MongoExtension.MONGO_URI)
-                        put("db", "sip3-bootstrap-test")
-                        put("bulk-size", 1)
-                    })
-                })
-            },
-            execute = {
-                vertx.setPeriodic(500, 100) {
-                    vertx.eventBus().send("js", message)
-                }
-            },
-            assert = {
-                vertx.eventBus().localConsumer<String>("kotlin") { event ->
-                    context.verify {
-                        assertEquals(message, event.body())
-                    }
-                    context.completeNow()
-                }
-            },
-            timeout = 20000
-        )
-    }
-
-    @Test
     fun `Codec directory read`() {
         runTest(
             deploy = {
