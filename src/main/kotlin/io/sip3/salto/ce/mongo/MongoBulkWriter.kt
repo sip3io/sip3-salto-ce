@@ -16,7 +16,6 @@
 
 package io.sip3.salto.ce.mongo
 
-import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
@@ -31,7 +30,6 @@ import mu.KotlinLogging
  * Sends bulks of operations to MongoDB
  */
 @Instance
-@ConditionalOnProperty("/mongo")
 open class MongoBulkWriter : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
