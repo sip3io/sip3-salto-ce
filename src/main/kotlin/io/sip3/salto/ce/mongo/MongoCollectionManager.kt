@@ -16,7 +16,6 @@
 
 package io.sip3.salto.ce.mongo
 
-import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localReply
 import io.sip3.commons.vertx.util.setPeriodic
@@ -38,7 +37,6 @@ import kotlin.coroutines.CoroutineContext
  * Manages MongoDB collections
  */
 @Instance(order = 0, singleton = true)
-@ConditionalOnProperty("/mongo")
 class MongoCollectionManager : CoroutineVerticle() {
 
     private val logger = KotlinLogging.logger {}
