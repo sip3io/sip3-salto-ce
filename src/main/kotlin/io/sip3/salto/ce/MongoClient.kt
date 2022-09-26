@@ -37,6 +37,9 @@ object MongoClient {
                 auth.getString("user")?.let {
                     put("username", it)
                 }
+                auth.getString("source")?.let {
+                    put("authSource", it)
+                }
                 auth.getString("password")?.let {
                     put("password", it)
                 }
@@ -44,6 +47,9 @@ object MongoClient {
 
             System.getProperty("mongo.auth.user")?.let {
                 put("username", it)
+            }
+            System.getProperty("mongo.auth.source")?.let {
+                put("authSource", it)
             }
             System.getProperty("mongo.auth.password")?.let {
                 put("password", it)
