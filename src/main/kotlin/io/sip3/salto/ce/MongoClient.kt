@@ -48,6 +48,9 @@ object MongoClient {
             System.getProperty("mongo.auth.password")?.let {
                 put("password", it)
             }
+            System.getProperty("mongo.auth.db")?.let {
+                put("authSource", it)
+            }
 
             // SSL
             config.getJsonObject("ssl")?.let { ssl ->
