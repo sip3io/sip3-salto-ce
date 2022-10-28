@@ -28,6 +28,7 @@ import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.sip3.salto.ce.util.DurationUtil
+import io.sip3.salto.ce.util.toAttributes
 import io.sip3.salto.ce.util.toDatabaseAttributes
 import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
@@ -418,7 +419,7 @@ open class SipCallHandler : AbstractVerticle() {
 
     open fun writeAttributes(session: SipSession) {
         val attributes = session.attributes
-            .toDatabaseAttributes()
+            .toAttributes()
             .apply {
                 put(Attributes.method, "INVITE")
                 put(Attributes.state, session.state)

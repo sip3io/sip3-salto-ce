@@ -24,7 +24,7 @@ import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
-import io.sip3.salto.ce.util.toDatabaseAttributes
+import io.sip3.salto.ce.util.toAttributes
 import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -118,7 +118,7 @@ open class RtprSessionHandler : AbstractVerticle() {
         }
 
         session.attributes
-            .toDatabaseAttributes()
+            .toAttributes()
             .forEach { (name, value) -> attributes[name] = value }
 
         val prefix = when (session.source) {
@@ -213,7 +213,7 @@ open class RtprSessionHandler : AbstractVerticle() {
                 put("fraction_lost", reports.map { it.fractionLost.toDouble() })
 
                 session.attributes
-                    .toDatabaseAttributes()
+                    .toAttributes()
                     .forEach { (name, value) -> put(name, value) }
             })
         }

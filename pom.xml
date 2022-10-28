@@ -15,10 +15,6 @@
         <version>2022.2.2-SNAPSHOT</version>
     </parent>
 
-    <properties>
-        <vertx-js.version>4.0.0-milestone4</vertx-js.version>
-    </properties>
-
     <dependencies>
         <!-- SIP3 -->
         <dependency>

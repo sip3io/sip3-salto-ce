@@ -199,7 +199,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
     open fun writeAttributes(transaction: SipTransaction) {
         val attributes = transaction.attributes
-            .toDatabaseAttributes()
+            .toAttributes()
             .apply {
                 put(Attributes.method, transaction.cseqMethod)
                 put(Attributes.state, transaction.state)

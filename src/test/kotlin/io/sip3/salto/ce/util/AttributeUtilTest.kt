@@ -35,12 +35,21 @@ class AttributeUtilTest {
             "dom:uda_all_modes" to true
         )
 
+        val resultAttributes = attributes.toAttributes()
+        assertEquals(5, resultAttributes.size)
+        assertTrue(resultAttributes.keys.none { it.contains(":") })
+        assertFalse(resultAttributes.contains("uda_empty_prefix"))
+        assertEquals("", resultAttributes["uda_database_only"])
+        assertEquals("", resultAttributes["uda_all_without_options"])
+        assertEquals("with_options", resultAttributes["uda_database_with_options"])
+        assertEquals("with_options", resultAttributes["uda_without_prefix"])
+
         val databaseAttributes = attributes.toDatabaseAttributes()
         assertEquals(5, databaseAttributes.size)
         assertTrue(databaseAttributes.keys.none { it.contains(":") })
         assertFalse(databaseAttributes.contains("uda_empty_prefix"))
-        assertEquals("", databaseAttributes["uda_database_only"])
-        assertEquals("", databaseAttributes["uda_all_without_options"])
+        assertEquals("no_options", databaseAttributes["uda_database_only"])
+        assertEquals("no_options", databaseAttributes["uda_all_without_options"])
         assertEquals("with_options", databaseAttributes["uda_database_with_options"])
         assertEquals("with_options", databaseAttributes["uda_without_prefix"])
 
