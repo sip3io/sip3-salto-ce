@@ -26,6 +26,7 @@ import io.sip3.salto.ce.Attributes
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.attributes.AttributesRegistry
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.util.toAttributes
 import io.sip3.salto.ce.util.toDatabaseAttributes
 import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
@@ -290,7 +291,7 @@ open class SipRegisterHandler : AbstractVerticle() {
 
     open fun writeAttributes(registration: SipRegistration) {
         val attributes = registration.attributes
-            .toDatabaseAttributes()
+            .toAttributes()
             .apply {
                 put(Attributes.method, "REGISTER")
                 put(Attributes.state, registration.state)

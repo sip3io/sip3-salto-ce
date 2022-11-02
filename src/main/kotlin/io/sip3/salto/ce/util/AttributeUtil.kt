@@ -16,13 +16,26 @@
 
 package io.sip3.salto.ce.util
 
-fun Map<String, Any>.toDatabaseAttributes(excluded: List<String> = emptyList()): MutableMap<String, Any> {
+fun Map<String, Any>.toAttributes(excluded: List<String> = emptyList()): MutableMap<String, Any> {
     val attributes = mutableMapOf<String, Any>()
 
     forEach { (k, v) ->
         val key = k.substringAfter(":")
         if (!excluded.contains(key) && AttributeUtil.modeDatabase(k)) {
             attributes[key] = if (v is String && !AttributeUtil.modeOptions(k)) "" else v
+        }
+    }
+
+    return attributes
+}
+
+fun Map<String, Any>.toDatabaseAttributes(excluded: List<String> = emptyList()): MutableMap<String, Any> {
+    val attributes = mutableMapOf<String, Any>()
+
+    forEach { (k, v) ->
+        val key = k.substringAfter(":")
+        if (!excluded.contains(key) && AttributeUtil.modeDatabase(k)) {
+            attributes[key] = v
         }
     }
 
