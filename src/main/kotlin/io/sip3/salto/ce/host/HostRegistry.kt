@@ -17,6 +17,8 @@
 package io.sip3.salto.ce.host
 
 import io.sip3.salto.ce.MongoClient
+import io.vertx.core.Future
+import io.vertx.core.Promise
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.ext.mongo.updateOptionsOf
@@ -94,6 +96,18 @@ object HostRegistry {
                 }
             }
         }
+    }
+
+    fun getConfig(name: String): Future<JsonObject> {
+        val promise = Promise.promise<JsonObject>()
+        val query = JsonObject().apply {
+            put("name", name)
+        }
+        client!!.findOne("configuration", query, JsonObject())
+            .onFailure { promise.fail(it) }
+            .onSuccess { promise.complete(it ?: JsonObject()) }
+
+        return promise.future()
     }
 
     private fun updateHosts() {
