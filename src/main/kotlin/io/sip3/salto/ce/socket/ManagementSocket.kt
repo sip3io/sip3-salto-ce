@@ -172,10 +172,9 @@ open class ManagementSocket : AbstractVerticle() {
                 hostRegistry.getConfig(name)
                     .onFailure { logger.error(it) { "HostRegistry `getConfig()` failed. Name: $name"} }
                     .onSuccess { config ->
-                        config.remove("_id")
                         val response = JsonObject().apply {
                             put("type", TYPE_CONFIG)
-                            put("payload", config)
+                            put("payload", config ?: JsonObject())
                         }
 
                         socket.send(response.toBuffer(), socketAddress.port(), socketAddress.host())
