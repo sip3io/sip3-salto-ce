@@ -43,6 +43,8 @@ open class ManagementSocket : AbstractVerticle() {
     companion object {
 
         const val TYPE_SHUTDOWN = "shutdown"
+        const val TYPE_CONFIG_REQUEST = "config_request"
+        const val TYPE_CONFIG = "config"
         const val TYPE_REGISTER = "register"
         const val TYPE_MEDIA_CONTROL = "media_control"
         const val TYPE_MEDIA_RECORDING_RESET = "media_recording_reset"
@@ -164,6 +166,19 @@ open class ManagementSocket : AbstractVerticle() {
 
                     lastUpdate = System.currentTimeMillis()
                 }
+            }
+            TYPE_CONFIG_REQUEST -> {
+                val name = payload.getString("name")
+                hostRegistry.getConfig(name)
+                    .onFailure { logger.error(it) { "HostRegistry `getConfig()` failed. Name: $name"} }
+                    .onSuccess { config ->
+                        val response = JsonObject().apply {
+                            put("type", TYPE_CONFIG)
+                            put("payload", config ?: JsonObject())
+                        }
+
+                        socket.send(response.toBuffer(), socketAddress.port(), socketAddress.host())
+                    }
             }
             TYPE_SHUTDOWN -> {
                 val name = payload.getString("name")
