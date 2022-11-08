@@ -43,7 +43,7 @@ open class ManagementSocket : AbstractVerticle() {
     companion object {
 
         const val TYPE_SHUTDOWN = "shutdown"
-        const val TYPE_CONFIG_REQUEST = "config-request"
+        const val TYPE_CONFIG_REQUEST = "config_request"
         const val TYPE_CONFIG = "config"
         const val TYPE_REGISTER = "register"
         const val TYPE_MEDIA_CONTROL = "media_control"
