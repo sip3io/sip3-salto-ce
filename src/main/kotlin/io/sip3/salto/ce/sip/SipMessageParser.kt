@@ -39,7 +39,7 @@ class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_A
         const val CR: Byte = 0x0d
         const val LF: Byte = 0x0a
 
-        val CONTENT_LENGTH_HEADERS = setOf("content-length", "l", "cseq")
+        val CONTENT_LENGTH_HEADERS = setOf("content-length", "l")
     }
 
     fun parse(packet: Packet): List<Pair<Packet, SIPMessage>> {
