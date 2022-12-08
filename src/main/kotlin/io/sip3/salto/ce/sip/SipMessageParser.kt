@@ -38,6 +38,8 @@ class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_A
 
         const val CR: Byte = 0x0d
         const val LF: Byte = 0x0a
+
+        val CONTENT_LENGTH_HEADERS = setOf("content-length", "l")
     }
 
     fun parse(packet: Packet): List<Pair<Packet, SIPMessage>> {
@@ -69,12 +71,11 @@ class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_A
         offset += message.size
 
         // Parse message content if needed
-        message.contentLengthHeader?.contentLength?.let { length ->
-            if (length > 0) {
-                message.setMessageContent(payload.copyOfRange(offset, offset + length))
-                offset += length
-            }
+        val length = message.contentLengthHeader?.contentLength ?: 0
+        if (length > 0 && message.contentTypeHeader?.contentType != null){
+            message.setMessageContent(payload.copyOfRange(offset, offset + length))
         }
+        offset += length
 
         // Skip blank lines
         while (isCrLf(offset, payload)) {
@@ -123,11 +124,15 @@ class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_A
         }
 
         override fun processHeader(header: String?, message: SIPMessage, parseExceptionListener: ParseExceptionListener?, rawMessage: ByteArray) {
-            if (header.isNullOrEmpty() || skipMessage) {
+            if (header.isNullOrEmpty()) {
                 return
             }
 
             val name = Lexer.getHeaderName(header)
+            // Don't skip Content Length headers
+            if (skipMessage && !CONTENT_LENGTH_HEADERS.contains(name.lowercase())) {
+                return
+            }
 
             val hdr = when (name.lowercase()) {
                 // These headers may or will be used in the SIP3 aggregation logic

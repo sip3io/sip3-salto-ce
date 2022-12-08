@@ -500,4 +500,13 @@ class SipMessageParserTest {
         assertNotNull(message.getHeader("Supported"))
         assertNotNull(message.getHeader("X-Diversion"))
     }
+
+    @Test
+    fun `Parse ignored SIP message with Content SipMessageParser mode is MODE_ALL`() {
+        val messages = SipMessageParser(
+            supportedMethods = setOf("NOTIFY"),
+            mode = SipMessageParser.MODE_ALL
+        ).parse(PACKET_3)
+        assertEquals(0, messages.size)
+    }
 }
