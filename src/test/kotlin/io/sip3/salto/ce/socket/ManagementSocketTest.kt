@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 SIP3.IO, Corp.
+ * Copyright 2018-2023 SIP3.IO, Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import io.mockk.verify
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
-import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MockKSingletonExtension
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.host.HostRegistry

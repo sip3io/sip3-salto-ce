@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 SIP3.IO, Corp.
+ * Copyright 2018-2023 SIP3.IO, Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package io.sip3.salto.ce.mongo
 
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localReply
-import io.sip3.commons.vertx.util.setPeriodic
 import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.json.JsonObject

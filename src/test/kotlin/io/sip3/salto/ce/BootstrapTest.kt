@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 SIP3.IO, Corp.
+ * Copyright 2018-2023 SIP3.IO, Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package io.sip3.salto.ce
 import io.mockk.junit5.MockKExtension
 import io.sip3.commons.domain.media.Codec
 import io.sip3.commons.vertx.test.VertxTest
-import io.sip3.commons.vertx.util.setPeriodic
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
