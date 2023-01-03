@@ -138,15 +138,16 @@ open class ManagementSocket : AbstractVerticle() {
     }
 
     open fun handle(socketAddress: SocketAddress, message: JsonObject) {
+        val host = socketAddress.host().substringBefore("%")
+        val port = socketAddress.port()
+
         val type = message.getString("type")
         val payload = message.getJsonObject("payload")
 
         when (type) {
             TYPE_REGISTER -> {
                 val config = payload.getJsonObject("config")
-                val host = socketAddress.host()
-                val port = socketAddress.port()
-                val senderUri = URI("${uri.scheme}://$host:$port")
+                val senderUri = URI(uri.scheme, null, host, port, null, null, null)
 
                 val name = config?.getJsonObject("host")?.getString("name") ?: payload.getString("name")
                 remoteHosts.getOrPut(name) {
@@ -177,7 +178,7 @@ open class ManagementSocket : AbstractVerticle() {
                             put("payload", config ?: JsonObject())
                         }
 
-                        socket.send(response.toBuffer(), socketAddress.port(), socketAddress.host())
+                        socket.send(response.toBuffer(), port, host)
                     }
             }
             TYPE_SHUTDOWN -> {

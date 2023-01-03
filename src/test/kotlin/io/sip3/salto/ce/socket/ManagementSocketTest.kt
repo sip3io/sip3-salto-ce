@@ -30,6 +30,7 @@ import io.sip3.salto.ce.host.HostRegistry
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
+import io.vertx.kotlin.core.datagram.datagramSocketOptionsOf
 import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -202,6 +203,48 @@ class ManagementSocketTest : VertxTest() {
             assert = {
                 socket = vertx.createDatagramSocket()
                 socket.listen(remotePort, "127.0.0.1")
+                socket.handler { packet ->
+                    context.verify {
+                        packet.data().toJsonObject().apply {
+                            assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, getString("type"))
+                        }
+                        context.completeNow()
+                    }
+                }
+            },
+            cleanup = {
+                socket.close()
+            }
+        )
+    }
+
+    @Test
+    fun `Send 'media_recording_reset' command to agents via IPv6`() {
+        every {
+            HostRegistry.save(any())
+        } just Runs
+
+        lateinit var socket: DatagramSocket
+        runTest(
+            deploy = {
+                val ipV6config = JsonObject().apply {
+                    put("management", JsonObject().apply {
+                        put("uri", "udp://[fe80::1]:$localPort")
+                        put("expiration-timeout", 1500L)
+                        put("expiration-delay", 800L)
+                    })
+                }
+                vertx.deployTestVerticle(ManagementSocket::class, ipV6config)
+            },
+            execute = {
+                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "[fe80::1]").await()
+                vertx.setTimer(100) {
+                    vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
+                }
+            },
+            assert = {
+                socket = vertx.createDatagramSocket(datagramSocketOptionsOf(ipV6 = true))
+                socket.listen(remotePort, "[fe80::1]")
                 socket.handler { packet ->
                     context.verify {
                         packet.data().toJsonObject().apply {

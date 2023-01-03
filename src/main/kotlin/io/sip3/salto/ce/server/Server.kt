@@ -74,7 +74,11 @@ class Server : AbstractVerticle() {
         vertx.createDatagramSocket(options)
             .handler { packet ->
                 val sender = Address().apply {
-                    addr = packet.sender().host()
+                    addr = if (options.isIpV6) {
+                        packet.sender().host().substringBefore("%")
+                    } else {
+                        packet.sender().host()
+                    }
                     port = packet.sender().port()
                 }
                 val buffer = packet.data()
