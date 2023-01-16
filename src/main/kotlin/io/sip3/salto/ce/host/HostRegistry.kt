@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.host
 
-import io.sip3.salto.ce.MongoClient
+import io.sip3.commons.mongo.MongoClient
 import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
@@ -102,7 +102,7 @@ object HostRegistry {
             put("name", name)
         }
 
-        return client!!.findOne("configuration", query, JsonObject())
+        return client!!.findOne("configurations", query, JsonObject())
             .map { config ->
                 config?.apply {
                     remove("_id")

@@ -16,9 +16,9 @@
 
 package io.sip3.salto.ce.mongo
 
+import io.sip3.commons.mongo.MongoClient
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localReply
-import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.CoroutineVerticle
