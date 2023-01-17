@@ -156,8 +156,8 @@ class RtcpHandlerTest : VertxTest() {
             deploy = {
                 vertx.orCreateContext.config().put("media", JsonObject().apply {
                     put("rtcp", JsonObject().apply {
-                        put("expiration-delay", 500)
-                        put("aggregation-timeout", 1000)
+                        put("expiration_delay", 500)
+                        put("aggregation_timeout", 1000)
                     })
                 })
                 vertx.deployTestVerticle(RtcpHandler::class, vertx.orCreateContext.config())
@@ -230,8 +230,8 @@ class RtcpHandlerTest : VertxTest() {
             deploy = {
                 vertx.orCreateContext.config().put("media", JsonObject().apply {
                     put("rtcp", JsonObject().apply {
-                        put("expiration-delay", 500)
-                        put("aggregation-timeout", 1000)
+                        put("expiration_delay", 500)
+                        put("aggregation_timeout", 1000)
                     })
                 })
                 vertx.deployTestVerticle(RtcpHandler::class, vertx.orCreateContext.config())

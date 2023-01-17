@@ -417,8 +417,8 @@ class SipCallHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 200)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
                         })
                     })
                 })
@@ -468,8 +468,8 @@ class SipCallHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("termination-timeout", 100)
+                            put("expiration_delay", 100)
+                            put("termination_timeout", 100)
                         })
                     })
                 })
@@ -529,8 +529,8 @@ class SipCallHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("termination-timeout", 100)
+                            put("expiration_delay", 100)
+                            put("termination_timeout", 100)
                         })
                     })
                 })
@@ -612,8 +612,8 @@ class SipCallHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("termination-timeout", 100)
+                            put("expiration_delay", 100)
+                            put("termination_timeout", 100)
                         })
                     })
                 })
@@ -679,12 +679,12 @@ class SipCallHandlerTest : VertxTest() {
                 mockMongoCollectionManager()
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("attributes", JsonObject().apply {
-                        put("record-call-users", true)
+                        put("record_call_users", true)
                     })
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("termination-timeout", 100)
+                            put("expiration_delay", 100)
+                            put("termination_timeout", 100)
                         })
                     })
                 })
@@ -736,8 +736,8 @@ class SipCallHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("call", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("termination-timeout", 100)
+                            put("expiration_delay", 100)
+                            put("termination_timeout", 100)
                             put("correlation", JsonObject().apply {
                                 put("role", "reporter")
                             })

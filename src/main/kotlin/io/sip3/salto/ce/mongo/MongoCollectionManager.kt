@@ -56,7 +56,7 @@ class MongoCollectionManager : CoroutineVerticle() {
     private var collections = mutableListOf<JsonObject>()
 
     override suspend fun start() {
-        config.getString("time-suffix")?.let {
+        config.getString("time_suffix")?.let {
             timeSuffix = SimpleDateFormat(it).apply {
                 timeZone = TimeZone.getTimeZone("UTC")
             }
@@ -64,7 +64,7 @@ class MongoCollectionManager : CoroutineVerticle() {
 
         config.getJsonObject("mongo").let { config ->
             client = MongoClient.createShared(vertx, config)
-            config.getLong("update-period")?.let { updatePeriod = it }
+            config.getLong("update_period")?.let { updatePeriod = it }
             config.getJsonArray("collections")?.forEach {
                 collections.add(it as JsonObject)
             }
@@ -127,7 +127,7 @@ class MongoCollectionManager : CoroutineVerticle() {
         client.collections.await()
             .filter { name -> name.startsWith(collection.getString("prefix")) }
             .sortedDescending()
-            .drop((collection.getInteger("max-collections") ?: DEFAULT_MAX_COLLECTIONS) + COLLECTIONS_AHEAD)
+            .drop((collection.getInteger("max_collections") ?: DEFAULT_MAX_COLLECTIONS) + COLLECTIONS_AHEAD)
             .forEach { name -> client.dropCollection(name).await() }
     }
 

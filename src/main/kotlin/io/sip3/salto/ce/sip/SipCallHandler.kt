@@ -104,23 +104,23 @@ open class SipCallHandler : AbstractVerticle() {
     private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
-        config().getString("time-suffix")?.let {
+        config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("call")?.let { config ->
-            config.getLong("expiration-delay")?.let {
+            config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
-            config.getLong("aggregation-timeout")?.let {
+            config.getLong("aggregation_timeout")?.let {
                 aggregationTimeout = it
             }
-            config.getLong("termination-timeout")?.let {
+            config.getLong("termination_timeout")?.let {
                 terminationTimeout = it
             }
-            config.getLong("duration-timeout")?.let {
+            config.getLong("duration_timeout")?.let {
                 durationTimeout = it
             }
-            config.getJsonArray("duration-distributions")?.forEach {
+            config.getJsonArray("duration_distributions")?.forEach {
                 durationDistributions[DurationUtil.parseDuration(it as String).toMillis()] = it
             }
             config.getJsonObject("correlation")?.getString("role")?.let {
@@ -128,10 +128,10 @@ open class SipCallHandler : AbstractVerticle() {
             }
         }
         config().getJsonObject("attributes")?.let { config ->
-            config.getBoolean("record-ip-addresses")?.let {
+            config.getBoolean("record_ip_addresses")?.let {
                 recordIpAddressesAttributes = it
             }
-            config.getBoolean("record-call-users")?.let {
+            config.getBoolean("record_call_users")?.let {
                 recordCallUsersAttributes = it
             }
         }

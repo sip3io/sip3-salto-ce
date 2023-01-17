@@ -44,8 +44,8 @@ open class MongoBulkWriter : AbstractVerticle() {
     override fun start() {
         config().getJsonObject("mongo").let { config ->
             client = MongoClient.createShared(vertx, config)
-            bulkSize = config.getInteger("bulk-size")
-            config.getInteger("write-option")?.let { writeOption ->
+            bulkSize = config.getInteger("bulk_size")
+            config.getInteger("write_option")?.let { writeOption ->
                 bulkWriteOptions.writeOption = WriteOption.values()[writeOption]
             }
         }

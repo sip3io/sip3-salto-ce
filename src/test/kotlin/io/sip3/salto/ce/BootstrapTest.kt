@@ -51,7 +51,7 @@ class BootstrapTest : VertxTest() {
                     put("mongo", JsonObject().apply {
                         put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3-bootstrap-test")
-                        put("bulk-size", 1)
+                        put("bulk_size", 1)
                     })
                 })
             },
@@ -82,7 +82,7 @@ class BootstrapTest : VertxTest() {
                     put("mongo", JsonObject().apply {
                         put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3-bootstrap-test")
-                        put("bulk-size", 1)
+                        put("bulk_size", 1)
                     })
                 })
             },

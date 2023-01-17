@@ -45,10 +45,10 @@ class UdfExecutor(val vertx: Vertx) {
 
     init {
         vertx.orCreateContext.config().getJsonObject("udf")?.let { config ->
-            config.getLong("check-period")?.let {
+            config.getLong("check_period")?.let {
                 checkPeriod = it
             }
-            config.getLong("execution-timeout")?.let {
+            config.getLong("execution_timeout")?.let {
                 executionTimeout = it
             }
         }

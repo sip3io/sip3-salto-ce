@@ -155,10 +155,10 @@ class RtprBulkWriterTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(RtprBulkWriter::class, JsonObject().apply {
                     put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("expiration-delay", 100L)
-                            put("aggregation-timeout", 20000L)
-                            put("bulk-packet-limit", 150L)
+                        put("rtp_r", JsonObject().apply {
+                            put("expiration_delay", 100L)
+                            put("aggregation_timeout", 20000L)
+                            put("bulk_packet_limit", 150L)
                         })
                     })
                 })
@@ -204,10 +204,10 @@ class RtprBulkWriterTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(RtprBulkWriter::class, JsonObject().apply {
                     put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("expiration-delay", 100L)
-                            put("aggregation-timeout", 20000L)
-                            put("bulk-packet-limit", 90L)
+                        put("rtp_r", JsonObject().apply {
+                            put("expiration_delay", 100L)
+                            put("aggregation_timeout", 20000L)
+                            put("bulk_packet_limit", 90L)
                         })
                     })
                 })

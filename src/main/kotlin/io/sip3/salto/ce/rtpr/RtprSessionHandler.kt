@@ -58,17 +58,17 @@ open class RtprSessionHandler : AbstractVerticle() {
     private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
-        config().getString("time-suffix")?.let {
+        config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
 
-        config().getJsonObject("media")?.getJsonObject("rtp-r")?.let { config ->
-            config.getInteger("min-expected-packets")?.let {
+        config().getJsonObject("media")?.getJsonObject("rtp_r")?.let { config ->
+            config.getInteger("min_expected_packets")?.let {
                 minExpectedPackets = it
             }
         }
 
-        config().getJsonObject("attributes")?.getBoolean("record-ip-addresses")?.let {
+        config().getJsonObject("attributes")?.getBoolean("record_ip_addresses")?.let {
             recordIpAddressesAttributes = it
         }
 

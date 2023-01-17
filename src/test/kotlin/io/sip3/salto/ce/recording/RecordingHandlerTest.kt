@@ -113,7 +113,7 @@ class RecordingHandlerTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(RecordingHandler::class, JsonObject().apply {
                     put("recording", JsonObject().apply {
-                        put("bulk-size", 1)
+                        put("bulk_size", 1)
                     })
                 })
             },
@@ -155,7 +155,7 @@ class RecordingHandlerTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(RecordingHandler::class, JsonObject().apply {
                     put("recording", JsonObject().apply {
-                        put("bulk-size", 3)
+                        put("bulk_size", 3)
                     })
                 })
             },

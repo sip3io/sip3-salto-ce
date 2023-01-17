@@ -51,18 +51,18 @@ open class RtprBulkWriter : AbstractVerticle() {
     private lateinit var rtcp: PeriodicallyExpiringHashMap<String, RtprBulk>
 
     override fun start() {
-        config().getString("time-suffix")?.let {
+        config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
 
-        config().getJsonObject("media")?.getJsonObject("rtp-r")?.let { config ->
-            config.getLong("expiration-delay")?.let {
+        config().getJsonObject("media")?.getJsonObject("rtp_r")?.let { config ->
+            config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
-            config.getLong("aggregation-timeout")?.let {
+            config.getLong("aggregation_timeout")?.let {
                 aggregationTimeout = it
             }
-            config.getInteger("bulk-packet-limit")?.let {
+            config.getInteger("bulk_packet_limit")?.let {
                 bulkPacketLimit = it
             }
         }

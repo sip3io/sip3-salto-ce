@@ -61,10 +61,10 @@ open class RtcpHandler : AbstractVerticle() {
 
     override fun start() {
         context.config().getJsonObject("media")?.getJsonObject("rtcp")?.let { config ->
-            config.getLong("expiration-delay")?.let {
+            config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
-            config.getLong("aggregation-timeout")?.let {
+            config.getLong("aggregation_timeout")?.let {
                 aggregationTimeout = it
             }
         }

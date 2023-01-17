@@ -47,7 +47,7 @@ class MongoCollectionManagerTest : VertxTest() {
         runTest(
             deploy = {
                 vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
-                    put("time-suffix", "yyyyMMdd")
+                    put("time_suffix", "yyyyMMdd")
                     put("mongo", JsonObject().apply {
                         put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3-create")
@@ -104,7 +104,7 @@ class MongoCollectionManagerTest : VertxTest() {
         runTest(
             deploy = {
                 vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
-                    put("time-suffix", "yyyyMMdd")
+                    put("time_suffix", "yyyyMMdd")
                     put("mongo", JsonObject().apply {
                         put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3-index")
@@ -143,7 +143,7 @@ class MongoCollectionManagerTest : VertxTest() {
         runTest(
             deploy = {
                 vertx.deployTestVerticle(MongoCollectionManager::class, JsonObject().apply {
-                    put("time-suffix", "yyyyMMdd")
+                    put("time_suffix", "yyyyMMdd")
                     put("mongo", JsonObject().apply {
                         put("uri", MongoExtension.MONGO_URI)
                         put("db", "sip3-hint")

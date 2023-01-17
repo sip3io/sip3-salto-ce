@@ -173,9 +173,9 @@ class RtprHandlerTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
                     put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("expiration-delay", 100L)
-                            put("aggregation-timeout", 500L)
+                        put("rtp_r", JsonObject().apply {
+                            put("expiration_delay", 100L)
+                            put("aggregation_timeout", 500L)
                         })
                     })
                 })
@@ -249,9 +249,9 @@ class RtprHandlerTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
                     put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("expiration-delay", 100L)
-                            put("aggregation-timeout", 500L)
+                        put("rtp_r", JsonObject().apply {
+                            put("expiration_delay", 100L)
+                            put("aggregation_timeout", 500L)
                         })
                     })
                 })
@@ -290,9 +290,9 @@ class RtprHandlerTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
                     put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("expiration-delay", 100L)
-                            put("aggregation-timeout", 200L)
+                        put("rtp_r", JsonObject().apply {
+                            put("expiration_delay", 100L)
+                            put("aggregation_timeout", 200L)
                         })
                     })
                 })
@@ -330,10 +330,10 @@ class RtprHandlerTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(RtprHandler::class, JsonObject().apply {
                     put("media", JsonObject().apply {
-                        put("rtp-r", JsonObject().apply {
-                            put("expiration-delay", 100L)
-                            put("aggregation-timeout", 200L)
-                            put("min-expected-packets", 101)
+                        put("rtp_r", JsonObject().apply {
+                            put("expiration_delay", 100L)
+                            put("aggregation_timeout", 200L)
+                            put("min_expected_packets", 101)
                         })
                     })
                 })

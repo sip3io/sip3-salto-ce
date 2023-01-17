@@ -236,7 +236,7 @@ class SipMessageHandlerTest : VertxTest() {
                         put("message", JsonObject().apply {
                             put("parser", JsonObject().apply {
                                 put("mode", 1)
-                                put("extension-headers", listOf("User-Agent"))
+                                put("extension_headers", listOf("User-Agent"))
                             })
                         })
                     })
@@ -348,8 +348,8 @@ class SipMessageHandlerTest : VertxTest() {
                 vertx.deployVerticle(UDF_GROOVY)
                 vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
                     put("udf", JsonObject().apply {
-                        put("check-period", 100)
-                        put("execution-timeout", 100)
+                        put("check_period", 100)
+                        put("execution_timeout", 100)
                     })
                 })
             },

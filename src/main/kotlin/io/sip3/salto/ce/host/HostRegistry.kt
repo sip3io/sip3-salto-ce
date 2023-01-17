@@ -53,7 +53,7 @@ object HostRegistry {
     }
 
     private fun init() {
-        config.getJsonObject("hosts")?.getLong("check-period")?.let {
+        config.getJsonObject("hosts")?.getLong("check_period")?.let {
             checkPeriod = it
         }
         config.getJsonObject("mongo")?.let {
