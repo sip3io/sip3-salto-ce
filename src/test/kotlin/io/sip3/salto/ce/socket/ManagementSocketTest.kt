@@ -54,7 +54,7 @@ class ManagementSocketTest : VertxTest() {
         private val CONFIG = JsonObject().apply {
             put("management", JsonObject().apply {
                 put("uri", "udp://127.0.0.1:15090")
-                put("register-delay", 2000L)
+                put("register_delay", 2000L)
             })
             put("host", HOST)
             put("rtp", JsonObject().apply {
@@ -83,8 +83,8 @@ class ManagementSocketTest : VertxTest() {
         config = JsonObject().apply {
             put("management", JsonObject().apply {
                 put("uri", "udp://127.0.0.1:$localPort")
-                put("expiration-timeout", 1500L)
-                put("expiration-delay", 800L)
+                put("expiration_timeout", 1500L)
+                put("expiration_delay", 800L)
             })
         }
     }
@@ -230,8 +230,8 @@ class ManagementSocketTest : VertxTest() {
                 val ipV6config = JsonObject().apply {
                     put("management", JsonObject().apply {
                         put("uri", "udp://[fe80::1]:$localPort")
-                        put("expiration-timeout", 1500L)
-                        put("expiration-delay", 800L)
+                        put("expiration_timeout", 1500L)
+                        put("expiration_delay", 800L)
                     })
                 }
                 vertx.deployTestVerticle(ManagementSocket::class, ipV6config)

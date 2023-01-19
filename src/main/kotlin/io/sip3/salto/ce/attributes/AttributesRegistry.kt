@@ -42,10 +42,10 @@ class AttributesRegistry(val vertx: Vertx, config: JsonObject) {
     private val registry = mutableMapOf<String, Attribute>()
 
     init {
-        config.getString("time-suffix")?.let {
+        config.getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
-        config.getJsonObject("attributes")?.getLong("check-period")?.let {
+        config.getJsonObject("attributes")?.getLong("check_period")?.let {
             checkPeriod = it
         }
 

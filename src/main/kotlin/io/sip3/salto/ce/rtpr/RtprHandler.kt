@@ -86,30 +86,30 @@ open class RtprHandler : AbstractVerticle() {
     private lateinit var rtcp: PeriodicallyExpiringHashMap<String, RtprSession>
 
     override fun start() {
-        config().getString("time-suffix")?.let {
+        config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
 
-        config().getJsonObject("media")?.getJsonObject("rtp-r")?.let { config ->
-            config.getLong("expiration-delay")?.let {
+        config().getJsonObject("media")?.getJsonObject("rtp_r")?.let { config ->
+            config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
-            config.getLong("aggregation-timeout")?.let {
+            config.getLong("aggregation_timeout")?.let {
                 aggregationTimeout = it
             }
-            config.getBoolean("cumulative-metrics")?.let {
+            config.getBoolean("cumulative_metrics")?.let {
                 cumulativeMetrics = it
             }
-            config.getInteger("min-expected-packets")?.let {
+            config.getInteger("min_expected_packets")?.let {
                 minExpectedPackets = it
             }
-            config.getFloat("r-factor-threshold")?.let {
+            config.getFloat("r_factor_threshold")?.let {
                 rFactorThreshold = it
             }
-            config.getJsonArray("r-factor-distributions")?.forEach {
+            config.getJsonArray("r_factor_distributions")?.forEach {
                 rFactorDistributions.add(it as Int)
             }
-            config.getJsonArray("duration-distributions")?.forEach {
+            config.getJsonArray("duration_distributions")?.forEach {
                 durationDistributions[DurationUtil.parseDuration(it as String).toMillis()] = it
             }
         }

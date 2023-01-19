@@ -68,13 +68,13 @@ open class ManagementSocket : AbstractVerticle() {
         config().getJsonObject("management").let { config ->
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
 
-            config.getLong("expiration-delay")?.let {
+            config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
-            config.getLong("expiration-timeout")?.let {
+            config.getLong("expiration_timeout")?.let {
                 expirationTimeout = it
             }
-            config.getInteger("publish-media-control-mode")?.let {
+            config.getInteger("publish_media_control_mode")?.let {
                 publishMediaControlMode = it
             }
         }

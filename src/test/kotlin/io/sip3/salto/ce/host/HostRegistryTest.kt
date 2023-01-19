@@ -105,7 +105,7 @@ class HostRegistryTest : VertxTest() {
                         })
                     })
                     put("hosts", JsonObject().apply {
-                        put("check-period", 500L)
+                        put("check_period", 500L)
                     })
                 })
                 hostRegistry!!.save(HOST_3)

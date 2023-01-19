@@ -60,7 +60,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
         val PREFIX = RoutesCE.sip + "_transaction"
 
-        const val RESPONSE_DELAY = "response-delay"
+        const val RESPONSE_DELAY = "response_delay"
 
         // To simplify call aggregation we decided to skip ACK and CANCEL transaction.
         // Moreover, skipped ACK and CANCEL transactions will not affect final result.
@@ -83,31 +83,31 @@ open class SipTransactionHandler : AbstractVerticle() {
     private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
-        config().getString("time-suffix")?.let {
+        config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("transaction")?.let { config ->
-            config.getLong("expiration-delay")?.let {
+            config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
-            config.getLong("response-timeout")?.let {
+            config.getLong("response_timeout")?.let {
                 responseTimeout = it
             }
-            config.getLong("aggregation-timeout")?.let {
+            config.getLong("aggregation_timeout")?.let {
                 aggregationTimeout = it
             }
-            config.getLong("termination-timeout")?.let {
+            config.getLong("termination_timeout")?.let {
                 terminationTimeout = it
             }
-            config.getInteger("save-sip-message-payload-mode")?.let {
+            config.getInteger("save_sip_message_payload_mode")?.let {
                 saveSipMessagePayloadMode = it
             }
         }
         config().getJsonObject("attributes")?.let { config ->
-            config.getBoolean("record-ip-addresses")?.let {
+            config.getBoolean("record_ip_addresses")?.let {
                 recordIpAddressesAttributes = it
             }
-            config.getBoolean("record-call-users")?.let {
+            config.getBoolean("record_call_users")?.let {
                 recordCallUsersAttributes = it
             }
         }

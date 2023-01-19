@@ -94,28 +94,28 @@ open class SipRegisterHandler : AbstractVerticle() {
     private lateinit var attributesRegistry: AttributesRegistry
 
     override fun start() {
-        config().getString("time-suffix")?.let {
+        config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("register")?.let { config ->
-            config.getLong("expiration-delay")?.let {
+            config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
-            config.getLong("aggregation-timeout")?.let {
+            config.getLong("aggregation_timeout")?.let {
                 aggregationTimeout = it
             }
-            config.getLong("update-period")?.let {
+            config.getLong("update_period")?.let {
                 updatePeriod = it
             }
-            config.getLong("duration-timeout")?.let {
+            config.getLong("duration_timeout")?.let {
                 durationTimeout = it
             }
         }
         config().getJsonObject("attributes")?.let { config ->
-            config.getBoolean("record-ip-addresses")?.let {
+            config.getBoolean("record_ip_addresses")?.let {
                 recordIpAddressesAttributes = it
             }
-            config.getBoolean("record-call-users")?.let {
+            config.getBoolean("record_call_users")?.let {
                 recordCallUsersAttributes = it
             }
         }

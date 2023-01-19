@@ -52,7 +52,7 @@ class UdfManagerTest : VertxTest() {
         runTest(
             deploy = {
                 vertx.orCreateContext.config().put("udf", JsonObject().apply {
-                    put("check-period", 1000)
+                    put("check_period", 1000)
                 })
                 UdfManager(vertx).start(tmpDir.toAbsolutePath().toString())
             },

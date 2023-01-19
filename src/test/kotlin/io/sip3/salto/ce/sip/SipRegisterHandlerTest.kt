@@ -292,9 +292,9 @@ class SipRegisterHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 200)
-                            put("duration-timeout", 5000)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
+                            put("duration_timeout", 5000)
                         })
                     })
                 })
@@ -349,9 +349,9 @@ class SipRegisterHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 200)
-                            put("duration-timeout", 5000)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
+                            put("duration_timeout", 5000)
                         })
                     })
                 })
@@ -407,10 +407,10 @@ class SipRegisterHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 1000)
-                            put("duration-timeout", 200000)
-                            put("update-period", 200)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 1000)
+                            put("duration_timeout", 200000)
+                            put("update_period", 200)
                         })
                     })
                 })
@@ -489,9 +489,9 @@ class SipRegisterHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 200)
-                            put("duration-timeout", 200)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
+                            put("duration_timeout", 200)
                         })
                     })
                 })
@@ -542,9 +542,9 @@ class SipRegisterHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 200)
-                            put("duration-timeout", 200)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
+                            put("duration_timeout", 200)
                         })
                     })
                 })
@@ -600,9 +600,9 @@ class SipRegisterHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 200)
-                            put("duration-timeout", 200)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
+                            put("duration_timeout", 200)
                         })
                     })
                 })
@@ -648,9 +648,9 @@ class SipRegisterHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("register", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 200)
-                            put("duration-timeout", 200)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
+                            put("duration_timeout", 200)
                         })
                     })
                 })

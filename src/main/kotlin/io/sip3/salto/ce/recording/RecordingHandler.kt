@@ -58,17 +58,17 @@ open class RecordingHandler : AbstractVerticle() {
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
         }
-        config().getString("time-suffix")?.let {
+        config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("recording")?.let { config ->
-            config.getLong("expiration-delay")?.let {
+            config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
-            config.getLong("aggregation-timeout")?.let {
+            config.getLong("aggregation_timeout")?.let {
                 aggregationTimeout = it
             }
-            config.getInteger("bulk-size")?.let {
+            config.getInteger("bulk_size")?.let {
                 bulkSize = it
             }
         }

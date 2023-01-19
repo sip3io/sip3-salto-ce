@@ -45,7 +45,7 @@ class UdfManager(val vertx: Vertx) {
 
     fun start(path: String) {
         vertx.orCreateContext.config().let { config ->
-            config.getJsonObject("udf")?.getLong("check-period")?.let {
+            config.getJsonObject("udf")?.getLong("check_period")?.let {
                 checkPeriod = it
             }
 

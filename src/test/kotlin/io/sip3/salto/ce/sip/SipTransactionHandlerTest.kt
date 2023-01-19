@@ -283,8 +283,8 @@ class SipTransactionHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("transaction", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("termination-timeout", 100)
+                            put("expiration_delay", 100)
+                            put("termination_timeout", 100)
                         })
                     })
                 })
@@ -326,8 +326,8 @@ class SipTransactionHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("transaction", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("termination-timeout", 100)
+                            put("expiration_delay", 100)
+                            put("termination_timeout", 100)
                         })
                     })
                 })
@@ -367,9 +367,9 @@ class SipTransactionHandlerTest : VertxTest() {
                 vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
                     put("sip", JsonObject().apply {
                         put("transaction", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("aggregation-timeout", 200)
-                            put("termination-timeout", 200)
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
+                            put("termination_timeout", 200)
                         })
                     })
                 })
@@ -407,12 +407,12 @@ class SipTransactionHandlerTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(SipTransactionHandler::class, config = JsonObject().apply {
                     put("attributes", JsonObject().apply {
-                        put("record-ip-addresses", true)
+                        put("record_ip_addresses", true)
                     })
                     put("sip", JsonObject().apply {
                         put("transaction", JsonObject().apply {
-                            put("expiration-delay", 100)
-                            put("termination-timeout", 100)
+                            put("expiration_delay", 100)
+                            put("termination_timeout", 100)
                         })
                     })
                 })

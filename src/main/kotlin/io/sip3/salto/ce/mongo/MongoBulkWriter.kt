@@ -16,8 +16,8 @@
 
 package io.sip3.salto.ce.mongo
 
+import io.sip3.commons.mongo.MongoClient
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.salto.ce.MongoClient
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
@@ -44,8 +44,8 @@ open class MongoBulkWriter : AbstractVerticle() {
     override fun start() {
         config().getJsonObject("mongo").let { config ->
             client = MongoClient.createShared(vertx, config)
-            bulkSize = config.getInteger("bulk-size")
-            config.getInteger("write-option")?.let { writeOption ->
+            bulkSize = config.getInteger("bulk_size")
+            config.getInteger("write_option")?.let { writeOption ->
                 bulkWriteOptions.writeOption = WriteOption.values()[writeOption]
             }
         }

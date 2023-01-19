@@ -54,7 +54,7 @@ class Server : AbstractVerticle() {
     override fun start() {
         config().getJsonObject("server").let { config ->
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
-            bufferSize = config.getInteger("buffer-size")
+            bufferSize = config.getInteger("buffer_size")
             sslConfig = config.getJsonObject("ssl")
         }
 
@@ -105,8 +105,8 @@ class Server : AbstractVerticle() {
             sslConfig?.let { config ->
                 isSsl = true
                 keyCertOptions = JksOptions().apply {
-                    path = config.getString("key-store")
-                    password = config.getString("key-store-password")
+                    path = config.getString("key_store")
+                    password = config.getString("key_store_password")
                 }
             }
         }

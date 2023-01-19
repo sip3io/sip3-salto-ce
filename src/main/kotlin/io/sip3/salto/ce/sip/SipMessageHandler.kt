@@ -62,14 +62,14 @@ open class SipMessageHandler : AbstractVerticle() {
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
         }
-        config().getString("time-suffix")?.let {
+        config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
         config().getJsonObject("sip")?.getJsonObject("message")?.let { config ->
             config.getJsonArray("exclusions")?.let {
                 SUPPORTED_SIP_METHODS.removeAll(it.map(Any::toString))
             }
-            config.getString("x-correlation-header")?.let {
+            config.getString("x_correlation_header")?.let {
                 xCorrelationHeader = it
             }
 
@@ -77,7 +77,7 @@ open class SipMessageHandler : AbstractVerticle() {
                 parserConfig.getInteger("mode")?.let {
                     sipMessageParserMode = it
                 }
-                parserConfig.getJsonArray("extension-headers")?.let {
+                parserConfig.getJsonArray("extension_headers")?.let {
                     extensionHeaders = it.map(Any::toString).toMutableSet()
                 }
             }
