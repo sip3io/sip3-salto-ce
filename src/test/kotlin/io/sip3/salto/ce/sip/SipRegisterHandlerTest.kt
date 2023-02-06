@@ -683,6 +683,55 @@ class SipRegisterHandlerTest : VertxTest() {
         )
     }
 
+    @Test
+    fun `Handle registration error attributes`() {
+        val prefixSlot = slot<String>()
+        val attributesSlot = slot<Map<String, Any>>()
+        every {
+            anyConstructed<AttributesRegistry>().handle(capture(prefixSlot), capture(attributesSlot))
+        } just Runs
+
+        val transaction403 = SipTransaction().apply {
+            addPacket(PACKET_7)
+            addPacket(PACKET_8)
+        }
+
+        runTest(
+            deploy = {
+                mockMongoCollectionManager()
+                vertx.deployTestVerticle(SipRegisterHandler::class, config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("register", JsonObject().apply {
+                            put("expiration_delay", 100)
+                            put("aggregation_timeout", 200)
+                            put("duration_timeout", 200)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setPeriodic(200, 3000) {
+                    vertx.eventBus().localSend(RoutesCE.sip + "_register_0", transaction403)
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) {
+                    context.verify {
+                        assertEquals("sip", prefixSlot.captured)
+
+                        val attributes = attributesSlot.captured
+                        assertEquals(12, attributes.size)
+                        assertEquals("REGISTER", attributes["method"])
+                        assertEquals("failed", attributes["state"])
+                        assertEquals("client", attributes["error_type"])
+                        assertEquals("403", attributes["error_code"])
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
     private fun mockMongoCollectionManager() {
         vertx.eventBus().localConsumer<String>(RoutesCE.mongo_collection_hint) { event ->
             val prefix = event.body()
