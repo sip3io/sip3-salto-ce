@@ -315,6 +315,9 @@ open class SipRegisterHandler : AbstractVerticle() {
                 put(Attributes.transactions, registration.transactions)
                 put(Attributes.retransmits, registration.retransmits)
 
+                registration.errorCode?.let { put("error_code", it) }
+                registration.errorType?.let { put("error_type", it) }
+
                 (registration as? SipSession)?.let { session ->
                     session.overlappedInterval?.let { put(Attributes.overlapped_interval, it) }
                     session.overlappedFraction?.let { put(Attributes.overlapped_fraction, it) }
