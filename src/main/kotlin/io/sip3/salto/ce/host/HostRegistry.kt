@@ -35,7 +35,7 @@ object HostRegistry {
 
     private var vertx: Vertx? = null
     private lateinit var config: JsonObject
-    private var client: io.vertx.ext.mongo.MongoClient? = null
+    private lateinit var client: io.vertx.ext.mongo.MongoClient
 
     private var hosts = emptyMap<String, String>()
     private var mappings = emptyMap<String, String>()
@@ -56,15 +56,12 @@ object HostRegistry {
         config.getJsonObject("hosts")?.getLong("check_period")?.let {
             checkPeriod = it
         }
-        config.getJsonObject("mongo")?.let {
+        config.getJsonObject("mongo").let {
             client = MongoClient.createShared(vertx!!, it.getJsonObject("management") ?: it)
         }
 
-        if (client != null) {
+        vertx!!.setPeriodic(0L, checkPeriod) {
             updateHosts()
-            vertx!!.setPeriodic(checkPeriod) {
-                updateHosts()
-            }
         }
     }
 
@@ -85,14 +82,12 @@ object HostRegistry {
     }
 
     fun save(host: JsonObject) {
-        if (client != null) {
-            val query = JsonObject().apply {
-                put("name", host.getString("name"))
-            }
-            client!!.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true)) { asr ->
-                if (asr.failed()) {
-                    logger.error(asr.cause()) { "MongoClient 'replaceDocumentsWithOptions()' failed." }
-                }
+        val query = JsonObject().apply {
+            put("name", host.getString("name"))
+        }
+        client.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true)) { asr ->
+            if (asr.failed()) {
+                logger.error(asr.cause()) { "MongoClient 'replaceDocumentsWithOptions()' failed." }
             }
         }
     }
@@ -102,63 +97,61 @@ object HostRegistry {
             put("name", name)
         }
 
-        return client!!.findOne("configurations", query, JsonObject())
+        return client.findOne("configurations", query, JsonObject())
             .map { config ->
                 config?.apply {
                     remove("_id")
+                    remove("_class")
                 }
             }
     }
 
     private fun updateHosts() {
-        client?.find("hosts", JsonObject()) { asr ->
-            if (asr.failed()) {
-                logger.error(asr.cause()) { "MongoClient 'find()' failed." }
-                return@find
-            }
+        client.find("hosts", JsonObject())
+            .onFailure { logger.error(it) { "MongoClient 'find()' failed." } }
+            .onSuccess { result ->
+                val tmpHosts = mutableMapOf<String, String>()
+                val tmpMappings = mutableMapOf<String, String>()
+                val tmpFeatures = mutableMapOf<String, Set<String>>()
 
-            val tmpHosts = mutableMapOf<String, String>()
-            val tmpMappings = mutableMapOf<String, String>()
-            val tmpFeatures = mutableMapOf<String, Set<String>>()
+                result.forEach { host ->
+                    val name = host.getString("name")
 
-            asr.result().forEach { host ->
-                val name = host.getString("name")
-
-                try {
-                    // Update `hosts`
-                    host.getJsonArray("addr")
-                        ?.map { it as String }
-                        ?.forEach { addr ->
-                            tmpHosts[addr] = name
-                            if (addr.contains("/")) {
-                                SubnetUtils(addr).apply { isInclusiveHostCount = true }.info
-                                    .allAddresses
-                                    .forEach { tmpHosts[it] = name }
+                    try {
+                        // Update `hosts`
+                        host.getJsonArray("addr")
+                            ?.map { it as String }
+                            ?.forEach { addr ->
+                                tmpHosts[addr] = name
+                                if (addr.contains("/")) {
+                                    SubnetUtils(addr).apply { isInclusiveHostCount = true }.info
+                                        .allAddresses
+                                        .forEach { tmpHosts[it] = name }
+                                }
                             }
-                        }
 
-                    // Update `mappings`
-                    host.getJsonArray("mapping")
-                        ?.map { it as JsonObject }
-                        ?.forEach {
-                            tmpMappings[it.getString("source")] = it.getString("target")
-                        }
+                        // Update `mappings`
+                        host.getJsonArray("mapping")
+                            ?.map { it as JsonObject }
+                            ?.forEach {
+                                tmpMappings[it.getString("source")] = it.getString("target")
+                            }
 
-                    // Update `features`
-                    host.getJsonArray("feature")
-                        ?.map { it as String }
-                        ?.toSet()
-                        ?.let {
-                            tmpFeatures[name] = it
-                        }
-                } catch (e: Exception) {
-                    logger.error(e) { "Router `mapHostToAddr()` failed. Host: $host" }
+                        // Update `features`
+                        host.getJsonArray("feature")
+                            ?.map { it as String }
+                            ?.toSet()
+                            ?.let {
+                                tmpFeatures[name] = it
+                            }
+                    } catch (e: Exception) {
+                        logger.error(e) { "Router `mapHostToAddr()` failed. Host: $host" }
+                    }
                 }
-            }
 
-            hosts = tmpHosts
-            mappings = tmpMappings
-            features = tmpFeatures
-        }
+                hosts = tmpHosts
+                mappings = tmpMappings
+                features = tmpFeatures
+            }
     }
 }

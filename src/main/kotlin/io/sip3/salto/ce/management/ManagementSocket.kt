@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.socket
+package io.sip3.salto.ce.management
 
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.component.ComponentRegistry
 import io.sip3.salto.ce.host.HostRegistry
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
@@ -51,7 +52,9 @@ open class ManagementSocket : AbstractVerticle() {
     }
 
     private lateinit var hostRegistry: HostRegistry
+    private lateinit var componentRegistry: ComponentRegistry
 
+    private lateinit var name: String
     private lateinit var uri: URI
     private var expirationDelay: Long = 60000
     private var expirationTimeout: Long = 120000
@@ -59,11 +62,16 @@ open class ManagementSocket : AbstractVerticle() {
 
     private lateinit var socket: DatagramSocket
 
-    private lateinit var remoteHosts: PeriodicallyExpiringHashMap<String, RemoteHost>
-    private var mediaEnabledHostsCounter: Int = 0
+    private lateinit var components: PeriodicallyExpiringHashMap<String, Component>
+    private val hostMapping = mutableMapOf<String, String>()
+
+    private var mediaEnabledComponentsCounter: Int = 0
 
     override fun start() {
         hostRegistry = HostRegistry.getInstance(vertx, config())
+        componentRegistry = ComponentRegistry.getInstance(vertx, config())
+
+        name = config().getString("name")
 
         config().getJsonObject("management").let { config ->
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
@@ -81,12 +89,12 @@ open class ManagementSocket : AbstractVerticle() {
 
         startUdpServer()
 
-        remoteHosts = PeriodicallyExpiringHashMap.Builder<String, RemoteHost>()
+        components = PeriodicallyExpiringHashMap.Builder<String, Component>()
             .delay(expirationDelay)
-            .expireAt { _, host -> host.lastUpdate + expirationTimeout }
-            .onExpire { _, host ->
-                logger.info { "Expired: $host" }
-                if (host.mediaEnabled) mediaEnabledHostsCounter--
+            .expireAt { _, component -> component.updatedAt + expirationTimeout }
+            .onExpire { _, component ->
+                logger.info { "Expired: $component" }
+                if (component.mediaEnabled) mediaEnabledComponentsCounter--
             }
             .build(vertx)
 
@@ -138,34 +146,49 @@ open class ManagementSocket : AbstractVerticle() {
     }
 
     open fun handle(socketAddress: SocketAddress, message: JsonObject) {
+        logger.trace { "Socket Address: $socketAddress, message: ${message.encode()}" }
         val host = socketAddress.host().substringBefore("%")
         val port = socketAddress.port()
 
         val type = message.getString("type")
         val payload = message.getJsonObject("payload")
 
+        val now = System.currentTimeMillis()
+
         when (type) {
             TYPE_REGISTER -> {
+                val deploymentId = payload.getString("deployment_id")
                 val config = payload.getJsonObject("config")
                 val senderUri = URI(uri.scheme, null, host, port, null, null, null)
 
-                val name = config?.getJsonObject("host")?.getString("name") ?: payload.getString("name")
-                remoteHosts.getOrPut(name) {
+                val componentName = config?.getString("name") ?: deploymentId
+                val component = components.getOrPut(deploymentId) {
                     logger.info { "Registered from `$senderUri`: $payload" }
-                    return@getOrPut RemoteHost(name)
+                    return@getOrPut Component(deploymentId, componentName)
                 }.apply {
+                    updatedAt = now
+                    remoteUpdatedAt = payload.getLong("timestamp")
+
                     uri = senderUri
                     config?.getJsonObject("host")?.let { hostRegistry.save(it) }
+
+                    config?.let {
+                        this.config = it
+                    }
 
                     val rtpOrRtcpEnabled = (config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false)
                             || (config?.getJsonObject("rtcp")?.getBoolean("enabled") ?: false)
 
                     if (mediaEnabled != rtpOrRtcpEnabled) {
                         mediaEnabled = rtpOrRtcpEnabled
-                        if (mediaEnabled) mediaEnabledHostsCounter++ else mediaEnabledHostsCounter--
+                        if (mediaEnabled) mediaEnabledComponentsCounter++ else mediaEnabledComponentsCounter--
                     }
+                }
 
-                    lastUpdate = System.currentTimeMillis()
+                save(component)
+                config?.getJsonObject("host")?.getString("name")?.let { hostName ->
+                    component.host = hostName
+                    hostMapping.putIfAbsent(hostName, deploymentId)
                 }
             }
             TYPE_CONFIG_REQUEST -> {
@@ -182,21 +205,62 @@ open class ManagementSocket : AbstractVerticle() {
                     }
             }
             TYPE_SHUTDOWN -> {
-                val name = payload.getString("name")
                 logger.info { "Handling `shutdown` command received via management socket: $message" }
-                remoteHosts.remove(name)?.apply {
-                    if (mediaEnabled) mediaEnabledHostsCounter--
 
-                    logger.info { "Shutting down the `$name` via management socket..." }
-                    socket.send(message.toBuffer(), uri.port, uri.host) {}
+                // Remove all components by `name`
+                payload.getString("name")?.let { name ->
+                    components.forEach { deploymentId, component ->
+                        if (component.name == name) {
+                            shutdown(deploymentId, message)
+                        }
+                    }
+                }
+
+                // Remove by `deployment_id`
+                payload.getString("deployment_id")?.let { deploymentId ->
+                    shutdown(deploymentId, message)
                 }
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
         }
     }
 
+    open fun shutdown(payload: JsonObject) {
+        shutdown(payload.getString("deployment_id"), JsonObject().apply {
+            put("type", TYPE_SHUTDOWN)
+            put("payload", payload)
+        })
+    }
+    open fun shutdown(deploymentId: String, message: JsonObject) {
+        components.remove(deploymentId)?.apply {
+            if (mediaEnabled) mediaEnabledComponentsCounter--
+            host?.let { hostMapping.remove(it) }
+
+            logger.info { "Shutting down component '${this.name}' via management socket..." }
+            socket.send(message.toBuffer(), uri.port, uri.host) {}
+        }
+    }
+
+    open fun save(component: Component) {
+        val componentObject = JsonObject().apply {
+            put("name", component.name)
+            put("deployment_id", component.deploymentId)
+            put("type", "captain")
+            put("uri", component.uri.toString())
+            put("connected_to", name)
+
+            put("registered_at", component.registeredAt)
+            put("updated_at", component.updatedAt)
+            put("remote_updated_at", component.remoteUpdatedAt)
+
+            put("config", component.config)
+        }
+
+        componentRegistry.save(componentObject)
+    }
+
     open fun publishMediaControl(mediaControl: MediaControl) {
-        if (mediaEnabledHostsCounter <= 0) return
+        if (mediaEnabledComponentsCounter <= 0) return
 
         val message = JsonObject().apply {
             put("type", TYPE_MEDIA_CONTROL)
@@ -206,17 +270,15 @@ open class ManagementSocket : AbstractVerticle() {
         when (publishMediaControlMode) {
             // Mode 0: Send to all hosts
             0 -> {
-                remoteHosts.forEach { _, host -> sendMediaControlIfNeeded(host, message) }
+                components.forEach { _, host ->
+                    sendMediaControlIfNeeded(host, message)
+                }
             }
             // Mode 1: Send to media participants only
             1 -> {
                 mediaControl.sdpSession.apply {
-                    hostRegistry.getHostName(src.addr)?.let { srcHost ->
-                        remoteHosts.get(srcHost)?.let { sendMediaControlIfNeeded(it, message) }
-                    }
-                    hostRegistry.getHostName(dst.addr)?.let { dstHost ->
-                        remoteHosts.get(dstHost)?.let { sendMediaControlIfNeeded(it, message) }
-                    }
+                    sendMediaControlIfNeeded(src.addr, message)
+                    sendMediaControlIfNeeded(dst.addr, message)
                 }
             }
         }
@@ -228,29 +290,45 @@ open class ManagementSocket : AbstractVerticle() {
             put("payload", payload)
         }.toBuffer()
 
-        remoteHosts.forEach { _, host ->
+        val deploymentId = payload.getString("deployment_id")
+        components.forEach { _, component ->
+            if (deploymentId != null && component.deploymentId != deploymentId) return@forEach
+
             try {
-                socket.send(message, host.uri.port, host.uri.host) {}
+                socket.send(message, component.uri.port, component.uri.host) {}
             } catch (e: Exception) {
-                logger.error(e) { "Socket 'send()' failed. URI: ${host.uri}" }
+                logger.error(e) { "Socket 'send()' failed. URI: ${component.uri}" }
             }
         }
     }
 
-    private fun sendMediaControlIfNeeded(host: RemoteHost, message: Buffer) {
-        if (host.mediaEnabled) {
+    private fun sendMediaControlIfNeeded(component: Component, message: Buffer) {
+        if (component.mediaEnabled) {
             try {
-                socket.send(message, host.uri.port, host.uri.host) {}
+                socket.send(message, component.uri.port, component.uri.host) {}
             } catch (e: Exception) {
-                logger.error(e) { "Socket 'send()' failed. URI: ${host.uri}" }
+                logger.error(e) { "Socket 'send()' failed. URI: ${component.uri}" }
             }
         }
     }
 
-    class RemoteHost(val name: String) {
+    private fun sendMediaControlIfNeeded(addr: String, message: Buffer) {
+        hostRegistry.getHostName(addr)
+            ?.let { host -> hostMapping[host] }
+            ?.let { deploymentId -> components.get(deploymentId) }
+            ?.let { component -> sendMediaControlIfNeeded(component, message) }
+    }
 
-        var lastUpdate: Long = System.currentTimeMillis()
+    open class Component(val deploymentId: String, val name: String) {
+
+        var registeredAt = System.currentTimeMillis()
+        var updatedAt: Long = System.currentTimeMillis()
+        var remoteUpdatedAt: Long = 0L
+
         lateinit var uri: URI
+        var config = JsonObject()
+
         var mediaEnabled = false
+        var host: String? = null
     }
 }

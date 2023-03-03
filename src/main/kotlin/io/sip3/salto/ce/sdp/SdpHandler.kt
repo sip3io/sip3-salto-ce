@@ -83,7 +83,11 @@ class SdpHandler : AbstractVerticle() {
                     .flatMap { payloadType ->
                         when (payloadType) {
                             is Int -> setOf(payloadType)
-                            is String -> payloadType.toIntRange()
+                            is String -> if (payloadType.contains("..")) {
+                                    payloadType.toIntRange()
+                                } else {
+                                    setOf(payloadType.toInt())
+                            }
                             else -> throw IllegalArgumentException("Couldn't parse `payload_types`. Unknown type: $payloadType")
                         }
                     }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.socket
+package io.sip3.salto.ce.management
 
 import io.mockk.Runs
 import io.mockk.every
@@ -81,6 +81,7 @@ class ManagementSocketTest : VertxTest() {
         localPort = findRandomPort()
         remotePort = findRandomPort()
         config = JsonObject().apply {
+            put("name", "sip3-salto-unit-test")
             put("management", JsonObject().apply {
                 put("uri", "udp://127.0.0.1:$localPort")
                 put("expiration_timeout", 1500L)
@@ -228,6 +229,7 @@ class ManagementSocketTest : VertxTest() {
         runTest(
             deploy = {
                 val ipV6config = JsonObject().apply {
+                    put("name", "sip3-salto-unit-test")
                     put("management", JsonObject().apply {
                         put("uri", "udp://[fe80::1]:$localPort")
                         put("expiration_timeout", 1500L)
