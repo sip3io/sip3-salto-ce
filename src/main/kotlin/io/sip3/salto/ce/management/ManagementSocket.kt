@@ -330,5 +330,9 @@ open class ManagementSocket : AbstractVerticle() {
 
         var mediaEnabled = false
         var host: String? = null
+
+        override fun toString(): String {
+            return "Component(deploymentId=$deploymentId, name=$name, uri=$uri)"
+        }
     }
 }
