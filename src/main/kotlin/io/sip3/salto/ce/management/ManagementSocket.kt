@@ -147,6 +147,7 @@ open class ManagementSocket : AbstractVerticle() {
 
     open fun handle(socketAddress: SocketAddress, message: JsonObject) {
         logger.trace { "Socket Address: $socketAddress, message: ${message.encode()}" }
+        socketAddress.path()
         val host = socketAddress.host().substringBefore("%")
         val port = socketAddress.port()
 
@@ -194,7 +195,7 @@ open class ManagementSocket : AbstractVerticle() {
             TYPE_CONFIG_REQUEST -> {
                 val name = payload.getString("name")
                 hostRegistry.getConfig(name)
-                    .onFailure { logger.error(it) { "HostRegistry `getConfig()` failed. Name: $name"} }
+                    .onFailure { logger.error(it) { "HostRegistry `getConfig()` failed. Name: $name" } }
                     .onSuccess { config ->
                         val response = JsonObject().apply {
                             put("type", TYPE_CONFIG)
@@ -231,6 +232,7 @@ open class ManagementSocket : AbstractVerticle() {
             put("payload", payload)
         })
     }
+
     open fun shutdown(deploymentId: String, message: JsonObject) {
         components.remove(deploymentId)?.apply {
             if (mediaEnabled) mediaEnabledComponentsCounter--
