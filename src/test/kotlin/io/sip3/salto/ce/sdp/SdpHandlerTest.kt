@@ -27,7 +27,7 @@ import io.sip3.salto.ce.MockKSingletonExtension
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.host.HostRegistry
+import io.sip3.salto.ce.management.host.HostRegistry
 import io.sip3.salto.ce.sip.SipTransaction
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject

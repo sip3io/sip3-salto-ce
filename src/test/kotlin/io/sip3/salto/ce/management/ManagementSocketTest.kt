@@ -26,8 +26,8 @@ import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.MockKSingletonExtension
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.component.ComponentRegistry
-import io.sip3.salto.ce.host.HostRegistry
+import io.sip3.salto.ce.management.component.ComponentRegistry
+import io.sip3.salto.ce.management.host.HostRegistry
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.host
+package io.sip3.salto.ce.management.host
 
 import io.sip3.commons.mongo.MongoClient
 import io.vertx.core.Future
@@ -43,9 +43,9 @@ object HostRegistry {
 
     @Synchronized
     fun getInstance(vertx: Vertx, config: JsonObject): HostRegistry {
-        if (this.vertx == null) {
-            this.vertx = vertx
-            this.config = config
+        if (HostRegistry.vertx == null) {
+            HostRegistry.vertx = vertx
+            HostRegistry.config = config
             init()
         }
 

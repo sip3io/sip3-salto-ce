@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.component
+package io.sip3.salto.ce.management.component
 
 import io.sip3.commons.mongo.MongoClient
 import io.vertx.core.Vertx
@@ -40,9 +40,9 @@ object ComponentRegistry {
 
     @Synchronized
     fun getInstance(vertx: Vertx, config: JsonObject): ComponentRegistry {
-        if (this.vertx == null) {
-            this.vertx = vertx
-            this.config = config
+        if (ComponentRegistry.vertx == null) {
+            ComponentRegistry.vertx = vertx
+            ComponentRegistry.config = config
             init()
         }
 

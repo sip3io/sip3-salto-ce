@@ -21,8 +21,8 @@ import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.component.ComponentRegistry
-import io.sip3.salto.ce.host.HostRegistry
+import io.sip3.salto.ce.management.component.ComponentRegistry
+import io.sip3.salto.ce.management.host.HostRegistry
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.datagram.DatagramSocket

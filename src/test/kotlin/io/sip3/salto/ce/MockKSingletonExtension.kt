@@ -19,8 +19,8 @@ package io.sip3.salto.ce
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
-import io.sip3.salto.ce.component.ComponentRegistry
-import io.sip3.salto.ce.host.HostRegistry
+import io.sip3.salto.ce.management.component.ComponentRegistry
+import io.sip3.salto.ce.management.host.HostRegistry
 import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
