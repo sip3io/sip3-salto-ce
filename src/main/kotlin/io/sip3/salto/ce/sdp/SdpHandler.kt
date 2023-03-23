@@ -24,7 +24,7 @@ import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localReply
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
-import io.sip3.salto.ce.host.HostRegistry
+import io.sip3.salto.ce.management.host.HostRegistry
 import io.sip3.salto.ce.sip.SipTransaction
 import io.sip3.salto.ce.util.address
 import io.sip3.salto.ce.util.defineRtcpPort
@@ -83,7 +83,11 @@ class SdpHandler : AbstractVerticle() {
                     .flatMap { payloadType ->
                         when (payloadType) {
                             is Int -> setOf(payloadType)
-                            is String -> payloadType.toIntRange()
+                            is String -> if (payloadType.contains("..")) {
+                                    payloadType.toIntRange()
+                                } else {
+                                    setOf(payloadType.toInt())
+                            }
                             else -> throw IllegalArgumentException("Couldn't parse `payload_types`. Unknown type: $payloadType")
                         }
                     }

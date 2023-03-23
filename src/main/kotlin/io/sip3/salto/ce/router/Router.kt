@@ -23,7 +23,7 @@ import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
-import io.sip3.salto.ce.host.HostRegistry
+import io.sip3.salto.ce.management.host.HostRegistry
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.vertx.core.AbstractVerticle
 import mu.KotlinLogging

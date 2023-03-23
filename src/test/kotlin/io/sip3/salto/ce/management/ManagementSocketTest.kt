@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.sip3.salto.ce.socket
+package io.sip3.salto.ce.management
 
 import io.mockk.Runs
 import io.mockk.every
@@ -26,7 +26,8 @@ import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.MockKSingletonExtension
 import io.sip3.salto.ce.RoutesCE
-import io.sip3.salto.ce.host.HostRegistry
+import io.sip3.salto.ce.management.component.ComponentRegistry
+import io.sip3.salto.ce.management.host.HostRegistry
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
@@ -62,11 +63,13 @@ class ManagementSocketTest : VertxTest() {
             })
         }
 
+        private val DEPLOYMENT_ID = UUID.randomUUID().toString()
+
         private val REGISTER_MESSAGE = JsonObject().apply {
             put("type", ManagementSocket.TYPE_REGISTER)
             put("payload", JsonObject().apply {
                 put("timestamp", System.currentTimeMillis())
-                put("name", UUID.randomUUID().toString())
+                put("deployment_id", DEPLOYMENT_ID)
                 put("config", CONFIG)
             })
         }
@@ -81,6 +84,7 @@ class ManagementSocketTest : VertxTest() {
         localPort = findRandomPort()
         remotePort = findRandomPort()
         config = JsonObject().apply {
+            put("name", "sip3-salto-unit-test")
             put("management", JsonObject().apply {
                 put("uri", "udp://127.0.0.1:$localPort")
                 put("expiration_timeout", 1500L)
@@ -107,6 +111,9 @@ class ManagementSocketTest : VertxTest() {
                     context.verify {
                         verify(atLeast = 1) {
                             HostRegistry.save(any())
+                        }
+                        verify(atLeast = 1) {
+                            ComponentRegistry.save(any())
                         }
                         context.completeNow()
                     }
@@ -219,6 +226,98 @@ class ManagementSocketTest : VertxTest() {
     }
 
     @Test
+    fun `Send 'media_recording_reset' command to agent with deployment_id`() {
+        every {
+            HostRegistry.save(any())
+        } just Runs
+
+        every {
+            ComponentRegistry.save(any())
+        } just Runs
+
+        lateinit var socket: DatagramSocket
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(ManagementSocket::class, config)
+            },
+            execute = {
+                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
+                vertx.setTimer(100) {
+                    vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject().apply {
+                        put("deployment_id", "1234")
+                    })
+
+                    vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject().apply {
+                        put("deployment_id", DEPLOYMENT_ID)
+                    })
+                }
+            },
+            assert = {
+                socket = vertx.createDatagramSocket()
+                socket.listen(remotePort, "127.0.0.1")
+                socket.handler { packet ->
+                    context.verify {
+                        packet.data().toJsonObject().apply {
+                            assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, getString("type"))
+                            assertEquals(DEPLOYMENT_ID, getJsonObject("payload").getString("deployment_id"))
+                        }
+                        context.completeNow()
+                    }
+                }
+            },
+            cleanup = {
+                socket.close()
+            }
+        )
+    }
+
+
+    @Test
+    fun `Send 'shutdown' command to agent with deployment_id`() {
+        every {
+            HostRegistry.save(any())
+        } just Runs
+
+        every {
+            ComponentRegistry.save(any())
+        } just Runs
+
+        lateinit var socket: DatagramSocket
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(ManagementSocket::class, config)
+            },
+            execute = {
+                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
+                vertx.setTimer(100) {
+                    socket.send(JsonObject().apply {
+                        put("type", ManagementSocket.TYPE_SHUTDOWN)
+                        put("payload", JsonObject().apply {
+                            put("deployment_id", DEPLOYMENT_ID)
+                        })
+                    }.toBuffer(), localPort, "127.0.0.1")
+                }
+            },
+            assert = {
+                socket = vertx.createDatagramSocket()
+                socket.listen(remotePort, "127.0.0.1")
+                socket.handler { packet ->
+                    context.verify {
+                        packet.data().toJsonObject().apply {
+                            assertEquals(ManagementSocket.TYPE_SHUTDOWN, getString("type"))
+                            assertEquals(DEPLOYMENT_ID, getJsonObject("payload").getString("deployment_id"))
+                        }
+                        context.completeNow()
+                    }
+                }
+            },
+            cleanup = {
+                socket.close()
+            }
+        )
+    }
+
+    @Test
     fun `Send 'media_recording_reset' command to agents via IPv6`() {
         every {
             HostRegistry.save(any())
@@ -228,6 +327,7 @@ class ManagementSocketTest : VertxTest() {
         runTest(
             deploy = {
                 val ipV6config = JsonObject().apply {
+                    put("name", "sip3-salto-unit-test")
                     put("management", JsonObject().apply {
                         put("uri", "udp://[fe80::1]:$localPort")
                         put("expiration_timeout", 1500L)
