@@ -60,7 +60,7 @@ open class SipTransactionHandler : AbstractVerticle() {
 
         val PREFIX = RoutesCE.sip + "_transaction"
 
-        const val RESPONSE_DELAY = "response_delay"
+        const val RESPONSE_DELAY = "response-delay"
 
         // To simplify call aggregation we decided to skip ACK and CANCEL transaction.
         // Moreover, skipped ACK and CANCEL transactions will not affect final result.
