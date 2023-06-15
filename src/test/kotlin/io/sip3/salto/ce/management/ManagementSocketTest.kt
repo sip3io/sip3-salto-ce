@@ -65,12 +65,23 @@ class ManagementSocketTest : VertxTest() {
 
         private val DEPLOYMENT_ID = UUID.randomUUID().toString()
 
-        private val REGISTER_MESSAGE = JsonObject().apply {
+        private val REGISTER_MESSAGE_1 = JsonObject().apply {
             put("type", ManagementSocket.TYPE_REGISTER)
             put("payload", JsonObject().apply {
                 put("timestamp", System.currentTimeMillis())
                 put("deployment_id", DEPLOYMENT_ID)
                 put("config", CONFIG)
+            })
+        }
+
+        private val REGISTER_MESSAGE_2 = JsonObject().apply {
+            put("type", ManagementSocket.TYPE_REGISTER)
+            put("payload", JsonObject().apply {
+                put("timestamp", System.currentTimeMillis())
+                put("name", DEPLOYMENT_ID)
+                put("config", CONFIG.copy().apply {
+                    remove("host")
+                })
             })
         }
     }
@@ -104,12 +115,41 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                vertx.createDatagramSocket().send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
+                vertx.createDatagramSocket().send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
             },
             assert = {
                 vertx.setPeriodic(500, 100) {
                     context.verify {
                         verify(atLeast = 1) {
+                            HostRegistry.save(any())
+                        }
+                        verify(atLeast = 1) {
+                            ComponentRegistry.save(any())
+                        }
+                        context.completeNow()
+                    }
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Receive register from remote host without host information and 'deployment_id'`() {
+        every {
+            HostRegistry.save(any())
+        } just Runs
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(ManagementSocket::class, config)
+            },
+            execute = {
+                vertx.createDatagramSocket().send(REGISTER_MESSAGE_2.toBuffer(), localPort, "127.0.0.1").await()
+            },
+            assert = {
+                vertx.setPeriodic(500, 100) {
+                    context.verify {
+                        verify(exactly = 0) {
                             HostRegistry.save(any())
                         }
                         verify(atLeast = 1) {
@@ -167,7 +207,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
 
                 vertx.setTimer(100) {
                     vertx.eventBus().localSend(RoutesCE.media + "_control", mediaControl)
@@ -202,7 +242,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
                 vertx.setTimer(100) {
                     vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
                 }
@@ -241,7 +281,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
                 vertx.setTimer(100) {
                     vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject().apply {
                         put("deployment_id", "1234")
@@ -288,7 +328,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "127.0.0.1").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
                 vertx.setTimer(100) {
                     socket.send(JsonObject().apply {
                         put("type", ManagementSocket.TYPE_SHUTDOWN)
@@ -337,7 +377,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, ipV6config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE.toBuffer(), localPort, "[fe80::1]").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "[fe80::1]").await()
                 vertx.setTimer(100) {
                     vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
                 }
