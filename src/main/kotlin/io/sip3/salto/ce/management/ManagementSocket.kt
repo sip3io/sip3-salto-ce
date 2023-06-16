@@ -158,7 +158,7 @@ open class ManagementSocket : AbstractVerticle() {
 
         when (type) {
             TYPE_REGISTER -> {
-                val deploymentId = payload.getString("deployment_id")
+                val deploymentId = payload.getString("deployment_id") ?: payload.getString("name")
                 val config = payload.getJsonObject("config")
                 val senderUri = URI(uri.scheme, null, host, port, null, null, null)
 
