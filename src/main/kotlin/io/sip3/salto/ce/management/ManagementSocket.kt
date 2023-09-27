@@ -27,6 +27,7 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.datagram.DatagramSocketOptions
+import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.core.net.SocketAddress
 import mu.KotlinLogging
@@ -62,6 +63,7 @@ open class ManagementSocket : AbstractVerticle() {
 
     private lateinit var socket: DatagramSocket
 
+    private lateinit var saltoComponent: Component
     private lateinit var components: PeriodicallyExpiringHashMap<String, Component>
     private val hostMapping = mutableMapOf<String, String>()
 
@@ -87,8 +89,6 @@ open class ManagementSocket : AbstractVerticle() {
             }
         }
 
-        startUdpServer()
-
         components = PeriodicallyExpiringHashMap.Builder<String, Component>()
             .delay(expirationDelay)
             .expireAt { _, component -> component.updatedAt + expirationTimeout }
@@ -97,6 +97,13 @@ open class ManagementSocket : AbstractVerticle() {
                 if (component.mediaEnabled) mediaEnabledComponentsCounter--
             }
             .build(vertx)
+
+        startUdpServer()
+
+        vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
+            val newConfig = event.body()
+            saltoComponent.config = newConfig
+        }
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
             try {
@@ -114,6 +121,23 @@ open class ManagementSocket : AbstractVerticle() {
             } catch (e: Exception) {
                 logger.error(e) { "ManagementSocket 'publishMediaRecordingReset()' failed." }
             }
+        }
+
+        saltoComponent = Component(this.deploymentID(), name, "salto").apply {
+            config = config()
+            remoteUpdatedAt = updatedAt
+            uri = this@ManagementSocket.uri
+            mediaEnabled = true
+        }
+
+        vertx.setPeriodic(0L, expirationDelay) {
+            val now = System.currentTimeMillis()
+            saltoComponent.apply {
+                remoteUpdatedAt = now
+                updatedAt = now
+            }
+
+            save(saltoComponent)
         }
     }
 
@@ -165,7 +189,7 @@ open class ManagementSocket : AbstractVerticle() {
                 val componentName = config?.getString("name") ?: deploymentId
                 val component = components.getOrPut(deploymentId) {
                     logger.info { "Registered from `$senderUri`: $payload" }
-                    return@getOrPut Component(deploymentId, componentName)
+                    return@getOrPut Component(deploymentId, componentName, "captain")
                 }.apply {
                     updatedAt = now
                     remoteUpdatedAt = payload.getLong("timestamp")
@@ -247,9 +271,27 @@ open class ManagementSocket : AbstractVerticle() {
         val componentObject = JsonObject().apply {
             put("name", component.name)
             put("deployment_id", component.deploymentId)
-            put("type", "captain")
-            put("uri", component.uri.toString())
-            put("connected_to", name)
+            put("type", component.type)
+
+            if (component.type == "salto") {
+                val uriList = JsonArray()
+                config().getJsonObject("management")?.getString("uri")?.let { uriList.add(it) }
+                config().getJsonObject("server")?.getString("uri")?.let { uriList.add(it) }
+                put("uri", uriList)
+
+                val connectedToList = JsonArray()
+                config().getJsonObject("mongo")?.let { mongo ->
+                    mongo.getJsonObject("management")?.let { management ->
+                        connectedToList.add(management.getString("uri") + "/" + management.getString("db"))
+                    }
+
+                    connectedToList.add(mongo.getString("uri") + "/" + mongo.getString("db"))
+                }
+                put("connected_to", connectedToList)
+            } else {
+                put("uri", JsonArray.of(component.uri.toString()))
+                put("connected_to", JsonArray.of(name))
+            }
 
             put("registered_at", component.registeredAt)
             put("updated_at", component.updatedAt)
@@ -321,7 +363,7 @@ open class ManagementSocket : AbstractVerticle() {
             ?.let { component -> sendMediaControlIfNeeded(component, message) }
     }
 
-    open class Component(val deploymentId: String, val name: String) {
+    open class Component(val deploymentId: String, val name: String, val type: String) {
 
         var registeredAt = System.currentTimeMillis()
         var updatedAt: Long = System.currentTimeMillis()
