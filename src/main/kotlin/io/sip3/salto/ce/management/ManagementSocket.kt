@@ -282,10 +282,9 @@ open class ManagementSocket : AbstractVerticle() {
                 val connectedToList = JsonArray()
                 config().getJsonObject("mongo")?.let { mongo ->
                     mongo.getJsonObject("management")?.let { management ->
-                        connectedToList.add(management.getString("uri") + "/" + management.getString("db"))
+                        connectedToList.add(mongoConnectedTo(management))
                     }
-
-                    connectedToList.add(mongo.getString("uri") + "/" + mongo.getString("db"))
+                    connectedToList.add(mongoConnectedTo(mongo))
                 }
                 put("connected_to", connectedToList)
             } else {
@@ -361,6 +360,11 @@ open class ManagementSocket : AbstractVerticle() {
             ?.let { host -> hostMapping[host] }
             ?.let { deploymentId -> components.get(deploymentId) }
             ?.let { component -> sendMediaControlIfNeeded(component, message) }
+    }
+
+    private fun mongoConnectedTo(mongoConfig: JsonObject): String {
+        val mongoUri = URI(mongoConfig.getString("uri"))
+        return "${mongoUri.scheme}://${mongoUri.authority}/${mongoConfig.getString("db")}"
     }
 
     open class Component(val deploymentId: String, val name: String, val type: String) {

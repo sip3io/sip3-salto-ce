@@ -16,11 +16,8 @@
 
 package io.sip3.salto.ce.management
 
-import io.mockk.Runs
-import io.mockk.every
+import io.mockk.*
 import io.mockk.junit5.MockKExtension
-import io.mockk.just
-import io.mockk.verify
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
@@ -34,6 +31,7 @@ import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.datagram.datagramSocketOptionsOf
 import io.vertx.kotlin.coroutines.await
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -96,10 +94,24 @@ class ManagementSocketTest : VertxTest() {
         remotePort = findRandomPort()
         config = JsonObject().apply {
             put("name", "sip3-salto-unit-test")
+
+            put("server", JsonObject().apply {
+                put("uri", "udp://127.0.0.1:15060")
+            })
+
             put("management", JsonObject().apply {
                 put("uri", "udp://127.0.0.1:$localPort")
                 put("expiration_timeout", 1500L)
                 put("expiration_delay", 800L)
+            })
+
+            put("mongo", JsonObject().apply {
+                put("management", JsonObject().apply {
+                    put("uri", "mongodb://superhost.com:10000/?w=1")
+                    put("db", "salto-component-management-test")
+                })
+                put("uri", "mongodb://superhost.com:20000/?w=1")
+                put("db", "salto-component-test")
             })
         }
     }
@@ -132,6 +144,41 @@ class ManagementSocketTest : VertxTest() {
             }
         )
     }
+
+    @Test
+    fun `Save Salto component on start`() {
+        val componentSlot: CapturingSlot<JsonObject> = slot()
+        every {
+            ComponentRegistry.save(any())
+        } just Runs
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(ManagementSocket::class, config)
+            },
+            execute = {},
+            assert = {
+                vertx.setPeriodic(500, 100) {
+                    context.verify {
+                        verify(atLeast = 1) {
+                            ComponentRegistry.save(capture(componentSlot))
+                        }
+                        assertTrue(componentSlot.isCaptured)
+                        val component = componentSlot.captured
+
+                        assertEquals("sip3-salto-unit-test", component.getString("name"))
+                        assertEquals("salto", component.getString("type"))
+                        assertEquals(2, component.getJsonArray("uri").size())
+                        assertEquals(2, component.getJsonArray("connected_to").size())
+                        assertEquals("mongodb://superhost.com:10000/salto-component-management-test", component.getJsonArray("connected_to").getString(0))
+                        assertEquals("mongodb://superhost.com:20000/salto-component-test", component.getJsonArray("connected_to").getString(1))
+                        context.completeNow()
+                    }
+                }
+            }
+        )
+    }
+
+
 
     @Test
     fun `Receive register from remote host without host information and 'deployment_id'`() {
