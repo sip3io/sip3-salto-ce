@@ -44,6 +44,7 @@ class MongoCollectionManager : CoroutineVerticle() {
 
         const val DEFAULT_MAX_COLLECTIONS = 30
         const val COLLECTIONS_AHEAD: Int = 4
+        const val STASH_SUFFIX = "stash"
     }
 
     private var timeSuffix: DateFormat = SimpleDateFormat("yyyyMMdd").apply {
@@ -126,6 +127,7 @@ class MongoCollectionManager : CoroutineVerticle() {
     private suspend fun dropOldCollections(collection: JsonObject) {
         client.collections.await()
             .filter { name -> name.startsWith(collection.getString("prefix")) }
+            .filter { name -> !name.endsWith("_$STASH_SUFFIX") }
             .sortedDescending()
             .drop((collection.getInteger("max_collections") ?: DEFAULT_MAX_COLLECTIONS) + COLLECTIONS_AHEAD)
             .forEach { name -> client.dropCollection(name).await() }
