@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
+import gov.nist.javax.sip.parser.CallIDParser
 import io.sip3.commons.SipMethods
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
@@ -88,11 +89,12 @@ open class SipMessageHandler : AbstractVerticle() {
         udfExecutor = UdfExecutor(vertx)
 
         vertx.eventBus().localConsumer<Packet>(RoutesCE.sip) { event ->
+            val packet = event.body()
             try {
-                val packet = event.body()
                 handle(packet)
             } catch (e: Exception) {
                 logger.error("SipMessageHandler 'handle()' failed.", e)
+                handleUnparsed(packet)
             }
         }
     }
@@ -167,6 +169,20 @@ open class SipMessageHandler : AbstractVerticle() {
         vertx.eventBus().localSend(route, Pair(packet, message))
     }
 
+    private fun handleUnparsed(packet: Packet) {
+        if (packet.attributes == null) packet.attributes = mutableMapOf()
+        val callId = String(packet.payload, Charsets.ISO_8859_1).split("\n")
+            .filter { it.startsWith("call-id:", true) || it.startsWith("i:") }
+            .map { CallIDParser(it).parse() }
+            .map { it.value }
+            .firstOrNull()
+
+        if (callId == null) return
+
+        packet.attributes!![Attributes.call_id] = callId
+        writeToDatabase("unknown", packet, null)
+    }
+
     open fun calculateSipMessageMetrics(prefix: String, packet: Packet, message: SIPMessage) {
         val attributes = (packet.attributes ?: mutableMapOf())
             .toMetricsAttributes()
@@ -189,7 +205,7 @@ open class SipMessageHandler : AbstractVerticle() {
         Metrics.counter(prefix + "_messages", attributes).increment()
     }
 
-    open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage) {
+    open fun writeToDatabase(prefix: String, packet: Packet, message: SIPMessage?) {
         val collection = prefix + "_raw_" + timeSuffix.format(packet.createdAt)
 
         val operation = JsonObject().apply {
@@ -207,7 +223,7 @@ open class SipMessageHandler : AbstractVerticle() {
                 put("dst_port", dst.port)
                 dst.host?.let { put("dst_host", it) }
 
-                put("call_id", message.callId())
+                put("call_id", message?.callId() ?: packet.attributes?.get("call_id") as String)
                 put("raw_data", String(packet.payload, Charsets.ISO_8859_1))
             })
         }
