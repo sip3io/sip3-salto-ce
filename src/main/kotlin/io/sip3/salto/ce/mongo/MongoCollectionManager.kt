@@ -22,7 +22,7 @@ import io.sip3.commons.vertx.util.localReply
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.CoroutineVerticle
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -125,19 +125,19 @@ class MongoCollectionManager : CoroutineVerticle() {
     }
 
     private suspend fun dropOldCollections(collection: JsonObject) {
-        client.collections.await()
+        client.collections.coAwait()
             .filter { name -> name.startsWith(collection.getString("prefix")) }
             .filter { name -> !name.endsWith("_$STASH_SUFFIX") }
             .sortedDescending()
             .drop((collection.getInteger("max_collections") ?: DEFAULT_MAX_COLLECTIONS) + COLLECTIONS_AHEAD)
-            .forEach { name -> client.dropCollection(name).await() }
+            .forEach { name -> client.dropCollection(name).coAwait() }
     }
 
     private suspend fun createCollectionIfNeeded(name: String, indexes: JsonObject? = null) {
         // Create collection
-        if (!client.collections.await().contains(name)) {
+        if (!client.collections.coAwait().contains(name)) {
             try {
-                client.createCollection(name).await()
+                client.createCollection(name).coAwait()
             } catch (e: Exception) {
                 logger.debug(e) { "MongoClient 'createCollection()' failed." }
             }
@@ -145,7 +145,7 @@ class MongoCollectionManager : CoroutineVerticle() {
 
         // Create collection indexes
         if (indexes != null) {
-            val indexCount = client.listIndexes(name).await().count()
+            val indexCount = client.listIndexes(name).coAwait().count()
             if (indexCount < 2) {
                 createIndexes(name, indexes)
             }
@@ -157,14 +157,14 @@ class MongoCollectionManager : CoroutineVerticle() {
         indexes.getJsonArray("ascending")?.forEach { index ->
             client.createIndex(name, JsonObject().apply {
                 put(index as String, 1)
-            }).await()
+            }).coAwait()
         }
 
         // Create hashed indexes if needed
         indexes.getJsonArray("hashed")?.forEach { index ->
             client.createIndex(name, JsonObject().apply {
                 put(index as String, "hashed")
-            }).await()
+            }).coAwait()
         }
     }
 }

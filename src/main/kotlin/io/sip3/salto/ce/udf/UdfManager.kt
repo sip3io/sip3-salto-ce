@@ -18,7 +18,7 @@ package io.sip3.salto.ce.udf
 
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -72,7 +72,7 @@ class UdfManager(val vertx: Vertx) {
             if (file.lastModified() >= lastChecked) {
                 try {
                     logger.info { "Deploying new UDF. File: `$file`" }
-                    deploymentId = vertx.deployVerticle(file.absolutePath, DEPLOYMENT_OPTIONS).await()
+                    deploymentId = vertx.deployVerticle(file.absolutePath, DEPLOYMENT_OPTIONS).coAwait()
                 } catch (e: Exception) {
                     logger.error("Vertx 'deployVerticle()' failed. File: $file", e)
                 }
@@ -83,7 +83,7 @@ class UdfManager(val vertx: Vertx) {
                     deployments.put(file.absolutePath, Deployment(deploymentId))?.let { deployment ->
                         try {
                             logger.info { "Removing the old UDF. File: `$file`, " }
-                            vertx.undeploy(deployment.id).await()
+                            vertx.undeploy(deployment.id).coAwait()
                         } catch (e: Exception) {
                             logger.error("Vertx 'undeploy()' failed. File: $file", e)
                         }
@@ -99,7 +99,7 @@ class UdfManager(val vertx: Vertx) {
         deployments.filterValues { deployment -> deployment.lastUpdated < now }.forEach { (file, deployment) ->
             try {
                 logger.info { "Removing an expired UDF. File: `$file`, " }
-                vertx.undeploy(deployment.id).await()
+                vertx.undeploy(deployment.id).coAwait()
             } catch (e: Exception) {
                 logger.error("Vertx 'undeploy()' failed. File: $file", e)
             }

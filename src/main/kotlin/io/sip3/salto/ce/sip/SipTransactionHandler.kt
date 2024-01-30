@@ -30,7 +30,7 @@ import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.util.*
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -125,8 +125,8 @@ open class SipTransactionHandler : AbstractVerticle() {
             .build(vertx)
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
-            val index = vertx.sharedData().getLocalCounter(PREFIX).await()
-            vertx.eventBus().localConsumer<Pair<Packet, SIPMessage>>(PREFIX + "_${index.andIncrement.await()}") { event ->
+            val index = vertx.sharedData().getLocalCounter(PREFIX).coAwait()
+            vertx.eventBus().localConsumer<Pair<Packet, SIPMessage>>(PREFIX + "_${index.andIncrement.coAwait()}") { event ->
                 try {
                     val (packet, message) = event.body()
                     handle(packet, message)

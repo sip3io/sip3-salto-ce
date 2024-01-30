@@ -26,7 +26,7 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -96,9 +96,9 @@ open class RtprBulkWriter : AbstractVerticle() {
         }
 
         GlobalScope.launch(vertx.dispatcher() as CoroutineContext) {
-            val index = vertx.sharedData().getLocalCounter(RoutesCE.rtpr + "_bulk_writer").await()
+            val index = vertx.sharedData().getLocalCounter(RoutesCE.rtpr + "_bulk_writer").coAwait()
             vertx.eventBus()
-                .localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_bulk_writer_${index.andIncrement.await()}") { event ->
+                .localConsumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_bulk_writer_${index.andIncrement.coAwait()}") { event ->
                     try {
                         val (packet, report) = event.body()
                         handle(packet, report)
