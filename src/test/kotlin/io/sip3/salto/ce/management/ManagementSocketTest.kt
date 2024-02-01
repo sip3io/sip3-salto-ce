@@ -29,7 +29,7 @@ import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.datagram.datagramSocketOptionsOf
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -127,7 +127,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                vertx.createDatagramSocket().send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
+                vertx.createDatagramSocket().send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
             },
             assert = {
                 vertx.setPeriodic(500, 100) {
@@ -191,7 +191,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                vertx.createDatagramSocket().send(REGISTER_MESSAGE_2.toBuffer(), localPort, "127.0.0.1").await()
+                vertx.createDatagramSocket().send(REGISTER_MESSAGE_2.toBuffer(), localPort, "127.0.0.1").coAwait()
             },
             assert = {
                 vertx.setPeriodic(500, 100) {
@@ -254,7 +254,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
 
                 vertx.setTimer(100) {
                     vertx.eventBus().localSend(RoutesCE.media + "_control", mediaControl)
@@ -289,7 +289,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
                 vertx.setTimer(100) {
                     vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
                 }
@@ -328,7 +328,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
                 vertx.setTimer(100) {
                     vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject().apply {
                         put("deployment_id", "1234")
@@ -375,7 +375,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
                 vertx.setTimer(100) {
                     socket.send(JsonObject().apply {
                         put("type", ManagementSocket.TYPE_SHUTDOWN)
@@ -424,7 +424,7 @@ class ManagementSocketTest : VertxTest() {
                 vertx.deployTestVerticle(ManagementSocket::class, ipV6config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "[fe80::1]").await()
+                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "[fe80::1]").coAwait()
                 vertx.setTimer(100) {
                     vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
                 }
