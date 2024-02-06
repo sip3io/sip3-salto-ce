@@ -44,13 +44,7 @@ class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_A
 
     fun parse(packet: Packet): List<Pair<Packet, SIPMessage>> {
         val result = mutableListOf<Pair<Packet, SIPMessage>>()
-
-        try {
-            parse(packet, result)
-        } catch (e: Exception) {
-            logger.debug(e) { "SipMessageParser `parse()` failed.\n $packet" }
-        }
-
+        parse(packet, result)
         return result
     }
 

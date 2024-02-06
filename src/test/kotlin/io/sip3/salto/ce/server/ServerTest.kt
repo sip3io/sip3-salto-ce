@@ -22,7 +22,7 @@ import io.sip3.salto.ce.domain.Address
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.net.netClientOptionsOf
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -81,7 +81,7 @@ class ServerTest : VertxTest() {
             },
             execute = {
                 vertx.createNetClient(NET_CLIENT_OPTIONS)
-                    .connect(port, "127.0.0.1").await()
+                    .connect(port, "127.0.0.1").coAwait()
                     .write(Buffer.buffer(MESSAGE_2))
             },
             assert = {
@@ -110,7 +110,7 @@ class ServerTest : VertxTest() {
             },
             execute = {
                 vertx.createNetClient(NET_CLIENT_OPTIONS)
-                    .connect(port, "127.0.0.1").await()
+                    .connect(port, "127.0.0.1").coAwait()
                     .write(Buffer.buffer(MESSAGE_3))
             },
             assert = {
