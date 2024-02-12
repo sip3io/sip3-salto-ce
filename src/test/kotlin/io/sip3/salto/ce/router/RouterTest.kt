@@ -18,6 +18,10 @@ package io.sip3.salto.ce.router
 
 import io.mockk.every
 import io.mockk.junit5.MockKExtension
+import io.sip3.commons.PacketTypes
+import io.sip3.commons.ProtocolCodes
+import io.sip3.commons.domain.payload.RawPayload
+import io.sip3.commons.util.getBytes
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.endpoints
 import io.sip3.commons.vertx.util.localSend
@@ -26,6 +30,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.management.host.HostRegistry
+import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.json.get
@@ -63,7 +68,7 @@ class RouterTest : VertxTest() {
                         addr = "23.08.20.15"
                         port = 3
                     }
-                    protocolCode = 3
+                    protocolCode = ProtocolCodes.SIP
                 }
                 vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet)))
             },
@@ -111,7 +116,7 @@ class RouterTest : VertxTest() {
                         addr = "23.08.20.15"
                         port = 3
                     }
-                    protocolCode = 3
+                    protocolCode = ProtocolCodes.SIP
                 }
                 vertx.setPeriodic(100) { vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet))) }
             },
@@ -175,7 +180,7 @@ class RouterTest : VertxTest() {
                         addr = "23.08.20.15"
                         port = 3
                     }
-                    protocolCode = 3
+                    protocolCode = ProtocolCodes.SIP
                 }
                 vertx.setPeriodic(100) {
                     if (vertx.eventBus().endpoints().contains("packet_udf")) {
@@ -190,6 +195,41 @@ class RouterTest : VertxTest() {
                     context.verify {
                         assertTrue(packet is Packet)
                         assertEquals("Test", packet.srcAddr.host)
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Route RAW packet with HEP3 Payload`() {
+        val sender = Address().apply {
+            addr = "127.0.0.1"
+            port = 5060
+        }
+        val packet = Packet().apply {
+            type = PacketTypes.RAW
+            payload = RawPayload().apply {
+                payload = "HEP3_PACKET".toByteArray()
+            }.encode().getBytes()
+        }
+
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(Router::class)
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.router, Pair(sender, listOf(packet)))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
+                    val (address, buffer) = event.body()
+                    context.verify {
+                        assertEquals(address.host, sender.host)
+                        assertEquals(address.port, sender.port)
+
+                        assertEquals("HEP3_PACKET", buffer.toString())
                     }
                     context.completeNow()
                 }

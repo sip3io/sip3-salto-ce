@@ -17,6 +17,8 @@
 package io.sip3.salto.ce.router
 
 import io.sip3.commons.PacketTypes
+import io.sip3.commons.ProtocolCodes
+import io.sip3.commons.domain.payload.RawPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
@@ -26,6 +28,7 @@ import io.sip3.salto.ce.domain.Packet
 import io.sip3.salto.ce.management.host.HostRegistry
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.vertx.core.AbstractVerticle
+import io.vertx.core.buffer.Buffer
 import mu.KotlinLogging
 
 /**
@@ -35,6 +38,11 @@ import mu.KotlinLogging
 open class Router : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
+
+    companion object {
+
+        const val PROTO_HEP3 = "HEP3"
+    }
 
     val packetsRouted = Metrics.counter("packets_routed")
 
@@ -58,6 +66,12 @@ open class Router : AbstractVerticle() {
     }
 
     open fun handle(sender: Address, packet: Packet) {
+        // Route Raw Packets
+        if (packet.type == PacketTypes.RAW) {
+            routeRaw(sender, packet)
+            return;
+        }
+
         // Assign host to all addresses
         assignHost(sender)
         assignHost(packet.srcAddr)
@@ -93,17 +107,29 @@ open class Router : AbstractVerticle() {
             })
     }
 
+    open fun routeRaw(sender: Address, packet: Packet) {
+        val rawPayload = RawPayload().apply {
+            decode(packet.payload)
+        }
+
+        // Route HEP3 packet
+        val buffer = Buffer.buffer(rawPayload.payload)
+        if (buffer.getString(0, 4) == PROTO_HEP3) {
+            vertx.eventBus().localSend(RoutesCE.hep3, Pair(sender, buffer))
+        }
+    }
+
     open fun assignHost(address: Address) {
         hostRegistry.getHostName(address.addr, address.port)?.let { address.host = it }
     }
 
     open fun route(packet: Packet) {
         val route = when (packet.protocolCode) {
-            PacketTypes.SIP -> RoutesCE.sip
-            PacketTypes.RTCP -> RoutesCE.rtcp
-            PacketTypes.RTPR -> RoutesCE.rtpr
-            PacketTypes.RTPE -> RoutesCE.rtpe
-            PacketTypes.REC -> RoutesCE.rec
+            ProtocolCodes.SIP -> RoutesCE.sip
+            ProtocolCodes.RTCP -> RoutesCE.rtcp
+            ProtocolCodes.RTPR -> RoutesCE.rtpr
+            ProtocolCodes.RTPE -> RoutesCE.rtpe
+            ProtocolCodes.REC -> RoutesCE.rec
             else -> null
         }
 

@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.decoder
 
-import io.sip3.commons.PacketTypes
+import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
@@ -223,7 +223,7 @@ class HepDecoderTest : VertxTest() {
                     context.verify {
                         val packet = packets.first()
                         assertEquals("hep3", packet.source)
-                        assertEquals(PacketTypes.SIP, packet.protocolCode)
+                        assertEquals(ProtocolCodes.SIP, packet.protocolCode)
                         assertEquals(1550492760263, packet.createdAt)
                         assertEquals(774, packet.nanos)
                         val src = packet.srcAddr
@@ -267,7 +267,7 @@ class HepDecoderTest : VertxTest() {
                         assertEquals(546, packet.payload.size)
                         assertEquals(1602657480066, packet.createdAt)
                         assertEquals(334, packet.nanos)
-                        assertEquals(PacketTypes.RTCP, packet.protocolCode)
+                        assertEquals(ProtocolCodes.RTCP, packet.protocolCode)
                         val src = packet.srcAddr
                         assertEquals("192.168.9.119", src.addr)
                         assertEquals(17969, src.port)

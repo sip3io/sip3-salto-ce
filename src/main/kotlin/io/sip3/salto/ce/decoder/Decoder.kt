@@ -16,6 +16,8 @@
 
 package io.sip3.salto.ce.decoder
 
+import io.netty.buffer.ByteBufUtil
+import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
 import io.sip3.commons.vertx.annotations.Instance
@@ -46,11 +48,12 @@ class Decoder : AbstractVerticle() {
 
     override fun start() {
         vertx.eventBus().localConsumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
+            val (sender, buffer) = event.body()
             try {
-                val (sender, buffer) = event.body()
                 decode(sender, buffer)
             } catch (e: Exception) {
-                logger.error("Decoder 'decode()' failed.", e)
+                logger.error(e) { "Decoder 'decode()' failed."}
+                logger.debug { "Packet buffer:\n${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
             }
         }
     }
@@ -92,7 +95,7 @@ class Decoder : AbstractVerticle() {
             packetOffset += 1
             val packetVersion = buffer.getByte(packetOffset)
 
-            if (packetType.toInt() != 1 || packetVersion.toInt() != 1) {
+            if ((packetType != PacketTypes.SIP3 && packetType != PacketTypes.RAW) || packetVersion.toInt() != 1) {
                 throw NotImplementedError("Unknown SIP3 packet type or version. Type: $packetType, Version: $packetVersion")
             }
 
@@ -134,17 +137,23 @@ class Decoder : AbstractVerticle() {
             val packet = Packet().apply {
                 this.createdAt = millis!!
                 this.nanos = nanos!!
-                this.srcAddr = Address().apply {
-                    addr = IpUtil.convertToString(srcAddr!!)
-                    port = srcPort!!
-                }
-                this.dstAddr = Address().apply {
-                    addr = IpUtil.convertToString(dstAddr!!)
-                    port = dstPort!!
-                }
-                this.source = "sip3"
-                this.protocolCode = protocolCode!!
+                this.type = packetType
                 this.payload = payload!!
+
+                if (packetType == PacketTypes.SIP3) {
+                    this.srcAddr = Address().apply {
+                        addr = IpUtil.convertToString(srcAddr!!)
+                        port = srcPort!!
+                    }
+                    this.dstAddr = Address().apply {
+                        addr = IpUtil.convertToString(dstAddr!!)
+                        port = dstPort!!
+                    }
+
+                    this.protocolCode = protocolCode!!
+                }
+
+                this.source = "sip3"
             }
 
             packets.add(packet)

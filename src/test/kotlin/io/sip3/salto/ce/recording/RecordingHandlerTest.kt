@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.recording
 
-import io.sip3.commons.PacketTypes
+import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.domain.media.Recording
 import io.sip3.commons.domain.payload.RecordingPayload
 import io.sip3.commons.util.getBytes
@@ -33,7 +33,7 @@ class RecordingHandlerTest : VertxTest() {
 
     val RECORDING_1 = RecordingPayload().apply {
         callId = "callId@domain.com"
-        type = PacketTypes.RTP
+        type = ProtocolCodes.RTP
         mode = Recording.FULL
         payload = byteArrayOf(
             0x80.toByte(), 0x08.toByte(), 0x1c.toByte(), 0xf9.toByte(), 0x99.toByte(), 0x75.toByte(), 0xd5.toByte(), 0x78.toByte(),
@@ -76,13 +76,13 @@ class RecordingHandlerTest : VertxTest() {
         }
 
         source = "sip3"
-        protocolCode = PacketTypes.REC
+        protocolCode = ProtocolCodes.REC
         payload = RECORDING_1.encode().getBytes()
     }
 
     val RECORDING_2 = RecordingPayload().apply {
         callId = "callId@domain.com"
-        type = PacketTypes.RTCP
+        type = ProtocolCodes.RTCP
         mode = Recording.FULL
         payload = "rtcp packet payload".toByteArray()
     }
@@ -102,7 +102,7 @@ class RecordingHandlerTest : VertxTest() {
         }
 
         source = "sip3"
-        protocolCode = PacketTypes.REC
+        protocolCode = ProtocolCodes.REC
         payload = RECORDING_2.encode().getBytes()
     }
 
@@ -139,7 +139,7 @@ class RecordingHandlerTest : VertxTest() {
 
                         assertEquals(1, document.getJsonArray("packets").size())
                         val packet = document.getJsonArray("packets").first() as JsonObject
-                        assertEquals(PacketTypes.RTP.toInt(), packet.getInteger("type"))
+                        assertEquals(ProtocolCodes.RTP.toInt(), packet.getInteger("type"))
                         assertEquals(RECORDING_1.payload.toString(Charsets.ISO_8859_1), packet.getString("raw_data"))
                     }
 
@@ -184,7 +184,7 @@ class RecordingHandlerTest : VertxTest() {
                         assertEquals(3, document.getJsonArray("packets").size())
                         val packet = document.getJsonArray("packets").first() as JsonObject
 
-                        assertEquals(PacketTypes.RTP.toInt(), packet.getInteger("type"))
+                        assertEquals(ProtocolCodes.RTP.toInt(), packet.getInteger("type"))
                         assertEquals(RECORDING_1.payload.toString(Charsets.ISO_8859_1), packet.getString("raw_data"))
                     }
 
@@ -210,7 +210,7 @@ class RecordingHandlerTest : VertxTest() {
                         assertEquals(PACKET_2.createdAt, packet.createdAt)
                         assertEquals(PACKET_2.srcAddr, packet.srcAddr)
                         assertEquals(PACKET_2.dstAddr, packet.dstAddr)
-                        assertEquals(PacketTypes.RTCP, packet.protocolCode)
+                        assertEquals(ProtocolCodes.RTCP, packet.protocolCode)
                         assertEquals("sip3", packet.source)
                         assertArrayEquals(RECORDING_2.payload, packet.payload)
                     }

@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.rtcp
 
-import io.sip3.commons.PacketTypes
+import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
@@ -174,7 +174,7 @@ class RtcpHandlerTest : VertxTest() {
                             port = 13057
                         }
                         source = "sip3"
-                        protocolCode = PacketTypes.RTCP
+                        protocolCode = ProtocolCodes.RTCP
                         this.payload = payload
                         createdAt = System.currentTimeMillis()
                     }
@@ -187,7 +187,7 @@ class RtcpHandlerTest : VertxTest() {
                         val (packet, report) = event.body()
                         packetCount++
 
-                        assertEquals(PacketTypes.RTCP, packet.protocolCode)
+                        assertEquals(ProtocolCodes.RTCP, packet.protocolCode)
                         when (packetCount) {
                             1 -> {
                                 assertEquals(195, report.expectedPacketCount)
@@ -247,7 +247,7 @@ class RtcpHandlerTest : VertxTest() {
                         port = 13057
                     }
                     source = "hep3"
-                    protocolCode = PacketTypes.RTCP
+                    protocolCode = ProtocolCodes.RTCP
                     this.payload = PACKET_4
                     createdAt = System.currentTimeMillis()
                 }
@@ -257,7 +257,7 @@ class RtcpHandlerTest : VertxTest() {
                 vertx.eventBus().consumer<Pair<Packet, RtpReportPayload>>(RoutesCE.rtpr + "_rtcp") { event ->
                     context.verify {
                         val (packet, report) = event.body()
-                        assertEquals(PacketTypes.RTCP, packet.protocolCode)
+                        assertEquals(ProtocolCodes.RTCP, packet.protocolCode)
                         assertEquals(595, report.expectedPacketCount)
                         assertEquals(1, report.lostPacketCount)
                         assertEquals(42F, report.lastJitter)

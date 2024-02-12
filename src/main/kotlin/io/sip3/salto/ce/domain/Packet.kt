@@ -16,10 +16,14 @@
 
 package io.sip3.salto.ce.domain
 
+import io.sip3.commons.PacketTypes
+
 class Packet {
 
     var createdAt: Long = 0
     var nanos: Int = 0
+
+    var type = PacketTypes.SIP3
 
     lateinit var srcAddr: Address
     lateinit var dstAddr: Address
