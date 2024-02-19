@@ -119,6 +119,7 @@ class Server : AbstractVerticle() {
                     addr = socket.remoteAddress().host()
                     port = socket.remoteAddress().port()
                 }
+                logger.debug { "TCP connection established from $sender" }
 
                 val parser = RecordParser.newDelimited(delimiter) { buffer ->
                     try {
