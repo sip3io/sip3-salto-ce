@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.decoder
 
+import io.sip3.commons.PacketTypes
 import io.sip3.commons.vertx.test.VertxTest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
@@ -66,6 +67,17 @@ class DecoderTest : VertxTest() {
             0xc2.toByte(), 0x3c.toByte(), 0x43.toByte(), 0x5c.toByte(), 0x19.toByte(), 0xc9.toByte(), 0xd7.toByte(),
             0x0a.toByte(), 0x00.toByte(), 0x70.toByte(), 0xc5.toByte(), 0x18.toByte(), 0x4d.toByte()
         )
+        
+        val PACKET_3 = byteArrayOf(
+            0x53.toByte(), 0x49.toByte(), 0x50.toByte(), 0x33.toByte(), 0x02.toByte(), 0x00.toByte(), 0x01.toByte(), 0x01.toByte(),
+            0x00.toByte(), 0x39.toByte(), 0x01.toByte(), 0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(),
+            0x8d.toByte(), 0x8d.toByte(), 0x70.toByte(), 0xe7.toByte(), 0x77.toByte(), 0x02.toByte(), 0x00.toByte(), 0x07.toByte(),
+            0x00.toByte(), 0x08.toByte(), 0x93.toByte(), 0x50.toByte(), 0x03.toByte(), 0x00.toByte(), 0x07.toByte(), 0x60.toByte(),
+            0x57.toByte(), 0x05.toByte(), 0x61.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0x0a.toByte(), 0xb0.toByte(),
+            0x5a.toByte(), 0xc3.toByte(), 0x05.toByte(), 0x00.toByte(), 0x05.toByte(), 0x56.toByte(), 0x46.toByte(), 0x06.toByte(),
+            0x00.toByte(), 0x05.toByte(), 0x88.toByte(), 0xf4.toByte(), 0x07.toByte(), 0x00.toByte(), 0x04.toByte(), 0x03.toByte(),
+            0x08.toByte(), 0x00.toByte(), 0x07.toByte(), 0x0d.toByte(), 0x0a.toByte(), 0x0d.toByte(), 0x0a.toByte()
+        )
     }
 
     @Test
@@ -115,6 +127,37 @@ class DecoderTest : VertxTest() {
                         assertEquals(2, packets.size)
                         assertPacket(packets[0])
                         assertPacket(packets[1])
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+    @Test
+    fun `Decode SIP3 SIP packet with protocol version 2 2`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(Decoder::class)
+            },
+            execute = {
+                val sender = Address().apply {
+                    addr = "127.0.0.1"
+                    port = 5060
+                }
+                vertx.eventBus().localSend(RoutesCE.sip3, Pair(sender, Buffer.buffer(PACKET_3)))
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
+                    val (_, packets) = event.body()
+                    context.verify {
+                        assertEquals(1, packets.size)
+                        val packet = packets[0]
+                        assertEquals(1549880240852L, packet.createdAt)
+                        assertEquals(0, packet.nanos)
+                        assertEquals(PacketTypes.RAW, packet.type)
+
+                        val payload = String(packet.payload.copyOfRange(3, packet.payload.size))
+                        assertEquals("HEP3 HEP3HEP3", payload)
                     }
                     context.completeNow()
                 }

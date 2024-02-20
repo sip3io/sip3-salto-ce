@@ -24,7 +24,7 @@ import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -125,7 +125,7 @@ class MongoCollectionManagerTest : VertxTest() {
                     put("db_name", "sip3-index")
                 })
 
-                mongo.createCollection(collection).await()
+                mongo.createCollection(collection).coAwait()
 
                 vertx.setPeriodic(500, 100) {
                     mongo.listIndexes(collection) { asr ->

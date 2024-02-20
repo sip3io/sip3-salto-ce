@@ -17,7 +17,7 @@
 package io.sip3.salto.ce.recording
 
 import io.netty.buffer.Unpooled
-import io.sip3.commons.PacketTypes
+import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.domain.payload.RecordingPayload
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
@@ -109,13 +109,13 @@ open class RecordingHandler : AbstractVerticle() {
             decode(payload)
         }
 
-        if (recording.type == PacketTypes.RTCP) {
+        if (recording.type == ProtocolCodes.RTCP) {
             val rtcpPacket = Packet().apply {
                 createdAt = packet.createdAt
                 nanos = packet.nanos
                 srcAddr = packet.srcAddr
                 dstAddr = packet.dstAddr
-                protocolCode = PacketTypes.RTCP
+                protocolCode = ProtocolCodes.RTCP
                 source = "sip3"
                 payload = recording.payload
             }

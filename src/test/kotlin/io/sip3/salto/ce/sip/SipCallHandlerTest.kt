@@ -636,7 +636,7 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals(5061, session["dst_port"])
                         assertEquals("Test", session["dst_host"])
 
-                        val payload = session["payload"] as Map<String, Any>
+                        val payload = session["payload"] as Map<*, *>
 
                         assertEquals(NOW, payload["created_at"])
                         assertEquals(NOW + 107 + 342, payload["terminated_at"])

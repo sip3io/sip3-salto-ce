@@ -16,7 +16,7 @@
 
 package io.sip3.salto.ce.decoder
 
-import io.sip3.commons.PacketTypes
+import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
 import io.sip3.commons.vertx.annotations.Instance
@@ -97,7 +97,7 @@ class HepDecoder : AbstractVerticle() {
                 addr = IpUtil.convertToString(dstAddr)
                 port = dstPort
             }
-            this.protocolCode = PacketTypes.SIP
+            this.protocolCode = ProtocolCodes.SIP
             this.payload = payload
         }
 
@@ -154,8 +154,8 @@ class HepDecoder : AbstractVerticle() {
             }
             this.source = "hep3"
             when (protocolType) {
-                HEP3_TYPE_SIP -> this.protocolCode = PacketTypes.SIP
-                HEP3_TYPE_RTCP -> this.protocolCode = PacketTypes.RTCP
+                HEP3_TYPE_SIP -> this.protocolCode = ProtocolCodes.SIP
+                HEP3_TYPE_RTCP -> this.protocolCode = ProtocolCodes.RTCP
                 else -> throw NotImplementedError("Unknown HEPv3 protocol type: $protocolType")
             }
             this.payload = payload!!

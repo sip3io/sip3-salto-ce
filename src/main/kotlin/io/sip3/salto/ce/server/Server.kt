@@ -150,17 +150,18 @@ class Server : AbstractVerticle() {
     private fun onRawPacket(sender: Address, buffer: Buffer) {
         packetsReceived.increment()
 
-        if (buffer.length() >= 4) {
-            // SIP3 and HEP3
-            when (buffer.getString(0, 4)) {
-                PROTO_SIP3 -> vertx.eventBus().localSend(RoutesCE.sip3, Pair(sender, buffer))
-                PROTO_HEP3 -> vertx.eventBus().localSend(RoutesCE.hep3, Pair(sender, buffer))
-            }
+        if (buffer.length() < 4) return
 
-            // HEP2
-            val prefix = buffer.getBytes(0, 3)
-            if (prefix.contentEquals(PROTO_HEP2)) {
-                vertx.eventBus().localSend(RoutesCE.hep2, Pair(sender, buffer))
+        // SIP3 and HEP3
+        when (buffer.getString(0, 4)) {
+            PROTO_SIP3 -> vertx.eventBus().localSend(RoutesCE.sip3, Pair(sender, buffer))
+            PROTO_HEP3 -> vertx.eventBus().localSend(RoutesCE.hep3, Pair(sender, buffer))
+            else -> {
+                // HEP2
+                val prefix = buffer.getBytes(0, 3)
+                if (prefix.contentEquals(PROTO_HEP2)) {
+                    vertx.eventBus().localSend(RoutesCE.hep2, Pair(sender, buffer))
+                }
             }
         }
     }

@@ -21,7 +21,7 @@ import io.sip3.salto.ce.MongoExtension
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClient
-import io.vertx.kotlin.coroutines.await
+import io.vertx.kotlin.coroutines.coAwait
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -93,8 +93,8 @@ class HostRegistryTest : VertxTest() {
                     put("db_name", MONGO_DB)
                 })
 
-                mongo.save("hosts", HOST_1).await()
-                mongo.save("hosts", HOST_2).await()
+                mongo.save("hosts", HOST_1).coAwait()
+                mongo.save("hosts", HOST_2).coAwait()
                 mongo.close()
 
                 hostRegistry = HostRegistry.getInstance(vertx, JsonObject().apply {
