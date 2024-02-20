@@ -69,14 +69,13 @@ class DecoderTest : VertxTest() {
         )
         
         val PACKET_3 = byteArrayOf(
-            0x53.toByte(), 0x49.toByte(), 0x50.toByte(), 0x33.toByte(), 0x02.toByte(), 0x00.toByte(), 0x01.toByte(), 0x01.toByte(),
-            0x00.toByte(), 0x39.toByte(), 0x01.toByte(), 0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(),
-            0x8d.toByte(), 0x8d.toByte(), 0x70.toByte(), 0xe7.toByte(), 0x77.toByte(), 0x02.toByte(), 0x00.toByte(), 0x07.toByte(),
-            0x00.toByte(), 0x08.toByte(), 0x93.toByte(), 0x50.toByte(), 0x03.toByte(), 0x00.toByte(), 0x07.toByte(), 0x60.toByte(),
-            0x57.toByte(), 0x05.toByte(), 0x61.toByte(), 0x04.toByte(), 0x00.toByte(), 0x07.toByte(), 0x0a.toByte(), 0xb0.toByte(),
-            0x5a.toByte(), 0xc3.toByte(), 0x05.toByte(), 0x00.toByte(), 0x05.toByte(), 0x56.toByte(), 0x46.toByte(), 0x06.toByte(),
-            0x00.toByte(), 0x05.toByte(), 0x88.toByte(), 0xf4.toByte(), 0x07.toByte(), 0x00.toByte(), 0x04.toByte(), 0x03.toByte(),
-            0x08.toByte(), 0x00.toByte(), 0x07.toByte(), 0x0d.toByte(), 0x0a.toByte(), 0x0d.toByte(), 0x0a.toByte()
+            0x53.toByte(), 0x49.toByte(), 0x50.toByte(), 0x33.toByte(), 0x02.toByte(), 0x00.toByte(), 0x02.toByte(), 0x01.toByte(),
+            0x00.toByte(), 0x20.toByte(),
+            0x01.toByte(), 0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(), 0x8d.toByte(), 0x8d.toByte(), 0x70.toByte(), 0xe7.toByte(), 0x77.toByte(),
+            0x02.toByte(), 0x00.toByte(), 0x07.toByte(), 0x00.toByte(), 0x08.toByte(), 0x93.toByte(), 0x50.toByte(),
+            0x08.toByte(), 0x00.toByte(), 0x0a.toByte(),
+            0x01.toByte(), 0x00.toByte(), 0x07.toByte(),
+            0x53.toByte(), 0x49.toByte(), 0x50.toByte(), 0x33.toByte()
         )
     }
 
@@ -134,7 +133,7 @@ class DecoderTest : VertxTest() {
         )
     }
     @Test
-    fun `Decode SIP3 SIP packet with protocol version 2 2`() {
+    fun `Decode SIP3 SIP packet with protocol version 2`() {
         runTest(
             deploy = {
                 vertx.deployTestVerticle(Decoder::class)
@@ -152,12 +151,12 @@ class DecoderTest : VertxTest() {
                     context.verify {
                         assertEquals(1, packets.size)
                         val packet = packets[0]
-                        assertEquals(1549880240852L, packet.createdAt)
-                        assertEquals(0, packet.nanos)
+                        assertEquals(1707475003255L, packet.createdAt)
+                        assertEquals(562000, packet.nanos)
                         assertEquals(PacketTypes.RAW, packet.type)
 
                         val payload = String(packet.payload.copyOfRange(3, packet.payload.size))
-                        assertEquals("HEP3 HEP3HEP3", payload)
+                        assertEquals("SIP3", payload)
                     }
                     context.completeNow()
                 }
