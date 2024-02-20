@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.server
 
+import io.netty.buffer.ByteBufUtil
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localSend
@@ -27,6 +28,7 @@ import io.vertx.core.datagram.DatagramSocketOptions
 import io.vertx.core.json.JsonObject
 import io.vertx.core.net.JksOptions
 import io.vertx.core.net.NetServerOptions
+import io.vertx.core.parsetools.RecordParser
 import mu.KotlinLogging
 import java.net.URI
 
@@ -48,6 +50,7 @@ class Server : AbstractVerticle() {
     private lateinit var uri: URI
     private var bufferSize: Int? = null
     private var sslConfig: JsonObject? = null
+    private var delimiter = "\r\n\r\n3PIS\r\n\r\n"
 
     private val packetsReceived = Metrics.counter("packets_received")
 
@@ -56,6 +59,7 @@ class Server : AbstractVerticle() {
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
             bufferSize = config.getInteger("buffer_size")
             sslConfig = config.getJsonObject("ssl")
+            config.getString("delimiter")?.let { delimiter = it }
         }
 
         when (uri.scheme) {
@@ -81,6 +85,7 @@ class Server : AbstractVerticle() {
                     }
                     port = packet.sender().port()
                 }
+
                 val buffer = packet.data()
                 try {
                     onRawPacket(sender, buffer)
@@ -88,15 +93,12 @@ class Server : AbstractVerticle() {
                     logger.error(e) { "Server 'onRawPacket()' failed." }
                 }
             }
-            .listen(uri.port, uri.host) { asr ->
-                if (asr.failed()) {
-                    asr.cause().let { e ->
-                        logger.error(e) { "UDP connection failed. URI: $uri" }
-                        throw e
-                    }
-                }
-                logger.info { "Listening on $uri" }
+            .listen(uri.port, uri.host)
+            .onFailure { t ->
+                logger.error(t) { "UDP connection failed. URI: $uri" }
+                throw t
             }
+            .onSuccess { logger.info { "Listening on $uri" } }
     }
 
     private fun startTcpServer() {
@@ -117,23 +119,32 @@ class Server : AbstractVerticle() {
                     addr = socket.remoteAddress().host()
                     port = socket.remoteAddress().port()
                 }
-                socket.handler { buffer ->
+                logger.debug { "TCP connection established from $sender" }
+
+                val parser = RecordParser.newDelimited(delimiter) { buffer ->
                     try {
                         onRawPacket(sender, buffer)
                     } catch (e: Exception) {
                         logger.error(e) { "Server 'onRawPacket()' failed." }
+                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
+                    }
+                }
+
+                socket.handler { buffer ->
+                    try {
+                        parser.handle(buffer)
+                    } catch (e: Exception) {
+                        logger.error(e) { "RecordParser 'handle()' failed." }
+                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
                     }
                 }
             }
-            .listen(uri.port, uri.host) { asr ->
-                if (asr.failed()) {
-                    asr.cause().let { e ->
-                        logger.error(e) { "TCP connection failed. URI: $uri" }
-                        throw e
-                    }
-                }
-                logger.info { "Listening on $uri" }
+            .listen(uri.port, uri.host)
+            .onFailure { t ->
+                logger.error(t) { "TCP connection failed. URI: $uri" }
+                throw t
             }
+            .onSuccess { logger.info { "Listening on $uri" } }
     }
 
     private fun onRawPacket(sender: Address, buffer: Buffer) {

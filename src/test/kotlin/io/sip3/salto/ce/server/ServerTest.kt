@@ -82,7 +82,7 @@ class ServerTest : VertxTest() {
             execute = {
                 vertx.createNetClient(NET_CLIENT_OPTIONS)
                     .connect(port, "127.0.0.1").coAwait()
-                    .write(Buffer.buffer(MESSAGE_2))
+                    .write(Buffer.buffer("$MESSAGE_2\r\n\r\n3PIS\r\n\r\n"))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
@@ -109,9 +109,12 @@ class ServerTest : VertxTest() {
                 })
             },
             execute = {
+                val message = MESSAGE_3.toMutableList().apply {
+                    "\r\n\r\n3PIS\r\n\r\n".toByteArray().forEach { add(it) }
+                }.toByteArray()
                 vertx.createNetClient(NET_CLIENT_OPTIONS)
                     .connect(port, "127.0.0.1").coAwait()
-                    .write(Buffer.buffer(MESSAGE_3))
+                    .write(Buffer.buffer(message))
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->
