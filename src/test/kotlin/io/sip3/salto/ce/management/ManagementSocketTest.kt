@@ -381,6 +381,7 @@ class ManagementSocketTest : VertxTest() {
                         put("type", ManagementSocket.TYPE_SHUTDOWN)
                         put("payload", JsonObject().apply {
                             put("deployment_id", DEPLOYMENT_ID)
+                            put("exit_code", 1)
                         })
                     }.toBuffer(), localPort, "127.0.0.1")
                 }
@@ -393,6 +394,7 @@ class ManagementSocketTest : VertxTest() {
                         packet.data().toJsonObject().apply {
                             assertEquals(ManagementSocket.TYPE_SHUTDOWN, getString("type"))
                             assertEquals(DEPLOYMENT_ID, getJsonObject("payload").getString("deployment_id"))
+                            assertEquals(1, getJsonObject("payload").getInteger("exit_code"))
                         }
                         context.completeNow()
                     }
