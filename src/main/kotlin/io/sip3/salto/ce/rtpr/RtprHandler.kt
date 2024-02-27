@@ -246,16 +246,16 @@ open class RtprHandler : AbstractVerticle() {
         if (report.codecName != null) return
 
         val sdpSession = mediaControl.sdpSession
-        if (report.source == RtpReportPayload.SOURCE_RTCP && report.duration == 0) {
+        val isRtcp = report.source == RtpReportPayload.SOURCE_RTCP
+        if (report.duration == 0) {
             report.duration = report.expectedPacketCount * sdpSession.ptime
 
             // Recalculate `createdAt` for first report
-            if (report.createdAt == report.reportedAt) {
+            if (isRtcp && report.createdAt == report.reportedAt) {
                 report.createdAt = report.createdAt - report.duration
             }
         }
 
-        val isRtcp = report.source == RtpReportPayload.SOURCE_RTCP
         val codec = if (isRtcp) {
             sdpSession.codecs.firstOrNull()
         } else {
