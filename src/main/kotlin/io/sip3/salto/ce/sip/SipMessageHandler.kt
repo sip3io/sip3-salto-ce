@@ -93,7 +93,7 @@ open class SipMessageHandler : AbstractVerticle() {
             try {
                 handle(packet)
             } catch (e: Exception) {
-                logger.error("SipMessageHandler 'handle()' failed.", e)
+                logger.debug(e) { "SipMessageHandler 'handle()' failed." }
                 handleUnparsed(packet)
             }
         }
