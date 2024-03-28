@@ -43,9 +43,11 @@ class ServerTest : VertxTest() {
         val port = findRandomPort()
         runTest(
             deploy = {
-                vertx.deployTestVerticle(Server::class, JsonObject().apply {
+                vertx.deployTestVerticle(UdpServer::class, JsonObject().apply {
                     put("server", JsonObject().apply {
-                        put("uri", "udp://127.0.0.1:$port")
+                        put("udp", JsonObject().apply {
+                            put("uri", "udp://127.0.0.1:$port")
+                        })
                     })
                 })
             },
@@ -73,9 +75,11 @@ class ServerTest : VertxTest() {
         val port = findRandomPort()
         runTest(
             deploy = {
-                vertx.deployTestVerticle(Server::class, JsonObject().apply {
+                vertx.deployTestVerticle(TcpServer::class, JsonObject().apply {
                     put("server", JsonObject().apply {
-                        put("uri", "tcp://127.0.0.1:$port")
+                        put("tcp", JsonObject().apply {
+                            put("uri", "udp://127.0.0.1:$port")
+                        })
                     })
                 })
             },
@@ -102,9 +106,11 @@ class ServerTest : VertxTest() {
         val port = findRandomPort()
         runTest(
             deploy = {
-                vertx.deployTestVerticle(Server::class, JsonObject().apply {
+                vertx.deployTestVerticle(TcpServer::class, JsonObject().apply {
                     put("server", JsonObject().apply {
-                        put("uri", "tcp://127.0.0.1:$port")
+                        put("tcp", JsonObject().apply {
+                            put("uri", "udp://127.0.0.1:$port")
+                        })
                     })
                 })
             },

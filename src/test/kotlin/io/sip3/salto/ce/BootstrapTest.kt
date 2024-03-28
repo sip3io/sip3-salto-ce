@@ -46,7 +46,9 @@ class BootstrapTest : VertxTest() {
             deploy = {
                 vertx.deployTestVerticle(Bootstrap::class, JsonObject().apply {
                     put("server", JsonObject().apply {
-                        put("uri", "udp://0.0.0.0:${findRandomPort()}")
+                        put("udp",  JsonObject().apply {
+                            put("uri", "udp://0.0.0.0:${findRandomPort()}")
+                        })
                     })
                     put("mongo", JsonObject().apply {
                         put("uri", MongoExtension.MONGO_URI)

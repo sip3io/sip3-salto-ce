@@ -35,8 +35,7 @@ import java.net.URI
 /**
  * Retrieves SIP3 and HEP3 packets
  */
-@Instance(singleton = true, worker = true)
-class Server : AbstractVerticle() {
+abstract class Server(val protocol: String) : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
@@ -47,107 +46,27 @@ class Server : AbstractVerticle() {
         val PROTO_HEP2 = byteArrayOf(0x02, 0x10, 0x02)
     }
 
-    private lateinit var uri: URI
-    private var bufferSize: Int? = null
-    private var sslConfig: JsonObject? = null
-    private var delimiter = "\r\n\r\n3PIS\r\n\r\n"
+    lateinit var uri: URI
+    var bufferSize: Int? = null
+    var sslConfig: JsonObject? = null
+    var delimiter = "\r\n\r\n3PIS\r\n\r\n"
 
     private val packetsReceived = Metrics.counter("packets_received")
 
     override fun start() {
-        config().getJsonObject("server").let { config ->
+        config().getJsonObject("server").getJsonObject(protocol).let { config ->
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
             bufferSize = config.getInteger("buffer_size")
             sslConfig = config.getJsonObject("ssl")
             config.getString("delimiter")?.let { delimiter = it }
         }
 
-        when (uri.scheme) {
-            "udp" -> startUdpServer()
-            "tcp" -> startTcpServer()
-            else -> throw NotImplementedError("Unknown protocol: '${uri.scheme}'")
-        }
+        startServer()
     }
 
-    private fun startUdpServer() {
-        val options = DatagramSocketOptions().apply {
-            isIpV6 = uri.host.matches(Regex("\\[.*]"))
-            bufferSize?.let { receiveBufferSize = it }
-        }
+    abstract fun startServer()
 
-        vertx.createDatagramSocket(options)
-            .handler { packet ->
-                val sender = Address().apply {
-                    addr = if (options.isIpV6) {
-                        packet.sender().host().substringBefore("%")
-                    } else {
-                        packet.sender().host()
-                    }
-                    port = packet.sender().port()
-                }
-
-                val buffer = packet.data()
-                try {
-                    onRawPacket(sender, buffer)
-                } catch (e: Exception) {
-                    logger.error(e) { "Server 'onRawPacket()' failed." }
-                }
-            }
-            .listen(uri.port, uri.host)
-            .onFailure { t ->
-                logger.error(t) { "UDP connection failed. URI: $uri" }
-                throw t
-            }
-            .onSuccess { logger.info { "Listening on $uri" } }
-    }
-
-    private fun startTcpServer() {
-        val options = NetServerOptions().apply {
-            bufferSize?.let { receiveBufferSize = it }
-            sslConfig?.let { config ->
-                isSsl = true
-                keyCertOptions = JksOptions().apply {
-                    path = config.getString("key_store")
-                    password = config.getString("key_store_password")
-                }
-            }
-        }
-
-        vertx.createNetServer(options)
-            .connectHandler { socket ->
-                val sender = Address().apply {
-                    addr = socket.remoteAddress().host()
-                    port = socket.remoteAddress().port()
-                }
-                logger.debug { "TCP connection established from $sender" }
-
-                val parser = RecordParser.newDelimited(delimiter) { buffer ->
-                    try {
-                        onRawPacket(sender, buffer)
-                    } catch (e: Exception) {
-                        logger.error(e) { "Server 'onRawPacket()' failed." }
-                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
-                    }
-                }
-
-                socket.handler { buffer ->
-                    try {
-                        parser.handle(buffer)
-                    } catch (e: Exception) {
-                        logger.error(e) { "RecordParser 'handle()' failed." }
-                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
-                    }
-                }
-            }
-            .listen(uri.port, uri.host)
-            .onFailure { t ->
-                logger.error(t) { "TCP connection failed. URI: $uri" }
-                throw t
-            }
-            .onSuccess { logger.info { "Listening on $uri" } }
-    }
-
-    private fun onRawPacket(sender: Address, buffer: Buffer) {
+    open fun onRawPacket(sender: Address, buffer: Buffer) {
         packetsReceived.increment()
 
         if (buffer.length() < 4) return
