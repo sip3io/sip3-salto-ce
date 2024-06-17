@@ -30,8 +30,7 @@ import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.datagram.datagramSocketOptionsOf
 import io.vertx.kotlin.coroutines.coAwait
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -122,25 +121,38 @@ class ManagementSocketTest : VertxTest() {
             HostRegistry.save(any())
         } just Runs
 
+        every {
+            ComponentRegistry.save(any())
+        } just Runs
+
+        lateinit var remoteSocket: DatagramSocket
         runTest(
             deploy = {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
             },
             execute = {
-                vertx.createDatagramSocket().send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
+                remoteSocket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
             },
             assert = {
-                vertx.setPeriodic(500, 100) {
-                    context.verify {
-                        verify(atLeast = 1) {
-                            HostRegistry.save(any())
+                remoteSocket = vertx.createDatagramSocket()
+                    .handler { packet ->
+                        val response = packet.data().toJsonObject()
+                        context.verify {
+                            assertEquals("registered", response.getString("status"))
+                            assertNotNull(response.getLong("registered_at"))
+
+                            verify(atLeast = 1) {
+                                HostRegistry.save(any())
+                            }
+                            verify(atLeast = 1) {
+                                ComponentRegistry.save(any())
+                            }
                         }
-                        verify(atLeast = 1) {
-                            ComponentRegistry.save(any())
-                        }
+
                         context.completeNow()
                     }
-                }
+
+                remoteSocket.listen(remotePort, "127.0.0.1")
             }
         )
     }
@@ -186,6 +198,10 @@ class ManagementSocketTest : VertxTest() {
             HostRegistry.save(any())
         } just Runs
 
+        every {
+            ComponentRegistry.save(any())
+        } just Runs
+
         runTest(
             deploy = {
                 vertx.deployTestVerticle(ManagementSocket::class, config)
@@ -213,6 +229,10 @@ class ManagementSocketTest : VertxTest() {
     fun `Send Media Control to registered remote host`() {
         every {
             HostRegistry.save(any())
+        } just Runs
+
+        every {
+            ComponentRegistry.save(any())
         } just Runs
 
         // Media Control
@@ -263,9 +283,13 @@ class ManagementSocketTest : VertxTest() {
             assert = {
                 socket = vertx.createDatagramSocket()
                 socket.handler { packet ->
+                    val response = packet.data().toJsonObject()
+                    if (!response.containsKey("type")) return@handler
+
                     context.verify {
-                        val message = packet.data().toJsonObject()
-                        assertEquals(ManagementSocket.TYPE_MEDIA_CONTROL, message.getString("type"))
+                        response.apply {
+                            assertEquals(ManagementSocket.TYPE_MEDIA_CONTROL, response.getString("type"))
+                        }
                     }
                     context.completeNow()
                 }
@@ -283,6 +307,10 @@ class ManagementSocketTest : VertxTest() {
             HostRegistry.save(any())
         } just Runs
 
+        every {
+            ComponentRegistry.save(any())
+        } just Runs
+
         lateinit var socket: DatagramSocket
         runTest(
             deploy = {
@@ -298,8 +326,11 @@ class ManagementSocketTest : VertxTest() {
                 socket = vertx.createDatagramSocket()
                 socket.listen(remotePort, "127.0.0.1")
                 socket.handler { packet ->
+                    val response = packet.data().toJsonObject()
+                    if (!response.containsKey("type")) return@handler
+
                     context.verify {
-                        packet.data().toJsonObject().apply {
+                        response.apply {
                             assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, getString("type"))
                         }
                         context.completeNow()
@@ -343,8 +374,11 @@ class ManagementSocketTest : VertxTest() {
                 socket = vertx.createDatagramSocket()
                 socket.listen(remotePort, "127.0.0.1")
                 socket.handler { packet ->
+                    val response = packet.data().toJsonObject()
+                    if (!response.containsKey("type")) return@handler
+
                     context.verify {
-                        packet.data().toJsonObject().apply {
+                        response.apply {
                             assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, getString("type"))
                             assertEquals(DEPLOYMENT_ID, getJsonObject("payload").getString("deployment_id"))
                         }
@@ -390,14 +424,17 @@ class ManagementSocketTest : VertxTest() {
                 socket = vertx.createDatagramSocket()
                 socket.listen(remotePort, "127.0.0.1")
                 socket.handler { packet ->
+                    val response = packet.data().toJsonObject()
+                    if (!response.containsKey("type")) return@handler
+
                     context.verify {
-                        packet.data().toJsonObject().apply {
+                        response.apply {
                             assertEquals(ManagementSocket.TYPE_SHUTDOWN, getString("type"))
                             assertEquals(DEPLOYMENT_ID, getJsonObject("payload").getString("deployment_id"))
                             assertEquals(1, getJsonObject("payload").getInteger("exit_code"))
                         }
-                        context.completeNow()
                     }
+                    context.completeNow()
                 }
             },
             cleanup = {
@@ -435,12 +472,13 @@ class ManagementSocketTest : VertxTest() {
                 socket = vertx.createDatagramSocket(datagramSocketOptionsOf(ipV6 = true))
                 socket.listen(remotePort, "[fe80::1]")
                 socket.handler { packet ->
+                    val response = packet.data().toJsonObject()
+                    if (!response.containsKey("type")) return@handler
+
                     context.verify {
-                        packet.data().toJsonObject().apply {
-                            assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, getString("type"))
-                        }
-                        context.completeNow()
+                        assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, response.getString("type"))
                     }
+                    context.completeNow()
                 }
             },
             cleanup = {
