@@ -127,7 +127,7 @@ open class ManagementSocket : AbstractVerticle() {
             config = config()
             remoteUpdatedAt = updatedAt
             uri = this@ManagementSocket.uri
-            mediaEnabled = true
+            mediaEnabled = false
         }
 
         vertx.setPeriodic(0L, expirationDelay) {
@@ -215,19 +215,21 @@ open class ManagementSocket : AbstractVerticle() {
                     component.host = hostName
                     hostMapping.putIfAbsent(hostName, deploymentId)
                 }
+
+                val response = JsonObject().apply {
+                    put("status", "registered")
+                    put("registered_at", System.currentTimeMillis())
+                }
+                socket.send(response.toBuffer(), socketAddress.port(), socketAddress.host())
             }
             TYPE_CONFIG_REQUEST -> {
                 val name = payload.getString("name")
-                hostRegistry.getConfig(name)
-                    .onFailure { logger.error(it) { "HostRegistry `getConfig()` failed. Name: $name" } }
-                    .onSuccess { config ->
-                        val response = JsonObject().apply {
-                            put("type", TYPE_CONFIG)
-                            put("payload", config ?: JsonObject())
-                        }
-
-                        socket.send(response.toBuffer(), port, host)
-                    }
+                val config = getComponentConfig(name) ?: JsonObject()
+                val response = JsonObject().apply {
+                    put("type", TYPE_CONFIG)
+                    put("payload", config)
+                }
+                socket.send(response.toBuffer(), port, host)
             }
             TYPE_SHUTDOWN -> {
                 logger.info { "Handling `shutdown` command received via management socket: $message" }
@@ -248,6 +250,10 @@ open class ManagementSocket : AbstractVerticle() {
             }
             else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
         }
+    }
+
+    open fun getComponentConfig(name: String): JsonObject? {
+        return null
     }
 
     open fun shutdown(payload: JsonObject) {
