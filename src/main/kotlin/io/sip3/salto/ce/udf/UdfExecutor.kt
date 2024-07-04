@@ -59,7 +59,7 @@ class UdfExecutor(val vertx: Vertx) {
 
         vertx.setPeriodic(0, checkPeriod) {
             endpoints = vertx.eventBus().endpoints()
-            logger.debug { "Update UDF endpoints: $endpoints" }
+            logger.trace { "Update UDF endpoints: $endpoints" }
         }
     }
 

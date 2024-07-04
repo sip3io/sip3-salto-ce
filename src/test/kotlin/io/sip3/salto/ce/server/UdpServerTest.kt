@@ -21,21 +21,18 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.net.netClientOptionsOf
 import io.vertx.kotlin.coroutines.coAwait
-import org.junit.jupiter.api.Assertions.assertArrayEquals
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.nio.charset.Charset
 
-class ServerTest : VertxTest() {
+class UdpServerTest : VertxTest() {
 
     companion object {
 
         const val MESSAGE_1 = "SIP3 is awesome!"
         const val MESSAGE_2 = "HEP3 is awesome!"
         val MESSAGE_3 = byteArrayOf(0x02, 0x10, 0x02, 0x42)
-        val NET_CLIENT_OPTIONS = netClientOptionsOf(reconnectInterval = 100L, reconnectAttempts = 100)
     }
 
     @Test
@@ -43,7 +40,7 @@ class ServerTest : VertxTest() {
         val port = findRandomPort()
         runTest(
             deploy = {
-                vertx.deployTestVerticle(Server::class, JsonObject().apply {
+                vertx.deployTestVerticle(UdpServer::class, JsonObject().apply {
                     put("server", JsonObject().apply {
                         put("uri", "udp://127.0.0.1:$port")
                     })
@@ -69,20 +66,19 @@ class ServerTest : VertxTest() {
     }
 
     @Test
-    fun `Retrieve HEP3 packet via TCP`() {
+    fun `Retrieve HEP3 packet via UDP`() {
         val port = findRandomPort()
         runTest(
             deploy = {
-                vertx.deployTestVerticle(Server::class, JsonObject().apply {
+                vertx.deployTestVerticle(UdpServer::class, JsonObject().apply {
                     put("server", JsonObject().apply {
-                        put("uri", "tcp://127.0.0.1:$port")
+                        put("uri", "udp://127.0.0.1:$port")
                     })
                 })
             },
             execute = {
-                vertx.createNetClient(NET_CLIENT_OPTIONS)
-                    .connect(port, "127.0.0.1").coAwait()
-                    .write(Buffer.buffer("$MESSAGE_2\r\n\r\n3PIS\r\n\r\n"))
+                vertx.createDatagramSocket()
+                    .send(Buffer.buffer(MESSAGE_2), port, "127.0.0.1").coAwait()
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
@@ -98,23 +94,19 @@ class ServerTest : VertxTest() {
     }
 
     @Test
-    fun `Retrieve HEP2 packet via TCP`() {
+    fun `Retrieve HEP2 packet via UDP`() {
         val port = findRandomPort()
         runTest(
             deploy = {
-                vertx.deployTestVerticle(Server::class, JsonObject().apply {
+                vertx.deployTestVerticle(UdpServer::class, JsonObject().apply {
                     put("server", JsonObject().apply {
-                        put("uri", "tcp://127.0.0.1:$port")
+                        put("uri", "udp://127.0.0.1:$port")
                     })
                 })
             },
             execute = {
-                val message = MESSAGE_3.toMutableList().apply {
-                    "\r\n\r\n3PIS\r\n\r\n".toByteArray().forEach { add(it) }
-                }.toByteArray()
-                vertx.createNetClient(NET_CLIENT_OPTIONS)
-                    .connect(port, "127.0.0.1").coAwait()
-                    .write(Buffer.buffer(message))
+                vertx.createDatagramSocket()
+                    .send(Buffer.buffer(MESSAGE_3), port, "127.0.0.1").coAwait()
             },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->

@@ -20,24 +20,23 @@ import io.mockk.*
 import io.mockk.junit5.MockKExtension
 import io.sip3.commons.domain.media.*
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localRequest
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.MockKSingletonExtension
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.management.component.ComponentRegistry
 import io.sip3.salto.ce.management.host.HostRegistry
-import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import io.vertx.kotlin.core.datagram.datagramSocketOptionsOf
-import io.vertx.kotlin.coroutines.coAwait
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.net.URI
 import java.util.*
 
 @ExtendWith(MockKExtension::class, MockKSingletonExtension::class)
-class ManagementSocketTest : VertxTest() {
+class ManagementHandlerTest : VertxTest() {
 
     companion object {
 
@@ -63,7 +62,7 @@ class ManagementSocketTest : VertxTest() {
         private val DEPLOYMENT_ID = UUID.randomUUID().toString()
 
         private val REGISTER_MESSAGE_1 = JsonObject().apply {
-            put("type", ManagementSocket.TYPE_REGISTER)
+            put("type", ManagementHandler.TYPE_REGISTER)
             put("payload", JsonObject().apply {
                 put("timestamp", System.currentTimeMillis())
                 put("deployment_id", DEPLOYMENT_ID)
@@ -72,7 +71,7 @@ class ManagementSocketTest : VertxTest() {
         }
 
         private val REGISTER_MESSAGE_2 = JsonObject().apply {
-            put("type", ManagementSocket.TYPE_REGISTER)
+            put("type", ManagementHandler.TYPE_REGISTER)
             put("payload", JsonObject().apply {
                 put("timestamp", System.currentTimeMillis())
                 put("name", DEPLOYMENT_ID)
@@ -125,21 +124,22 @@ class ManagementSocketTest : VertxTest() {
             ComponentRegistry.save(any())
         } just Runs
 
-        lateinit var remoteSocket: DatagramSocket
         runTest(
             deploy = {
-                vertx.deployTestVerticle(ManagementSocket::class, config)
+                vertx.deployTestVerticle(ManagementHandler::class, config)
             },
-            execute = {
-                remoteSocket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
-            },
+            execute = {},
             assert = {
-                remoteSocket = vertx.createDatagramSocket()
-                    .handler { packet ->
-                        val response = packet.data().toJsonObject()
+                val uri = URI("udp://127.0.0.1:$remotePort")
+                vertx.setPeriodic(100L) {
+                    vertx.eventBus().localRequest<JsonObject?>(RoutesCE.management, Pair(uri, REGISTER_MESSAGE_1)) { asr ->
+                        val response = asr.result()?.body() ?: return@localRequest
                         context.verify {
-                            assertEquals("registered", response.getString("status"))
-                            assertNotNull(response.getLong("registered_at"))
+                            assertEquals("register_response", response.getString("type"))
+                            response.getJsonObject("payload").let { payload ->
+                                assertEquals("registered", payload.getString("status"))
+                                assertNotNull(payload.getLong("registered_at"))
+                            }
 
                             verify(atLeast = 1) {
                                 HostRegistry.save(any())
@@ -151,8 +151,7 @@ class ManagementSocketTest : VertxTest() {
 
                         context.completeNow()
                     }
-
-                remoteSocket.listen(remotePort, "127.0.0.1")
+                }
             }
         )
     }
@@ -165,7 +164,7 @@ class ManagementSocketTest : VertxTest() {
         } just Runs
         runTest(
             deploy = {
-                vertx.deployTestVerticle(ManagementSocket::class, config)
+                vertx.deployTestVerticle(ManagementHandler::class, config)
             },
             execute = {},
             assert = {
@@ -202,22 +201,31 @@ class ManagementSocketTest : VertxTest() {
             ComponentRegistry.save(any())
         } just Runs
 
+        val uri = URI("udp://127.0.0.1:$remotePort")
         runTest(
             deploy = {
-                vertx.deployTestVerticle(ManagementSocket::class, config)
+                vertx.deployTestVerticle(ManagementHandler::class, config)
             },
-            execute = {
-                vertx.createDatagramSocket().send(REGISTER_MESSAGE_2.toBuffer(), localPort, "127.0.0.1").coAwait()
-            },
+            execute = {},
             assert = {
-                vertx.setPeriodic(500, 100) {
-                    context.verify {
-                        verify(exactly = 0) {
-                            HostRegistry.save(any())
+                vertx.setPeriodic(100L) {
+                    vertx.eventBus().localRequest<JsonObject?>(RoutesCE.management, Pair(uri, REGISTER_MESSAGE_2)) { asr ->
+                        val response = asr.result()?.body() ?: return@localRequest
+                        context.verify {
+                            assertEquals("register_response", response.getString("type"))
+                            response.getJsonObject("payload").let { payload ->
+                                assertEquals("registered", payload.getString("status"))
+                                assertNotNull(payload.getLong("registered_at"))
+                            }
+
+                            verify(exactly = 0) {
+                                HostRegistry.save(any())
+                            }
+                            verify(atLeast = 1) {
+                                ComponentRegistry.save(any())
+                            }
                         }
-                        verify(atLeast = 1) {
-                            ComponentRegistry.save(any())
-                        }
+
                         context.completeNow()
                     }
                 }
@@ -267,36 +275,34 @@ class ManagementSocketTest : VertxTest() {
             recording = Recording()
         }
 
-        lateinit var socket: DatagramSocket
-
+        val uri = URI("udp://127.0.0.1:$remotePort")
         runTest(
             deploy = {
-                vertx.deployTestVerticle(ManagementSocket::class, config)
+                vertx.deployTestVerticle(ManagementHandler::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
+                vertx.eventBus().localRequest<JsonObject?>(RoutesCE.management, Pair(uri, REGISTER_MESSAGE_1)) { asr ->
+                    if (asr.result() == null) return@localRequest
 
-                vertx.setTimer(100) {
-                    vertx.eventBus().localSend(RoutesCE.media + "_control", mediaControl)
+                    vertx.setTimer(100) {
+                        vertx.eventBus().localSend(RoutesCE.media + "_control", mediaControl)
+                    }
                 }
             },
             assert = {
-                socket = vertx.createDatagramSocket()
-                socket.handler { packet ->
-                    val response = packet.data().toJsonObject()
-                    if (!response.containsKey("type")) return@handler
-
+                vertx.eventBus().localConsumer<Pair<JsonObject, List<URI>>>(RoutesCE.management + "_send") { event ->
+                    val (message, dstUri) = event.body()
                     context.verify {
-                        response.apply {
-                            assertEquals(ManagementSocket.TYPE_MEDIA_CONTROL, response.getString("type"))
+                        assertEquals(1, dstUri.size)
+                        assertEquals(uri, dstUri.first())
+                        message.apply {
+                            assertEquals(ManagementHandler.TYPE_MEDIA_CONTROL, message.getString("type"))
                         }
                     }
                     context.completeNow()
                 }
-                socket.listen(remotePort, "127.0.0.1") {}
             },
             cleanup = {
-                socket.close()
             }
         )
     }
@@ -311,34 +317,32 @@ class ManagementSocketTest : VertxTest() {
             ComponentRegistry.save(any())
         } just Runs
 
-        lateinit var socket: DatagramSocket
+        val uri = URI("udp://127.0.0.1:$remotePort")
         runTest(
             deploy = {
-                vertx.deployTestVerticle(ManagementSocket::class, config)
+                vertx.deployTestVerticle(ManagementHandler::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
-                vertx.setTimer(100) {
-                    vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
-                }
-            },
-            assert = {
-                socket = vertx.createDatagramSocket()
-                socket.listen(remotePort, "127.0.0.1")
-                socket.handler { packet ->
-                    val response = packet.data().toJsonObject()
-                    if (!response.containsKey("type")) return@handler
+                vertx.eventBus().localRequest<JsonObject?>(RoutesCE.management, Pair(uri, REGISTER_MESSAGE_1)) { asr ->
+                    if (asr.result() == null) return@localRequest
 
-                    context.verify {
-                        response.apply {
-                            assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, getString("type"))
-                        }
-                        context.completeNow()
+                    vertx.setTimer(100) {
+                        vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
                     }
                 }
             },
-            cleanup = {
-                socket.close()
+            assert = {
+                vertx.eventBus().localConsumer<Pair<JsonObject, List<URI>>>(RoutesCE.management + "_send") { event ->
+                    val (message, dstUri) = event.body()
+                    context.verify {
+                        assertEquals(1, dstUri.size)
+                        assertEquals(uri, dstUri.first())
+                        message.apply {
+                            assertEquals(ManagementHandler.TYPE_MEDIA_RECORDING_RESET, message.getString("type"))
+                        }
+                    }
+                    context.completeNow()
+                }
             }
         )
     }
@@ -353,41 +357,39 @@ class ManagementSocketTest : VertxTest() {
             ComponentRegistry.save(any())
         } just Runs
 
-        lateinit var socket: DatagramSocket
+        val uri = URI("udp://127.0.0.1:$remotePort")
         runTest(
             deploy = {
-                vertx.deployTestVerticle(ManagementSocket::class, config)
+                vertx.deployTestVerticle(ManagementHandler::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
-                vertx.setTimer(100) {
-                    vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject().apply {
-                        put("deployment_id", "1234")
-                    })
+                vertx.eventBus().localRequest<JsonObject?>(RoutesCE.management, Pair(uri, REGISTER_MESSAGE_1)) { asr ->
+                    if (asr.result() == null) return@localRequest
 
-                    vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject().apply {
-                        put("deployment_id", DEPLOYMENT_ID)
-                    })
-                }
-            },
-            assert = {
-                socket = vertx.createDatagramSocket()
-                socket.listen(remotePort, "127.0.0.1")
-                socket.handler { packet ->
-                    val response = packet.data().toJsonObject()
-                    if (!response.containsKey("type")) return@handler
+                    vertx.setTimer(100) {
+                        vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject().apply {
+                            put("deployment_id", "1234")
+                        })
 
-                    context.verify {
-                        response.apply {
-                            assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, getString("type"))
-                            assertEquals(DEPLOYMENT_ID, getJsonObject("payload").getString("deployment_id"))
-                        }
-                        context.completeNow()
+                        vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject().apply {
+                            put("deployment_id", DEPLOYMENT_ID)
+                        })
                     }
                 }
             },
-            cleanup = {
-                socket.close()
+            assert = {
+                vertx.eventBus().localConsumer<Pair<JsonObject, List<URI>>>(RoutesCE.management + "_send") { event ->
+                    val (message, dstUri) = event.body()
+                    context.verify {
+                        assertEquals(1, dstUri.size)
+                        assertEquals(uri, dstUri.first())
+                        message.apply {
+                            assertEquals(ManagementHandler.TYPE_MEDIA_RECORDING_RESET, getString("type"))
+                            assertEquals(DEPLOYMENT_ID, getJsonObject("payload").getString("deployment_id"))
+                        }
+                    }
+                    context.completeNow()
+                }
             }
         )
     }
@@ -403,87 +405,42 @@ class ManagementSocketTest : VertxTest() {
             ComponentRegistry.save(any())
         } just Runs
 
-        lateinit var socket: DatagramSocket
+        val uri = URI("udp://127.0.0.1:$remotePort")
         runTest(
             deploy = {
-                vertx.deployTestVerticle(ManagementSocket::class, config)
+                vertx.deployTestVerticle(ManagementHandler::class, config)
             },
             execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "127.0.0.1").coAwait()
-                vertx.setTimer(100) {
-                    socket.send(JsonObject().apply {
-                        put("type", ManagementSocket.TYPE_SHUTDOWN)
-                        put("payload", JsonObject().apply {
-                            put("deployment_id", DEPLOYMENT_ID)
-                            put("exit_code", 1)
-                        })
-                    }.toBuffer(), localPort, "127.0.0.1")
+                vertx.eventBus().localRequest<JsonObject?>(RoutesCE.management, Pair(uri, REGISTER_MESSAGE_1)) { asr ->
+                    if (asr.result() == null) return@localRequest
+
+                    vertx.setTimer(100) {
+                        vertx.eventBus().localSend(RoutesCE.management, Pair(URI("udp://some_uri"), JsonObject().apply {
+                            put("type", ManagementHandler.TYPE_SHUTDOWN)
+                            put("payload", JsonObject().apply {
+                                put("deployment_id", DEPLOYMENT_ID)
+                                put("exit_code", 1)
+                            })
+                        }))
+                    }
                 }
             },
             assert = {
-                socket = vertx.createDatagramSocket()
-                socket.listen(remotePort, "127.0.0.1")
-                socket.handler { packet ->
-                    val response = packet.data().toJsonObject()
-                    if (!response.containsKey("type")) return@handler
-
+                vertx.eventBus().localConsumer<Pair<JsonObject, List<URI>>>(RoutesCE.management + "_send") { event ->
+                    val (message, dstUri) = event.body()
                     context.verify {
-                        response.apply {
-                            assertEquals(ManagementSocket.TYPE_SHUTDOWN, getString("type"))
+                        assertEquals(1, dstUri.size)
+                        assertEquals(uri, dstUri.first())
+                        message.apply {
+                            assertEquals(ManagementHandler.TYPE_SHUTDOWN, getString("type"))
                             assertEquals(DEPLOYMENT_ID, getJsonObject("payload").getString("deployment_id"))
                             assertEquals(1, getJsonObject("payload").getInteger("exit_code"))
                         }
                     }
                     context.completeNow()
                 }
-            },
-            cleanup = {
-                socket.close()
             }
         )
     }
 
-    @Test
-    fun `Send 'media_recording_reset' command to agents via IPv6`() {
-        every {
-            HostRegistry.save(any())
-        } just Runs
-
-        lateinit var socket: DatagramSocket
-        runTest(
-            deploy = {
-                val ipV6config = JsonObject().apply {
-                    put("name", "sip3-salto-unit-test")
-                    put("management", JsonObject().apply {
-                        put("uri", "udp://[fe80::1]:$localPort")
-                        put("expiration_timeout", 1500L)
-                        put("expiration_delay", 800L)
-                    })
-                }
-                vertx.deployTestVerticle(ManagementSocket::class, ipV6config)
-            },
-            execute = {
-                socket.send(REGISTER_MESSAGE_1.toBuffer(), localPort, "[fe80::1]").coAwait()
-                vertx.setTimer(100) {
-                    vertx.eventBus().localSend(RoutesCE.media + "_recording_reset", JsonObject())
-                }
-            },
-            assert = {
-                socket = vertx.createDatagramSocket(datagramSocketOptionsOf(ipV6 = true))
-                socket.listen(remotePort, "[fe80::1]")
-                socket.handler { packet ->
-                    val response = packet.data().toJsonObject()
-                    if (!response.containsKey("type")) return@handler
-
-                    context.verify {
-                        assertEquals(ManagementSocket.TYPE_MEDIA_RECORDING_RESET, response.getString("type"))
-                    }
-                    context.completeNow()
-                }
-            },
-            cleanup = {
-                socket.close()
-            }
-        )
-    }
 }

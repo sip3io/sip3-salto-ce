@@ -20,16 +20,13 @@ import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
+import io.sip3.commons.vertx.util.localPublish
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.management.component.ComponentRegistry
 import io.sip3.salto.ce.management.host.HostRegistry
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.buffer.Buffer
-import io.vertx.core.datagram.DatagramSocket
-import io.vertx.core.datagram.DatagramSocketOptions
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import io.vertx.core.net.SocketAddress
 import mu.KotlinLogging
 import java.net.URI
 
@@ -38,7 +35,7 @@ import java.net.URI
  */
 @Instance(singleton = true)
 @ConditionalOnProperty("/management")
-open class ManagementSocket : AbstractVerticle() {
+open class ManagementHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
@@ -56,12 +53,9 @@ open class ManagementSocket : AbstractVerticle() {
     private lateinit var componentRegistry: ComponentRegistry
 
     private lateinit var name: String
-    private lateinit var uri: URI
     private var expirationDelay: Long = 60000
     private var expirationTimeout: Long = 120000
     private var publishMediaControlMode = 0
-
-    private lateinit var socket: DatagramSocket
 
     private lateinit var saltoComponent: Component
     private lateinit var components: PeriodicallyExpiringHashMap<String, Component>
@@ -76,8 +70,6 @@ open class ManagementSocket : AbstractVerticle() {
         name = config().getString("name")
 
         config().getJsonObject("management").let { config ->
-            uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
-
             config.getLong("expiration_delay")?.let {
                 expirationDelay = it
             }
@@ -98,19 +90,28 @@ open class ManagementSocket : AbstractVerticle() {
             }
             .build(vertx)
 
-        startUdpServer()
-
         vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
             val newConfig = event.body()
             saltoComponent.config = newConfig
         }
+
+        vertx.eventBus().localConsumer<Pair<URI, JsonObject>>(RoutesCE.management) { event ->
+            try {
+                val (uri, message) = event.body()
+                val response = handle(uri, message)
+                event.reply(response)
+            } catch (e: Exception) {
+                logger.error(e) { "ManagementHandler 'handle()' failed." }
+            }
+        }
+
 
         vertx.eventBus().localConsumer<MediaControl>(RoutesCE.media + "_control") { event ->
             try {
                 val mediaControl = event.body()
                 publishMediaControl(mediaControl)
             } catch (e: Exception) {
-                logger.error(e) { "ManagementSocket 'publishMediaControl()' failed." }
+                logger.error(e) { "ManagementHandler 'publishMediaControl()' failed." }
             }
         }
 
@@ -119,14 +120,14 @@ open class ManagementSocket : AbstractVerticle() {
                 val payload = event.body()
                 publishMediaRecordingReset(payload)
             } catch (e: Exception) {
-                logger.error(e) { "ManagementSocket 'publishMediaRecordingReset()' failed." }
+                logger.error(e) { "ManagementHandler 'publishMediaRecordingReset()' failed." }
             }
         }
 
-        saltoComponent = Component(this.deploymentID(), name, "salto").apply {
+        saltoComponent = Component(deploymentID(), name, "salto").apply {
             config = config()
             remoteUpdatedAt = updatedAt
-            uri = this@ManagementSocket.uri
+            uri = config().getJsonObject("management").getString("uri").let { URI(it) }
             mediaEnabled = false
         }
 
@@ -141,39 +142,8 @@ open class ManagementSocket : AbstractVerticle() {
         }
     }
 
-    open fun startUdpServer() {
-        val options = DatagramSocketOptions().apply {
-            isIpV6 = uri.host.matches(Regex("\\[.*]"))
-        }
-
-        socket = vertx.createDatagramSocket(options)
-
-        socket.handler { packet ->
-            val socketAddress = packet.sender()
-            val buffer = packet.data()
-            try {
-                val message = buffer.toJsonObject()
-
-                handle(socketAddress, message)
-            } catch (e: Exception) {
-                logger.error(e) { "ManagementSocket 'handle()' failed." }
-            }
-        }
-
-        socket.listen(uri.port, uri.host) { connection ->
-            if (connection.failed()) {
-                logger.error(connection.cause()) { "UDP connection failed. URI: $uri" }
-                throw connection.cause()
-            }
-            logger.info { "Listening on $uri" }
-        }
-    }
-
-    open fun handle(socketAddress: SocketAddress, message: JsonObject) {
-        logger.trace { "Socket Address: $socketAddress, message: ${message.encode()}" }
-        socketAddress.path()
-        val host = socketAddress.host().substringBefore("%")
-        val port = socketAddress.port()
+    open fun handle(uri: URI, message: JsonObject): JsonObject? {
+        logger.trace { "ManagementHandler `handle()`. URI $uri, message: ${message.encode()}" }
 
         val type = message.getString("type")
         val payload = message.getJsonObject("payload")
@@ -184,17 +154,15 @@ open class ManagementSocket : AbstractVerticle() {
             TYPE_REGISTER -> {
                 val deploymentId = payload.getString("deployment_id") ?: payload.getString("name")
                 val config = payload.getJsonObject("config")
-                val senderUri = URI(uri.scheme, null, host, port, null, null, null)
 
                 val componentName = config?.getString("name") ?: deploymentId
                 val component = components.getOrPut(deploymentId) {
-                    logger.info { "Registered from `$senderUri`: $payload" }
+                    logger.info { "Registered from `$uri`: $payload" }
                     return@getOrPut Component(deploymentId, componentName, "captain")
                 }.apply {
                     updatedAt = now
                     remoteUpdatedAt = payload.getLong("timestamp")
-
-                    uri = senderUri
+                    this.uri = uri
                     config?.getJsonObject("host")?.let { hostRegistry.save(it) }
 
                     config?.let {
@@ -217,10 +185,14 @@ open class ManagementSocket : AbstractVerticle() {
                 }
 
                 val response = JsonObject().apply {
-                    put("status", "registered")
-                    put("registered_at", System.currentTimeMillis())
+                    put("type", "register_response")
+                    put("payload", JsonObject().apply {
+                        put("status", "registered")
+                        put("registered_at", System.currentTimeMillis())
+                    })
                 }
-                socket.send(response.toBuffer(), socketAddress.port(), socketAddress.host())
+
+               return response
             }
             TYPE_CONFIG_REQUEST -> {
                 val name = payload.getString("name")
@@ -229,7 +201,8 @@ open class ManagementSocket : AbstractVerticle() {
                     put("type", TYPE_CONFIG)
                     put("payload", config)
                 }
-                socket.send(response.toBuffer(), port, host)
+
+                return response
             }
             TYPE_SHUTDOWN -> {
                 logger.info { "Handling `shutdown` command received via management socket: $message" }
@@ -247,9 +220,22 @@ open class ManagementSocket : AbstractVerticle() {
                 payload.getString("deployment_id")?.let { deploymentId ->
                     shutdown(deploymentId, message)
                 }
+
+                return null
             }
-            else -> logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
+            else -> {
+                logger.error { "Unknown message type. Message: ${message.encodePrettily()}" }
+                return null
+            }
         }
+    }
+
+    open fun send(message: JsonObject, uri: URI) {
+        send(message, listOf(uri))
+    }
+
+    open fun send(message: JsonObject, uris: List<URI>) {
+        vertx.eventBus().localPublish(RoutesCE.management + "_send", Pair(message, uris))
     }
 
     open fun getComponentConfig(name: String): JsonObject? {
@@ -269,7 +255,7 @@ open class ManagementSocket : AbstractVerticle() {
             host?.let { hostMapping.remove(it) }
 
             logger.info { "Shutting down component '${this.name}' via management socket..." }
-            socket.send(message.toBuffer(), uri.port, uri.host) {}
+            send(message, uri)
         }
     }
 
@@ -281,10 +267,9 @@ open class ManagementSocket : AbstractVerticle() {
 
             if (component.type == "salto") {
                 val uriList = JsonArray()
-                config().getJsonObject("management")?.getString("uri")?.let { uriList.add(it) }
-                config().getJsonObject("server")?.getString("uri")?.let { uriList.add(it) }
+                addUris(uriList, "management")
+                addUris(uriList, "server")
                 put("uri", uriList)
-
                 val connectedToList = JsonArray()
                 config().getJsonObject("mongo")?.let { mongo ->
                     mongo.getJsonObject("management")?.let { management ->
@@ -308,13 +293,22 @@ open class ManagementSocket : AbstractVerticle() {
         componentRegistry.save(componentObject)
     }
 
+    private fun addUris(uriList: JsonArray, key: String) {
+        config().getJsonObject(key)?.let { management ->
+            management.getString("uri")?.let { uriList.add(it) }
+            listOf("udp", "tcp", "ws", "wss").forEach { scheme ->
+                management.getJsonObject(scheme)?.getString("uri")?.let { uriList.add(it) }
+            }
+        }
+    }
+
     open fun publishMediaControl(mediaControl: MediaControl) {
         if (mediaEnabledComponentsCounter <= 0) return
 
         val message = JsonObject().apply {
             put("type", TYPE_MEDIA_CONTROL)
             put("payload", JsonObject.mapFrom(mediaControl))
-        }.toBuffer()
+        }
 
         when (publishMediaControlMode) {
             // Mode 0: Send to all hosts
@@ -337,31 +331,26 @@ open class ManagementSocket : AbstractVerticle() {
         val message = JsonObject().apply {
             put("type", TYPE_MEDIA_RECORDING_RESET)
             put("payload", payload)
-        }.toBuffer()
+        }
 
         val deploymentId = payload.getString("deployment_id")
-        components.forEach { _, component ->
-            if (deploymentId != null && component.deploymentId != deploymentId) return@forEach
-
-            try {
-                socket.send(message, component.uri.port, component.uri.host) {}
-            } catch (e: Exception) {
-                logger.error(e) { "Socket 'send()' failed. URI: ${component.uri}" }
+        components.values()
+            .filter { deploymentId == null || it.deploymentId == deploymentId }
+            .map { it.uri }
+            .let { uris ->
+                if (uris.isNotEmpty()) {
+                    send(message, uris)
+                }
             }
-        }
     }
 
-    private fun sendMediaControlIfNeeded(component: Component, message: Buffer) {
+    private fun sendMediaControlIfNeeded(component: Component, message: JsonObject) {
         if (component.mediaEnabled) {
-            try {
-                socket.send(message, component.uri.port, component.uri.host) {}
-            } catch (e: Exception) {
-                logger.error(e) { "Socket 'send()' failed. URI: ${component.uri}" }
-            }
+            send(message, component.uri)
         }
     }
 
-    private fun sendMediaControlIfNeeded(addr: String, message: Buffer) {
+    private fun sendMediaControlIfNeeded(addr: String, message: JsonObject) {
         hostRegistry.getHostName(addr)
             ?.let { host -> hostMapping[host] }
             ?.let { deploymentId -> components.get(deploymentId) }
