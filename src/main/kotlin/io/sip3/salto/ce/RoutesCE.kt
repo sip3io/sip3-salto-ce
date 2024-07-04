@@ -47,6 +47,9 @@ interface RoutesCE : Routes {
     val rtpe get() = "rtpe"
     val media get() = "media"
 
+    // Management
+    val management get() = "management"
+
     // Recording
     val rec get() = "rec"
 
