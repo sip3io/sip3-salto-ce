@@ -127,7 +127,7 @@ open class ManagementHandler : AbstractVerticle() {
         saltoComponent = Component(deploymentID(), name, "salto").apply {
             config = config()
             remoteUpdatedAt = updatedAt
-            uri = config().getJsonObject("management").getString("uri").let { URI(it) }
+            uri = getManagementUri(config())
             mediaEnabled = false
         }
 
@@ -291,6 +291,18 @@ open class ManagementHandler : AbstractVerticle() {
         }
 
         componentRegistry.save(componentObject)
+    }
+
+    private fun getManagementUri(config: JsonObject): URI {
+        return config.getJsonObject("management")
+            ?.let { management ->
+                management.getString("uri")
+                    ?: management.getJsonObject("udp")?.getString("uri")
+                    ?: management.getJsonObject("tcp")?.getString("uri")
+                    ?: management.getJsonObject("ws")?.getString("uri")
+            }
+            ?.let { URI(it) }
+            ?: throw IllegalArgumentException("Salto must listen at least on URI")
     }
 
     private fun addUris(uriList: JsonArray, key: String) {
