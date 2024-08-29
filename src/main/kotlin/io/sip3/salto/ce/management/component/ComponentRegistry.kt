@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.management.component
 
 import io.sip3.commons.mongo.MongoClient
+import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.ext.mongo.updateOptionsOf
@@ -78,6 +79,10 @@ object ComponentRegistry {
 
         client.removeDocuments(COLLECTION, query)
             .onFailure { logger.error(it) { "MongoClient 'removeDocuments()' failed." } }
+    }
+
+    fun list(): Future<List<JsonObject>> {
+        return client.find(COLLECTION, JsonObject())
     }
 
     fun save(component: JsonObject) {

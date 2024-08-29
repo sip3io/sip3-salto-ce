@@ -126,6 +126,7 @@ open class ManagementHandler : AbstractVerticle() {
 
         saltoComponent = Component(deploymentID(), name, "salto").apply {
             config = config()
+            version = config().getString("version")
             remoteUpdatedAt = updatedAt
             uri = getManagementUri(config())
             mediaEnabled = false
@@ -163,10 +164,16 @@ open class ManagementHandler : AbstractVerticle() {
                     updatedAt = now
                     remoteUpdatedAt = payload.getLong("timestamp")
                     this.uri = uri
-                    config?.getJsonObject("host")?.let { hostRegistry.save(it) }
 
-                    config?.let {
-                        this.config = it
+                    if (config != null) {
+                        this.config = config
+                        config.getString("version")?.let {
+                            this.version = it
+                        }
+
+                        config.getJsonObject("host")?.let {
+                            hostRegistry.save(it)
+                        }
                     }
 
                     val rtpOrRtcpEnabled = (config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false)
@@ -302,7 +309,7 @@ open class ManagementHandler : AbstractVerticle() {
                     ?: management.getJsonObject("ws")?.getString("uri")
             }
             ?.let { URI(it) }
-            ?: throw IllegalArgumentException("Salto must listen at least on URI")
+            ?: throw IllegalArgumentException("Salto must listen at least one URI")
     }
 
     private fun addUris(uriList: JsonArray, key: String) {
@@ -381,6 +388,7 @@ open class ManagementHandler : AbstractVerticle() {
         var remoteUpdatedAt: Long = 0L
 
         lateinit var uri: URI
+        var version: String? = null
         var config = JsonObject()
 
         var mediaEnabled = false
