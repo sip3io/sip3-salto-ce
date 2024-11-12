@@ -89,11 +89,13 @@ open class TcpServer : AbstractServer() {
                 logger.error(t) { "TCP connection failed. URI: $uri" }
                 throw t
             }
-            .onSuccess { logger.info { "Listening on $uri" } } }
+            .onSuccess { logger.info { "Listening on $uri" } }
+    }
 
     override fun send(message: JsonObject, uris: List<URI>) {
         val buffer = message.toBuffer()
-        uris.mapNotNull { sockets[it] }
+        uris.filter { it.scheme == "tcp" }
+            .mapNotNull { sockets[it] }
             .forEach { socket ->
                 socket.write(buffer.appendString(delimiter))
             }
