@@ -73,7 +73,8 @@ open class UdpServer : AbstractServer() {
 
     override fun send(message: JsonObject, uris: List<URI>) {
         val buffer = message.toBuffer()
-        uris.map { Pair(it.host, it.port) }
+        uris.filter { it.scheme == "udp"}
+            .map { Pair(it.host, it.port) }
             .forEach { (host, port) ->
                 logger.trace { "Sending message to $host:$port" }
                 socket.send(buffer, port, host)
