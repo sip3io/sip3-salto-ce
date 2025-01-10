@@ -1,5 +1,6 @@
 #! Name
 name: sip3-salto
+version: 2025.1.1-SNAPSHOT
 
 #! Vert.x
 #vertx:
