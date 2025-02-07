@@ -47,8 +47,9 @@
 
         <!-- SDP -->
         <dependency>
-            <groupId>org.restcomm.media</groupId>
-            <artifactId>sdp</artifactId><exclusions>
+            <groupId>org.restcomm.media.core</groupId>
+            <artifactId>sdp</artifactId>
+            <exclusions>
                 <exclusion>
                     <groupId>log4j</groupId>
                     <artifactId>log4j</artifactId>

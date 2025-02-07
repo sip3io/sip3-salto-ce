@@ -144,7 +144,7 @@ class SdpHandler : AbstractVerticle() {
                 .intersect(request.payloadTypes.asIterable())
         } else {
             (request ?: response)?.payloadTypes?.toList()
-        }
+        }?.map { it.toInt() }
         requireNotNull(payloadTypes) { "Payload types are undefined. CallID: ${session.callId}" }
 
         session.codecs = payloadTypes.map { payloadType ->
@@ -183,7 +183,7 @@ class SdpHandler : AbstractVerticle() {
         var response: MediaDescriptionField? = null
 
         val isRtcpMux: Boolean by lazy {
-            (response?.isRtcpMux ?: false) && (request?.isRtcpMux ?: false)
+            (response?.isRtcpMux == true) && (request?.isRtcpMux == true)
         }
 
         val ptime: Int by lazy {
