@@ -295,6 +295,7 @@ open class ManagementHandler : AbstractVerticle() {
             put("remote_updated_at", component.remoteUpdatedAt)
 
             put("config", component.config)
+            put("version", component.version)
         }
 
         componentRegistry.save(componentObject)
