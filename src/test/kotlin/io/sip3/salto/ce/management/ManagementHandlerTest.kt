@@ -57,6 +57,7 @@ class ManagementHandlerTest : VertxTest() {
             put("rtp", JsonObject().apply {
                 put("enabled", true)
             })
+            put("version", "2025.1.1")
         }
 
         private val DEPLOYMENT_ID = UUID.randomUUID().toString()
@@ -111,6 +112,7 @@ class ManagementHandlerTest : VertxTest() {
                 put("uri", "mongodb://superhost.com:20000/?w=1")
                 put("db", "salto-component-test")
             })
+            put("version", "2025.1.1")
         }
     }
 
@@ -182,6 +184,7 @@ class ManagementHandlerTest : VertxTest() {
                         assertEquals(2, component.getJsonArray("connected_to").size())
                         assertEquals("mongodb://superhost.com:10000/salto-component-management-test", component.getJsonArray("connected_to").getString(0))
                         assertEquals("mongodb://superhost.com:20000/salto-component-test", component.getJsonArray("connected_to").getString(1))
+                        assertEquals("2025.1.1", component.getString("version"))
                         context.completeNow()
                     }
                 }
