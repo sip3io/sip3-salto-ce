@@ -19,7 +19,6 @@ package io.sip3.salto.ce.management
 import io.netty.buffer.ByteBufUtil
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
-import io.sip3.commons.vertx.util.initSsl
 import io.vertx.core.json.JsonObject
 import io.vertx.core.net.NetServerOptions
 import io.vertx.core.net.NetSocket
@@ -35,7 +34,6 @@ open class TcpServer : AbstractServer() {
 
     private lateinit var uri: URI
     private var bufferSize: Int? = null
-    private var sslConfig: JsonObject? = null
     private var delimiter = "\r\n\r\n3PIS\r\n\r\n"
 
     private val sockets = mutableMapOf<URI, NetSocket>()
@@ -45,17 +43,12 @@ open class TcpServer : AbstractServer() {
             val config = management.getJsonObject("tcp") ?: management
             uri = URI(config.getString("uri") ?: throw IllegalArgumentException("uri"))
             bufferSize = config.getInteger("buffer_size")
-            sslConfig = config.getJsonObject("ssl")
             config.getString("delimiter")?.let { delimiter = it }
         }
     }
 
     override fun startServer() {
-        val options = NetServerOptions().apply {
-            bufferSize?.let { receiveBufferSize = it }
-            sslConfig?.let { initSsl(it) }
-        }
-
+        val options = tcpConnectionOptions()
         vertx.createNetServer(options)
             .connectHandler { socket ->
                 val sender =  socket.remoteAddress()
@@ -90,6 +83,12 @@ open class TcpServer : AbstractServer() {
                 throw t
             }
             .onSuccess { logger.info { "Listening on $uri" } }
+    }
+
+    open fun tcpConnectionOptions(): NetServerOptions {
+        return  NetServerOptions().apply {
+            bufferSize?.let { receiveBufferSize = it }
+        }
     }
 
     override fun send(message: JsonObject, uris: List<URI>) {
