@@ -20,6 +20,7 @@ import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
+import io.sip3.commons.vertx.util.closeAndExitProcess
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.management.component.ComponentRegistry
@@ -250,7 +251,15 @@ open class ManagementHandler : AbstractVerticle() {
     }
 
     open fun shutdown(payload: JsonObject) {
-        shutdown(payload.getString("deployment_id"), JsonObject().apply {
+        val deploymentId = payload.getString("deployment_id")
+        if (deploymentId == saltoComponent.deploymentId) {
+            val exitCode = payload.getInteger("exit_code") ?: -1
+            logger.warn { "Shutting down the process with exit code: $exitCode" }
+            vertx.closeAndExitProcess(exitCode)
+            return
+        }
+
+        shutdown(deploymentId, JsonObject().apply {
             put("type", TYPE_SHUTDOWN)
             put("payload", payload)
         })

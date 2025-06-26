@@ -79,6 +79,10 @@ object ComponentRegistry {
 
         client.removeDocuments(COLLECTION, query)
             .onFailure { logger.error(it) { "MongoClient 'removeDocuments()' failed." } }
+            .onSuccess { result ->
+                result?.removedCount?.takeIf { it > 0L }?.let { removedCount ->
+                    logger.info { "Removed expired components: $removedCount" }
+                }}
     }
 
     fun list(): Future<List<JsonObject>> {
