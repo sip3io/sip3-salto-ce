@@ -22,6 +22,7 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class SipTransactionTest {
 
@@ -143,6 +144,32 @@ class SipTransactionTest {
                         Content-Length: 0
                     """.trimIndent().toByteArray()
         }
+
+        val PACKET_4 = Packet().apply {
+            createdAt = NOW + 10
+            srcAddr = Address().apply {
+                addr = "127.0.0.2"
+                port = 5061
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            attributes = mutableMapOf()
+            attributes!!["ringing"] = true
+            payload = """
+                        SIP/2.0 100 Trying
+                        Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063
+                        From: <sip:176.9.119.117:5063;user=phone>;tag=3997885528-3926998818-1774583950-1258246515
+                        To: <sip:321@116.203.55.139;user=phone>
+                        Call-ID: 58e44b0c223f11ea8e00c6697351ff4a@176.9.119.117
+                        CSeq: 1 INVITE
+                        Server: Asterisk PBX 13.29.1
+                        Allow: INVITE,ACK,CANCEL,OPTIONS,BYE,REFER,SUBSCRIBE,NOTIFY,INFO,PUBLISH,MESSAGE
+                        Supported: replaces,timer
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
     }
 
     @Test
@@ -217,5 +244,29 @@ class SipTransactionTest {
         assertEquals(PACKET_3.srcAddr.port, transaction.dstAddr.port)
         assertNotNull(transaction.response)
         assertEquals(PACKET_1.createdAt, transaction.createdAt)
+    }
+
+    @Test
+    fun `SIP Transaction with message without User Part and default 'allow_empty_user'`() {
+        val tryingMessage = StringMsgParser().parseSIPMessage(PACKET_4.payload, true, false, null)
+
+        val transaction = SipTransaction()
+        assertThrows<NullPointerException> { transaction.addMessage(PACKET_4, tryingMessage) }
+    }
+
+    @Test
+    fun `SIP Transaction with message without User Part and enabled 'allow_empty_user'`() {
+        val tryingMessage = StringMsgParser().parseSIPMessage(PACKET_4.payload, true, false, null)
+        val transaction = SipTransaction()
+        transaction.addMessage(PACKET_4, tryingMessage, allowEmptyUser = true)
+
+        assertEquals("INVITE", transaction.cseqMethod)
+        assertEquals(PACKET_4.dstAddr.addr, transaction.srcAddr.addr)
+        assertEquals(PACKET_4.dstAddr.port, transaction.srcAddr.port)
+        assertEquals(PACKET_4.srcAddr.addr, transaction.dstAddr.addr)
+        assertEquals(PACKET_4.srcAddr.port, transaction.dstAddr.port)
+        assertEquals("176.9.119.117", transaction.caller)
+        assertNotNull(transaction.response)
+        assertEquals(PACKET_4.createdAt, transaction.createdAt)
     }
 }

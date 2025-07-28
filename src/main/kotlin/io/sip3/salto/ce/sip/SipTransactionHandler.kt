@@ -74,6 +74,8 @@ open class SipTransactionHandler : AbstractVerticle() {
     private var terminationTimeout: Long = 4500
     private var saveSipMessagePayloadMode = 0
 
+    private var allowEmptyUser = false
+
     private var recordIpAddressesAttributes = false
     private var recordCallUsersAttributes = false
     private var instances = 1
@@ -86,6 +88,13 @@ open class SipTransactionHandler : AbstractVerticle() {
         config().getString("time_suffix")?.let {
             timeSuffix = DateTimeFormatter.ofPattern(it)
         }
+
+        config().getJsonObject("sip")?.getJsonObject("message")?.let { config ->
+            config.getBoolean("allow_empty_user")?.let {
+                allowEmptyUser = it
+            }
+        }
+
         config().getJsonObject("sip")?.getJsonObject("transaction")?.let { config ->
             config.getLong("expiration_delay")?.let {
                 expirationDelay = it
@@ -148,7 +157,7 @@ open class SipTransactionHandler : AbstractVerticle() {
         transactions.touch(transactionId)
 
         val extend = (saveSipMessagePayloadMode == 0) || (saveSipMessagePayloadMode == 1 && message is SIPRequest)
-        transaction.addMessage(packet, message, extend)
+        transaction.addMessage(packet, message, extend, allowEmptyUser)
 
         // Send SDP
         if (transaction.cseqMethod == "INVITE" && transaction.request?.hasSdp() == true && transaction.response?.hasSdp() == true) {
