@@ -180,6 +180,7 @@ open class SipCallHandler : AbstractVerticle() {
             "INVITE" -> terminateInviteTransaction(transaction)
             "BYE" -> terminateByeTransaction(transaction)
             "INFO" -> terminateInfoTransaction(transaction)
+            else -> terminateTransaction(transaction)
         }
     }
 
@@ -261,6 +262,23 @@ open class SipCallHandler : AbstractVerticle() {
         }
 
         calculateByeTransactionMetrics(transaction)
+    }
+
+    open fun terminateTransaction(transaction: SipTransaction) {
+        activeSessions.get(transaction.callId)?.let { sessions ->
+            val session = sessions[transaction.legId]
+            if (session != null) {
+                session.addTransaction(transaction)
+            } else {
+                sessions.forEach { (_, session) ->
+                    if ((session.caller == transaction.caller && session.callee == transaction.callee)
+                        || (session.caller == transaction.callee && session.callee == transaction.caller)
+                    ) {
+                        session.addTransaction(transaction)
+                    }
+                }
+            }
+        }
     }
 
     open fun terminateInfoTransaction(transaction: SipTransaction) {
@@ -677,6 +695,13 @@ open class SipCallHandler : AbstractVerticle() {
 
             errorCode = transaction.errorCode
             errorType = transaction.errorType
+
+            transaction.attributes.forEach { (name, value) -> attributes[name] = value }
+        }
+
+        fun addTransaction(transaction: SipTransaction) {
+            transactions++
+            retransmits += transaction.retransmits
 
             transaction.attributes.forEach { (name, value) -> attributes[name] = value }
         }
