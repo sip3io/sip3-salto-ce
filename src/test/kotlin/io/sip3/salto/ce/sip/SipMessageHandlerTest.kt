@@ -216,6 +216,31 @@ class SipMessageHandlerTest : VertxTest() {
 
                     """.trimIndent().toByteArray()
         }
+
+        // SIP Message without user in `From` Header
+        val PACKET_6 = Packet().apply {
+            createdAt = System.currentTimeMillis()
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            payload = """
+                        SIP/2.0 100 Trying
+                        Via: SIP/2.0/UDP 176.9.119.117:5063;branch=z9hG4bK-2196628568-3926998818-1774583950-1258246515;received=176.9.119.117;rport=5063
+                        From: <sip:176.9.119.117:5063;user=phone>;tag=3997885528-3926998818-1774583950-1258246515
+                        To: <sip:321@116.203.55.139;user=phone>
+                        CSeq: 1 INVITE
+                        Call-ID: 2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e
+                        Server: Asterisk PBX 13.29.1
+                        Allow: INVITE,ACK,CANCEL,OPTIONS,BYE,REFER,SUBSCRIBE,NOTIFY,INFO,PUBLISH,MESSAGE
+                        Supported: replaces,timer
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
     }
 
     @Test
@@ -378,6 +403,31 @@ class SipMessageHandlerTest : VertxTest() {
                         assertEquals(PACKET_4.attributes?.get("custom_attr"), packet.attributes!!.get("custom_attr"))
                         assertFalse(packet.attributes!!.containsKey("x_call_id"))
                     }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Handle packet with empty user in 'From' Header in SIP message`() {
+        runTest(
+            deploy = {
+                val config = JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("message", JsonObject().apply {
+                            put("allow_empty_user", true)
+                        })
+                    })
+                }
+                vertx.deployTestVerticle(SipMessageHandler::class, config)
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_6)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (packet, message) = event.body()
                     context.completeNow()
                 }
             }

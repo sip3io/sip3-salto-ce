@@ -74,7 +74,7 @@ class SipTransaction {
         srcAddr.compositeKey(dstAddr)
     }
 
-    fun addMessage(packet: Packet, message: SIPMessage, extend: Boolean = true) {
+    fun addMessage(packet: Packet, message: SIPMessage, extend: Boolean = true, allowEmptyUser: Boolean = false) {
         // Aggregate transaction data
         when (message) {
             is SIPRequest -> {
@@ -89,8 +89,8 @@ class SipTransaction {
                     dstAddr = packet.dstAddr
 
                     callId = message.callId()!!
-                    callee = message.toUserOrNumber()!!
-                    caller = message.fromUserOrNumber()!!
+                    callee = message.toUserOrNumber(allowEmptyUser)!!
+                    caller = message.fromUserOrNumber(allowEmptyUser)!!
                 } else if (createdAt > packet.createdAt) {
                     createdAt = packet.createdAt
                 }
@@ -117,8 +117,8 @@ class SipTransaction {
                     dstAddr = packet.srcAddr
 
                     callId = message.callId()!!
-                    callee = message.toUserOrNumber()!!
-                    caller = message.fromUserOrNumber()!!
+                    callee = message.toUserOrNumber(allowEmptyUser)!!
+                    caller = message.fromUserOrNumber(allowEmptyUser)!!
                 }
 
                 if (establishedAt == null) {

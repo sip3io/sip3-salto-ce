@@ -38,16 +38,16 @@ fun SIPMessage.toUri(): String? {
     return to?.address?.uri?.toString()
 }
 
-fun SIPMessage.toUserOrNumber(): String? {
-    return to?.address?.uri?.userOrNumber()
+fun SIPMessage.toUserOrNumber(allowEmptyUser: Boolean = false): String? {
+    return to?.address?.uri?.userOrNumber(allowEmptyUser)
 }
 
 fun SIPMessage.fromUri(): String? {
     return from?.address?.uri?.toString()
 }
 
-fun SIPMessage.fromUserOrNumber(): String? {
-    return from?.address?.uri?.userOrNumber()
+fun SIPMessage.fromUserOrNumber(allowEmptyUser: Boolean = false): String? {
+    return from?.address?.uri?.userOrNumber(allowEmptyUser)
 }
 
 fun SIPMessage.cseqMethod(): String? {
@@ -117,8 +117,8 @@ fun SIPMessage.expires(): Int? {
         ?: contactHeader?.contactParms?.getValue("expires")?.toString()?.toInt()
 }
 
-fun URI.userOrNumber() = when (this) {
-    is SipUri -> user
+fun URI.userOrNumber(allowEmptyUser: Boolean = false) = when (this) {
+    is SipUri -> user?.ifBlank { null } ?: if (allowEmptyUser) host else null
     is TelURL -> phoneNumber
     else -> throw IllegalArgumentException("Unsupported URI format: '$this'")
 }

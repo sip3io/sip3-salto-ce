@@ -53,6 +53,7 @@ open class SipMessageHandler : AbstractVerticle() {
     private var xCorrelationHeader = "X-Call-ID"
     private var sipMessageParserMode = 1
     private var extensionHeaders = mutableSetOf<String>()
+    private var allowEmptyUser = false
 
     private val packetsProcessed = Metrics.counter("packets_processed", mapOf("proto" to "sip"))
 
@@ -73,7 +74,9 @@ open class SipMessageHandler : AbstractVerticle() {
             config.getString("x_correlation_header")?.let {
                 xCorrelationHeader = it
             }
-
+            config.getBoolean("allow_empty_user")?.let {
+                allowEmptyUser = it
+            }
             config.getJsonObject("parser")?.let { parserConfig ->
                 parserConfig.getInteger("mode")?.let {
                     sipMessageParserMode = it
@@ -113,7 +116,7 @@ open class SipMessageHandler : AbstractVerticle() {
 
     open fun validate(message: SIPMessage): Boolean {
         return message.cseqMethod() != null && message.callId() != null
-                && message.toUserOrNumber() != null && message.fromUserOrNumber() != null
+                && (allowEmptyUser || (message.toUserOrNumber() != null && message.fromUserOrNumber() != null))
     }
 
     open fun handleSipMessage(packet: Packet, message: SIPMessage) {
