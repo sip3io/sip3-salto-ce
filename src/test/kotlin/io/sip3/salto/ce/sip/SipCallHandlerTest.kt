@@ -370,6 +370,56 @@ class SipCallHandlerTest : VertxTest() {
                         Content-Length: 0
                     """.trimIndent().toByteArray()
         }
+
+        // REFER
+        val REFER_PACKET_1 = Packet().apply {
+            createdAt = NOW + 2 + 23 + 128 + 20
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.2"
+                host = "Test"
+                port = 5061
+            }
+            payload = """
+                        REFER sip:558552290881@141.193.26.74:5060 SIP/2.0
+                        CSeq: 3 REFER
+                        Max-Forwards: 70
+                        From: "4801370F02092417" <sip:4801370F02092417@192.168.0.21>;tag=373436342e393734323132363431313936
+                        To: "558552290881" <sip:558552290881@groot.clearcaptions.com:35060>;tag=373436342e393734323132363431313936
+                        Call-ID: 0a778dd44d9cc00e16ac97a623d5202a@192.168.0.21
+                        Contact: "4801370F02092417" <sip:4801370F02092417@192.168.0.21:5060>
+                        Refer-To: <tel:+1234567890>
+                        Allow: INVITE,ACK,CANCEL,BYE,NOTIFY,REFER,MESSAGE,OPTIONS,INFO,SUBSCRIBE
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
+
+        // REFER 202 OK
+        val REFER_PACKET_2 = Packet().apply {
+            createdAt = NOW + 2 + 23 + 128 + 20 + 1
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.3"
+                host = "Test"
+                port = 5061
+            }
+            payload = """
+                        SIP/2.0 202 Accepted
+                        CSeq: 3 REFER
+                        Call-ID: 0a778dd44d9cc00e16ac97a623d5202a@192.168.0.21
+                        From: "4801370F02092417" <sip:4801370F02092417@192.168.0.21>;tag=373436342e393734323132363431313936
+                        To: "558552290881" <sip:558552290881@groot.clearcaptions.com:35060>;tag=373436342e393734323132363431313936
+                        Server: Asterisk PBX 15.3.0
+                        Contact: "4801370F02092417" <sip:4801370F02092417@192.168.0.21:5060>
+                        Content-Length: 0
+                    """.trimIndent().toByteArray()
+        }
     }
 
     @BeforeEach
@@ -715,6 +765,74 @@ class SipCallHandlerTest : VertxTest() {
                         assertEquals(1, attributes["transactions"])
                         assertNotNull(attributes["retransmits"])
                         assertEquals(true, attributes["include-me"])
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Handle REFER transaction attributes`() {
+        val prefixSlot = slot<String>()
+        val attributesSlot = slot<Map<String, Any>>()
+        every {
+            anyConstructed<AttributesRegistry>().handle(capture(prefixSlot), capture(attributesSlot))
+        } just Runs
+
+        val inviteTransaction = SipTransaction().apply {
+            addPacket(ANSWERED_PACKET_1)
+            addPacket(ANSWERED_PACKET_2)
+            addPacket(ANSWERED_PACKET_3)
+        }
+
+        val referTransaction = SipTransaction().apply {
+            addPacket(REFER_PACKET_1)
+            addPacket(REFER_PACKET_2)
+            attributes["has_refer"] = true
+        }
+
+        val byeTransaction = SipTransaction().apply {
+            addPacket(ANSWERED_PACKET_5)
+            addPacket(ANSWERED_PACKET_6)
+        }
+
+        runTest(
+            deploy = {
+                mockMongoCollectionManager()
+                vertx.deployTestVerticle(SipCallHandler::class, config = JsonObject().apply {
+                    put("attributes", JsonObject().apply {
+                        put("record_call_users", true)
+                    })
+                    put("sip", JsonObject().apply {
+                        put("call", JsonObject().apply {
+                            put("expiration_delay", 2000)
+                            put("termination_timeout", 500)
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.setTimer(200) {
+                    vertx.eventBus().localSend(RoutesCE.sip + "_call_0", inviteTransaction)
+                    vertx.eventBus().localSend(RoutesCE.sip + "_call_0", referTransaction)
+                    vertx.setTimer(500) {
+                        vertx.eventBus().localSend(RoutesCE.sip + "_call_0", byeTransaction)
+                    }
+
+                }
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<String, JsonObject>>(RoutesCE.mongo_bulk_writer) { event ->
+                    val (prefix, obj) = event.body()
+                    if (obj.getJsonObject("document").getJsonObject("\$set").getInteger("transactions") < 2) {
+                        return@consumer
+                    }
+                    context.verify {
+                        assertEquals("sip", prefixSlot.captured)
+
+                        val attributes = attributesSlot.captured
+                        assertTrue(attributes["has_refer"] as Boolean)
                     }
                     context.completeNow()
                 }
