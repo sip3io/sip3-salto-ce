@@ -34,7 +34,6 @@ class SipTransaction {
         const val CANCELED = "canceled"
         const val SUCCEED = "succeed"
         const val REDIRECTED = "redirected"
-        const val FORWARDED = "forwarded"
         const val UNAUTHORIZED = "unauthorized"
     }
 
@@ -154,15 +153,10 @@ class SipTransaction {
 
                         terminatedAt = packet.createdAt
                         if (extend) response = message
+                        state = SUCCEED
 
                         if (cseqMethod == "REGISTER") {
                             message.expires()?.let { expires = it }
-                        }
-
-                        if (cseqMethod == "REFER") {
-                            state = FORWARDED
-                        } else {
-                            state = SUCCEED
                         }
                     }
                     in 300..399 -> {
