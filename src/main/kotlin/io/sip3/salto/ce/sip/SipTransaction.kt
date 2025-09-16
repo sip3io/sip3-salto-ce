@@ -145,7 +145,7 @@ class SipTransaction {
                             }
                         }
                     }
-                    200 -> {
+                    in 200..204 -> {
                         // Received message is a retransmit
                         if (response?.statusCode == statusCode) {
                             retransmits++
