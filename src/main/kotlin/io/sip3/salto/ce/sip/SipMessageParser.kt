@@ -27,7 +27,7 @@ import mu.KotlinLogging
 /**
  * Parses SIP messages
  */
-class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_ALL, val extensionHeaders: Set<String> = emptySet()) {
+class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_ALL, extensionHeaders: Set<String> = emptySet()) {
 
     private val logger = KotlinLogging.logger {}
 
@@ -41,6 +41,8 @@ class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_A
 
         val CONTENT_LENGTH_HEADERS = setOf("content-length", "l")
     }
+
+    private val extensionHeaders: Set<String> = extensionHeaders.map { it.lowercase() }.toSet()
 
     fun parse(packet: Packet): List<Pair<Packet, SIPMessage>> {
         val result = mutableListOf<Pair<Packet, SIPMessage>>()
@@ -149,7 +151,7 @@ class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_A
                 else -> {
                     // These headers won't be used in the SIP3 aggregation logic
                     // So we can just attach them as generic `Extension` headers
-                    if (mode == MODE_ALL || extensionHeaders.contains(name)) {
+                    if (mode == MODE_ALL || extensionHeaders.contains(name.lowercase())) {
                         ExtensionHeaderImpl().apply {
                             this.name = name
                             this.value = Lexer.getHeaderValue(header)?.trim()

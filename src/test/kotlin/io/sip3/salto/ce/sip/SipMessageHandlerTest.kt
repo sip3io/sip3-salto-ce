@@ -241,6 +241,51 @@ class SipMessageHandlerTest : VertxTest() {
                         Content-Length: 0
                     """.trimIndent().toByteArray()
         }
+
+        // SIP Message with X-Call-ID in lowercase
+        val PACKET_7 = Packet().apply {
+            createdAt = System.currentTimeMillis()
+            srcAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            dstAddr = Address().apply {
+                addr = "127.0.0.1"
+                port = 5060
+            }
+            payload = """
+                        INVITE sip:000155917690@ss63.invite.demo.sip3.io:5060 SIP/2.0
+                        Via: SIP/2.0/UDP 10.177.131.211:6333;branch=z9hG4bKmqffet30b03pp5mv5jj0.1
+                        From: <sip:000260971282@demo.sip3.io>;tag=82-2zyzysoabqjb3
+                        To: <sip:000155917690@demo.sip3.io:5060>
+                        Call-ID: 2dnuu30ktosoky1uad3nzzk3nkk3nzz3-wdsrwt7@UAC-e-e
+                        x-call-id: some_call_id 
+                        CSeq: 1 INVITE
+                        Contact: <sip:signode-82-gxp92pqazkbzz@10.177.131.211:6333;transport=udp>
+                        Allow: INVITE,ACK,CANCEL,BYE,INFO,REFER,SUBSCRIBE,NOTIFY
+                        Allow-Events: keep-alive
+                        Supported: timer
+                        Session-Expires: 7200
+                        Expires: 300
+                        Min-SE: 900
+                        Max-Forwards: 63
+                        User-Agent: Android Application
+                        Content-Type: application/sdp
+                        Content-Length: 171
+
+                        v=0
+                        o=- 677480114 3140674329 IN IP4 10.177.131.228
+                        s=centrex-mediagateway
+                        t=0 0
+                        m=audio 35176 RTP/AVP 8
+                        c=IN IP4 10.177.131.228
+                        a=rtpmap:8 PCMA/8000
+                        a=sendrecv
+                        a=ptime:20
+
+                    """.trimIndent().toByteArray()
+            attributes = mutableMapOf("custom_attr" to "value")
+        }
     }
 
     @Test
@@ -327,6 +372,38 @@ class SipMessageHandlerTest : VertxTest() {
     }
 
     @Test
+    fun `Handle packet with SIP message and read extension header value by key with non-original case`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipMessageHandler::class, JsonObject().apply {
+                    put("sip", JsonObject().apply {
+                        put("message", JsonObject().apply {
+                            put("parser", JsonObject().apply {
+                                put("mode", 1)
+                                put("extension_headers", listOf("UseR-AGEnt"))
+                            })
+                        })
+                    })
+                })
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_1)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (_, message) = event.body()
+
+                    context.verify {
+                        assertEquals("Android Application", (message.getHeader("User-Agent") as ExtensionHeader).value)
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+
+    @Test
     fun `Handle packet with invalid SIP message`() {
         val registry = SimpleMeterRegistry(SimpleConfig.DEFAULT, MockClock())
         Metrics.addRegistry(registry)
@@ -402,6 +479,31 @@ class SipMessageHandlerTest : VertxTest() {
                         assertTrue((message.getHeader("X-Call-ID") as ExtensionHeader).value.isBlank())
                         assertEquals(PACKET_4.attributes?.get("custom_attr"), packet.attributes!!.get("custom_attr"))
                         assertFalse(packet.attributes!!.containsKey("x_call_id"))
+                    }
+                    context.completeNow()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Handle packet with SIP message and handle X-Call-ID that in config is in another case`() {
+        runTest(
+            deploy = {
+                vertx.deployTestVerticle(SipMessageHandler::class)
+            },
+            execute = {
+                vertx.eventBus().localSend(RoutesCE.sip, PACKET_7)
+            },
+            assert = {
+                vertx.eventBus().consumer<Pair<Packet, SIPMessage>>(RoutesCE.sip + "_transaction_0") { event ->
+                    val (packet, message) = event.body()
+
+                    context.verify {
+                        val xCallId = (message.getHeader("X-Call-ID") as ExtensionHeader).value
+                        assertTrue(xCallId.isNotBlank())
+                        assertEquals(PACKET_7.attributes?.get("custom_attr"), packet.attributes!!.get("custom_attr"))
+                        assertEquals(xCallId, packet.attributes!!.getValue("x_call_id"))
                     }
                     context.completeNow()
                 }

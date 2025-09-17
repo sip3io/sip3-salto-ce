@@ -81,12 +81,14 @@ open class SipMessageHandler : AbstractVerticle() {
                 parserConfig.getInteger("mode")?.let {
                     sipMessageParserMode = it
                 }
-                parserConfig.getJsonArray("extension_headers")?.let {
-                    extensionHeaders = it.map(Any::toString).toMutableSet()
-                }
+                parserConfig.getJsonArray("extension_headers")
+                    ?.map { it.toString() }
+                    ?.let {
+                        extensionHeaders = it.toMutableSet()
+                    }
             }
         }
-        extensionHeaders.add(xCorrelationHeader)
+        extensionHeaders.add(xCorrelationHeader.lowercase())
 
         parser = SipMessageParser(SUPPORTED_SIP_METHODS, sipMessageParserMode, extensionHeaders = extensionHeaders)
         udfExecutor = UdfExecutor(vertx)
