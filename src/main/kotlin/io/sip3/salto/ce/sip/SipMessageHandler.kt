@@ -82,7 +82,7 @@ open class SipMessageHandler : AbstractVerticle() {
                     sipMessageParserMode = it
                 }
                 parserConfig.getJsonArray("extension_headers")
-                    ?.map { it.toString().lowercase() }
+                    ?.map { it.toString() }
                     ?.let {
                         extensionHeaders = it.toMutableSet()
                     }
