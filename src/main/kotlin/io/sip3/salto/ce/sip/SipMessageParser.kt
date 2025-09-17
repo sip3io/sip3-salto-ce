@@ -149,7 +149,7 @@ class SipMessageParser(val supportedMethods: Set<String>, val mode: Int = MODE_A
                 else -> {
                     // These headers won't be used in the SIP3 aggregation logic
                     // So we can just attach them as generic `Extension` headers
-                    if (mode == MODE_ALL || extensionHeaders.contains(name)) {
+                    if (mode == MODE_ALL || extensionHeaders.contains(name.lowercase())) {
                         ExtensionHeaderImpl().apply {
                             this.name = name
                             this.value = Lexer.getHeaderValue(header)?.trim()
