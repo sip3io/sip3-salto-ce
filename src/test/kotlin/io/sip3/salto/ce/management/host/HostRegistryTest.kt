@@ -79,7 +79,23 @@ class HostRegistryTest : VertxTest() {
             })
         }
 
-        val MONGO_DB = "sip3"
+        val HOST_4= JsonObject().apply {
+            put("name", "host_4")
+            put("addr", JsonArray().apply {
+                add("8.8.8.8")
+                add("9.9.9.9")
+            })
+        }
+
+        val HOST_5 = JsonObject().apply {
+            put("name", "host_5")
+            put("addr", JsonArray().apply {
+                add("9.9.9.9")
+                add("10.10.10.10")
+            })
+        }
+
+        val MONGO_DB = "sip3_host_registry_test"
     }
 
     @Test
@@ -95,25 +111,27 @@ class HostRegistryTest : VertxTest() {
 
                 mongo.save("hosts", HOST_1).coAwait()
                 mongo.save("hosts", HOST_2).coAwait()
-                mongo.close()
+                mongo.close().coAwait()
 
                 hostRegistry = HostRegistry.getInstance(vertx, JsonObject().apply {
                     put("mongo", JsonObject().apply {
                         put("management", JsonObject().apply {
                             put("uri", MongoExtension.MONGO_URI)
-                            put("db", "sip3")
+                            put("db", MONGO_DB)
                         })
                     })
                     put("hosts", JsonObject().apply {
                         put("check_period", 500L)
                     })
                 })
-                hostRegistry!!.save(HOST_3)
+
+                hostRegistry!!.save(HOST_3).coAwait()
             },
             assert = {
-                vertx.setPeriodic(100L) {
+                vertx.setPeriodic(500L, 100L) {
                     if (hostRegistry?.getHostName("1.1.1.1", 5060) != null
-                        && hostRegistry?.getHostName("6.6.6.6") != null) {
+                        && hostRegistry?.getHostName("6.6.6.6") != null
+                    ) {
                         context.verify {
                             assertEquals(HOST_1.getString("name"), hostRegistry?.getHostName("1.1.1.1", 5060), "1")
                             assertEquals(HOST_1.getString("name"), hostRegistry?.getHostName("2.2.2.0/30", 5060), "2")
@@ -126,10 +144,58 @@ class HostRegistryTest : VertxTest() {
 
                             assertEquals(HOST_3.getString("name"), hostRegistry?.getHostName("6.6.6.6"))
                         }
+
                         context.completeNow()
                     }
                 }
-            }
+            },
+            cleanup = { hostRegistry?.destroy() }
+        )
+    }
+
+    @Test
+    fun `Validate HostRegistry 'saveAndRemoveDuplicates'`() {
+        var hostRegistry: HostRegistry? = null
+
+        runTest(
+            deploy = {
+                val mongo = MongoClient.createShared(vertx, JsonObject().apply {
+                    put("connection_string", MongoExtension.MONGO_URI)
+                    put("db_name", MONGO_DB)
+                })
+
+                mongo.save("hosts", HOST_4).coAwait()
+                mongo.close().coAwait()
+
+                hostRegistry = HostRegistry.getInstance(vertx, JsonObject().apply {
+                    put("mongo", JsonObject().apply {
+                        put("management", JsonObject().apply {
+                            put("uri", MongoExtension.MONGO_URI)
+                            put("db", MONGO_DB)
+                        })
+                    })
+                    put("hosts", JsonObject().apply {
+                        put("check_period", 500L)
+                    })
+                })
+
+                hostRegistry!!.saveAndRemoveDuplicates(HOST_5).coAwait()
+            },
+            assert = {
+                vertx.setPeriodic(500L, 100L) {
+                    if (hostRegistry?.getHostName("10.10.10.10") != null &&
+                        hostRegistry?.getHostName("8.8.8.8") == null
+                    ) {
+                        context.verify {
+                            assertEquals(HOST_5.getString("name"), hostRegistry?.getHostName("10.10.10.10"))
+                            assertEquals(HOST_5.getString("name"), hostRegistry?.getHostName("9.9.9.9"))
+                        }
+
+                        context.completeNow()
+                    }
+                }
+            },
+            cleanup = { hostRegistry?.destroy() }
         )
     }
 }

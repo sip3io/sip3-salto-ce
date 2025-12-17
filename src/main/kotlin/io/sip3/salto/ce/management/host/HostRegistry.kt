@@ -17,8 +17,12 @@
 package io.sip3.salto.ce.management.host
 
 import io.sip3.commons.mongo.MongoClient
+import io.vertx.core.Future
+import io.vertx.core.Promise
 import io.vertx.core.Vertx
+import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
+import io.vertx.ext.mongo.MongoClientUpdateResult
 import io.vertx.kotlin.ext.mongo.updateOptionsOf
 import mu.KotlinLogging
 import org.apache.commons.net.util.SubnetUtils
@@ -30,11 +34,13 @@ object HostRegistry {
 
     private val logger = KotlinLogging.logger {}
 
+    private const val HOST_COLLECTION = "hosts"
     private var checkPeriod: Long = 30000
 
     private var vertx: Vertx? = null
     private lateinit var config: JsonObject
     private lateinit var client: io.vertx.ext.mongo.MongoClient
+    private var periodicTask: Long? = null
 
     private var hosts = emptyMap<String, String>()
     private var mappings = emptyMap<String, String>()
@@ -51,6 +57,17 @@ object HostRegistry {
         return this
     }
 
+    @Synchronized
+    fun destroy() {
+        periodicTask?.let {
+            vertx?.cancelTimer(it)
+        }
+
+        vertx = null
+        periodicTask = null
+        client.close()
+    }
+
     private fun init() {
         config.getJsonObject("hosts")?.getLong("check_period")?.let {
             checkPeriod = it
@@ -59,7 +76,7 @@ object HostRegistry {
             client = MongoClient.createShared(vertx!!, it.getJsonObject("management") ?: it)
         }
 
-        vertx!!.setPeriodic(0L, checkPeriod) {
+        periodicTask = vertx!!.setPeriodic(0L, checkPeriod) {
             updateHosts()
         }
     }
@@ -80,19 +97,56 @@ object HostRegistry {
         return features[name]
     }
 
-    fun save(host: JsonObject) {
+    fun save(host: JsonObject): Future<MongoClientUpdateResult> {
         val query = JsonObject().apply {
             put("name", host.getString("name"))
         }
-        client.replaceDocumentsWithOptions("hosts", query, host, updateOptionsOf(upsert = true)) { asr ->
-            if (asr.failed()) {
-                logger.error(asr.cause()) { "MongoClient 'replaceDocumentsWithOptions()' failed." }
+
+        return client.replaceDocumentsWithOptions(HOST_COLLECTION, query, host, updateOptionsOf(upsert = true))
+            .onFailure { t ->
+                logger.error(t) { "MongoClient 'removeDocuments()' failed." }
             }
-        }
+    }
+
+    fun saveAndRemoveDuplicates(host: JsonObject): Future<Long> {
+        val promise = Promise.promise<Long>()
+
+        save(host)
+            .onFailure { t ->
+                logger.error(t) { "HostRegistry 'save()' failed." }
+                promise.fail(t)
+            }
+            .onSuccess { _ ->
+                val query = JsonObject().apply {
+                    put("\$and", JsonArray().apply {
+                        add(JsonObject().apply {
+                            put("name", JsonObject().apply {
+                                put("\$ne", host.getString("name"))
+                            })
+                        })
+                        add(JsonObject().apply {
+                            put("addr", JsonObject().apply {
+                                put("\$in", host.getJsonArray("addr"))
+                            })
+                        })
+                    })
+                }
+
+                client.removeDocuments(HOST_COLLECTION, query)
+                    .onFailure { t ->
+                        logger.error(t) { "MongoClient 'removeDocuments()' failed." }
+                        promise.fail(t)
+                    }
+                    .onSuccess { result ->
+                        logger.trace { "Duplicates removed: ${result?.removedCount}" }
+                        promise.complete(result?.removedCount)
+                    }
+            }
+        return promise.future()
     }
 
     private fun updateHosts() {
-        client.find("hosts", JsonObject())
+        client.find(HOST_COLLECTION, JsonObject())
             .onFailure { logger.error(it) { "MongoClient 'find()' failed." } }
             .onSuccess { result ->
                 val tmpHosts = mutableMapOf<String, String>()

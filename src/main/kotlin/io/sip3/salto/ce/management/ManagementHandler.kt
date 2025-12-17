@@ -173,7 +173,7 @@ open class ManagementHandler : AbstractVerticle() {
                         }
 
                         config.getJsonObject("host")?.let {
-                            hostRegistry.save(it)
+                            hostRegistry.saveAndRemoveDuplicates(it)
                         }
                     }
 
