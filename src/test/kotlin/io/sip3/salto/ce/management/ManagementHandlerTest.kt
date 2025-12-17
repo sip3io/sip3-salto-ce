@@ -26,6 +26,7 @@ import io.sip3.salto.ce.MockKSingletonExtension
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.management.component.ComponentRegistry
 import io.sip3.salto.ce.management.host.HostRegistry
+import io.vertx.core.Future
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.*
@@ -119,8 +120,8 @@ class ManagementHandlerTest : VertxTest() {
     @Test
     fun `Receive register from remote host with host information`() {
         every {
-            HostRegistry.save(any())
-        } just Runs
+            HostRegistry.saveAndRemoveDuplicates(any())
+        } returns Future.succeededFuture()
 
         every {
             ComponentRegistry.save(any())
@@ -144,7 +145,7 @@ class ManagementHandlerTest : VertxTest() {
                             }
 
                             verify(atLeast = 1) {
-                                HostRegistry.save(any())
+                                HostRegistry.saveAndRemoveDuplicates(any())
                             }
                             verify(atLeast = 1) {
                                 ComponentRegistry.save(any())
@@ -198,7 +199,7 @@ class ManagementHandlerTest : VertxTest() {
     fun `Receive register from remote host without host information and 'deployment_id'`() {
         every {
             HostRegistry.save(any())
-        } just Runs
+        } returns Future.succeededFuture()
 
         every {
             ComponentRegistry.save(any())
@@ -239,8 +240,8 @@ class ManagementHandlerTest : VertxTest() {
     @Test
     fun `Send Media Control to registered remote host`() {
         every {
-            HostRegistry.save(any())
-        } just Runs
+            HostRegistry.saveAndRemoveDuplicates(any())
+        } returns Future.succeededFuture()
 
         every {
             ComponentRegistry.save(any())
@@ -313,8 +314,8 @@ class ManagementHandlerTest : VertxTest() {
     @Test
     fun `Send 'media_recording_reset' command to agents`() {
         every {
-            HostRegistry.save(any())
-        } just Runs
+            HostRegistry.saveAndRemoveDuplicates(any())
+        } returns Future.succeededFuture()
 
         every {
             ComponentRegistry.save(any())
@@ -353,8 +354,8 @@ class ManagementHandlerTest : VertxTest() {
     @Test
     fun `Send 'media_recording_reset' command to agent with deployment_id`() {
         every {
-            HostRegistry.save(any())
-        } just Runs
+            HostRegistry.saveAndRemoveDuplicates(any())
+        } returns Future.succeededFuture()
 
         every {
             ComponentRegistry.save(any())
@@ -401,8 +402,8 @@ class ManagementHandlerTest : VertxTest() {
     @Test
     fun `Send 'shutdown' command to agent with deployment_id`() {
         every {
-            HostRegistry.save(any())
-        } just Runs
+            HostRegistry.saveAndRemoveDuplicates(any())
+        } returns Future.succeededFuture()
 
         every {
             ComponentRegistry.save(any())
