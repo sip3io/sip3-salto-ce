@@ -23,8 +23,13 @@ object SessionDescriptionParser {
 
     val REGEX_EXCLUDE = Regex("(?m)^m=image.*(?:\\r?\\n)?")
     val REGEX_TCP = Regex("(?m)^(a=candidate:.*)TCP(.*)\$")
+    val REGEX_PRFLX = Regex("(?m)^(a=candidate:.*)prflx(.*)\$")
 
     fun parse(text: String?): SessionDescription {
-        return SessionDescriptionParser.parse(text?.replace(REGEX_EXCLUDE, "")?.replace(REGEX_TCP, "$1tcp$2"))
+        return SessionDescriptionParser.parse(
+            text?.replace(REGEX_EXCLUDE, "")
+                ?.replace(REGEX_TCP, "$1tcp$2")
+                ?.replace(REGEX_PRFLX, "$1host$2")
+        )
     }
 }
