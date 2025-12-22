@@ -96,6 +96,7 @@ class MediaDescriptionFieldUtilTest {
         m=audio 41999 UDP/TLS/RTP/SAVPF 111 103 104 9 0 8 106 105 13 110 112 113 126
         c=IN IP4 88.167.120.240
         a=rtcp:9 IN IP4 0.0.0.0
+        a=candidate:4 1 udp 1862270847 10.32.140.87 55937 typ prflx raddr 192.168.1.191 rport 55937
         a=candidate:2342127660 1 udp 2122260223 172.18.32.1 61818 typ host generation 0 network-id 1
         a=candidate:1621512748 1 udp 2122194687 10.242.2.7 61819 typ host generation 0 network-id 2
         a=candidate:1897852119 1 udp 2122129151 192.168.1.28 61820 typ host generation 0 network-id 3
