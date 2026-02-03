@@ -16,13 +16,13 @@
 
 package io.sip3.salto.ce.server
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
-import mu.KotlinLogging
 
 /**
  * Abstract server that retrieves SIP3 and HEP3 packets

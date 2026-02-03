@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.rtpr
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
@@ -28,7 +29,6 @@ import io.sip3.salto.ce.util.toAttributes
 import io.sip3.salto.ce.util.toMetricsAttributes
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 

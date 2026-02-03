@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.recording
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.buffer.Unpooled
 import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.domain.payload.RecordingPayload
@@ -32,7 +33,6 @@ import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import kotlin.coroutines.CoroutineContext
 import kotlin.math.abs

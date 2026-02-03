@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.decoder
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
@@ -26,7 +27,6 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
-import mu.KotlinLogging
 
 /**
  * Decodes packets in HEP2 and HEP3 protocols

@@ -16,13 +16,13 @@
 
 package io.sip3.salto.ce.udf
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
 import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import mu.KotlinLogging
 import java.io.File
 import kotlin.coroutines.CoroutineContext
 

@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.udf
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.vertx.util.endpoints
 import io.sip3.commons.vertx.util.localRequest
 import io.vertx.core.AsyncResult
@@ -23,7 +24,6 @@ import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.eventbus.DeliveryOptions
 import io.vertx.core.json.JsonObject
-import mu.KotlinLogging
 
 /**
  * Executes User-Defined Functions

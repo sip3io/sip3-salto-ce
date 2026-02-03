@@ -21,8 +21,8 @@ import gov.nist.javax.sip.header.ExtensionHeaderImpl
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
 import gov.nist.javax.sip.parser.*
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.salto.ce.domain.Packet
-import mu.KotlinLogging
 
 /**
  * Parses SIP messages

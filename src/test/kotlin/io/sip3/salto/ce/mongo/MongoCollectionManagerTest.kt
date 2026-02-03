@@ -68,26 +68,23 @@ class MongoCollectionManagerTest : VertxTest() {
                     put("db_name", "sip3-create")
                 })
                 vertx.setPeriodic(500, 100) {
-                    mongo.getCollections { asr ->
-                        if (asr.succeeded()
-                            && asr.result().size == 5
-                            && asr.result().contains(collection1)
-                            && asr.result().contains(collection2)
+                    mongo.getCollections().onSuccess { result ->
+                        if (result.size == 5
+                            && result.contains(collection1)
+                            && result.contains(collection2)
                         ) {
-                            mongo.listIndexes(collection1) { asr2 ->
-                                if (asr2.succeeded()) {
+                            mongo.listIndexes(collection1)
+                                .onSuccess { collection1Result ->
                                     context.verify {
-                                        assertTrue(asr2.result().size() > 1)
+                                        assertTrue(collection1Result.size() > 1)
                                     }
                                 }
-                            }
-                            mongo.listIndexes(collection2) { asr2 ->
-                                if (asr2.succeeded()) {
+                            mongo.listIndexes(collection2)
+                                .onSuccess { collection2Result ->
                                     context.verify {
-                                        assertTrue(asr2.result().size() > 1)
+                                        assertTrue(collection2Result.size() > 1)
                                     }
                                 }
-                            }
                             context.completeNow()
                         }
                     }
@@ -128,11 +125,12 @@ class MongoCollectionManagerTest : VertxTest() {
                 mongo.createCollection(collection).coAwait()
 
                 vertx.setPeriodic(500, 100) {
-                    mongo.listIndexes(collection) { asr ->
-                        if (asr.succeeded() && asr.result().size() > 1) {
-                            context.completeNow()
+                    mongo.listIndexes(collection)
+                        .onSuccess { result ->
+                            if (result.size() > 1) {
+                                context.completeNow()
+                            }
                         }
-                    }
                 }
             }
         )

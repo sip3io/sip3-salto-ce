@@ -16,13 +16,13 @@
 
 package io.sip3.salto.ce.management
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.util.toURI
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.vertx.core.datagram.DatagramSocket
 import io.vertx.core.datagram.DatagramSocketOptions
 import io.vertx.core.json.JsonObject
-import mu.KotlinLogging
 import java.net.URI
 
 @Instance(singleton = true)

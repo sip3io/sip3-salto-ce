@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.rtcp
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.ByteBufUtil
 import io.netty.buffer.Unpooled
@@ -33,7 +34,6 @@ import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import mu.KotlinLogging
 import java.nio.charset.Charset
 import kotlin.coroutines.CoroutineContext
 import kotlin.experimental.and

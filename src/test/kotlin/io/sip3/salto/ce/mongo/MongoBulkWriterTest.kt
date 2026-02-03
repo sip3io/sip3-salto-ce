@@ -53,17 +53,16 @@ class MongoBulkWriterTest : VertxTest() {
                     put("db_name", "sip3")
                 })
                 vertx.setPeriodic(500, 100) {
-                    mongo.find("test", JsonObject()) { asr ->
-                        if (asr.succeeded()) {
-                            val documents = asr.result()
+                    mongo.find("test", JsonObject())
+                        .onSuccess { documents ->
                             if (documents.isNotEmpty()) {
                                 context.verify {
                                     assertEquals(document, documents[0])
                                 }
                                 context.completeNow()
                             }
+
                         }
-                    }
                 }
             }
         )

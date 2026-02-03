@@ -16,14 +16,15 @@
 
 package io.sip3.salto.ce.management
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.buffer.ByteBufUtil
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.byteBuf
 import io.vertx.core.json.JsonObject
 import io.vertx.core.net.NetServerOptions
 import io.vertx.core.net.NetSocket
 import io.vertx.core.parsetools.RecordParser
-import mu.KotlinLogging
 import java.net.URI
 
 @Instance(singleton = true)
@@ -61,7 +62,7 @@ open class TcpServer : AbstractServer() {
                         handle(senderUri, buffer.toJsonObject())
                     } catch (e: Exception) {
                         logger.error(e) { "Server 'onRawPacket()' failed." }
-                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
+                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf())}" }
                     }
                 }
 
@@ -70,7 +71,7 @@ open class TcpServer : AbstractServer() {
                         parser.handle(buffer)
                     } catch (e: Exception) {
                         logger.error(e) { "RecordParser 'handle()' failed." }
-                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
+                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf())}" }
                     }
                 }
                 socket.closeHandler {

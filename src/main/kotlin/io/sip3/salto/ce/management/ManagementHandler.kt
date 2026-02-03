@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.management
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
@@ -28,7 +29,6 @@ import io.sip3.salto.ce.management.host.HostRegistry
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-import mu.KotlinLogging
 import java.net.URI
 
 /**

@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.mongo
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.mongo.MongoClient
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.util.localReply
@@ -26,7 +27,6 @@ import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import mu.KotlinLogging
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*

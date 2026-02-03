@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.message.SIPRequest
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
@@ -34,7 +35,6 @@ import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.CoroutineContext
