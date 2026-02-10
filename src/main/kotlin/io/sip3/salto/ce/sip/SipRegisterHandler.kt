@@ -159,7 +159,7 @@ open class SipRegisterHandler : AbstractVerticle() {
                     val transaction = event.body()
                     handle(transaction)
                 } catch (e: Exception) {
-                    logger.error("SipRegisterHandler 'handle()' failed.", e)
+                    logger.error(e) { "SipRegisterHandler 'handle()' failed." }
                 }
             }
         }

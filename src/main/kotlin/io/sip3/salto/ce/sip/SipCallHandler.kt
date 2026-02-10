@@ -167,7 +167,7 @@ open class SipCallHandler : AbstractVerticle() {
                     val transaction = event.body()
                     handle(transaction)
                 } catch (e: Exception) {
-                    logger.error("SipCallHandler 'handle()' failed.", e)
+                    logger.error(e) { "SipCallHandler 'handle()' failed." }
                 }
             }
         }

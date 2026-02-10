@@ -57,7 +57,7 @@ class HepDecoder : AbstractVerticle() {
                 val (sender, buffer) = event.body()
                 decodeHep2(sender, buffer)
             } catch (e: Exception) {
-                logger.error("HepDecoder 'decodeHep2()' failed.", e)
+                logger.error(e) { "HepDecoder 'decodeHep2()' failed." }
             }
         }
 
@@ -66,7 +66,7 @@ class HepDecoder : AbstractVerticle() {
                 val (sender, buffer) = event.body()
                 decodeHep3(sender, buffer)
             } catch (e: Exception) {
-                logger.error("HepDecoder 'decodeHep3()' failed.", e)
+                logger.error(e) { "HepDecoder 'decodeHep3()' failed." }
             }
         }
     }
@@ -74,7 +74,7 @@ class HepDecoder : AbstractVerticle() {
     fun decodeHep2(sender: Address, buffer: Buffer) {
         val packetLength = buffer.length()
         if (packetLength < 31) {
-            logger.warn("HEP2 payload is to short: $packetLength")
+            logger.warn { "HEP2 payload is to short: $packetLength" }
             return
         }
 

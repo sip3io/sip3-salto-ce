@@ -59,7 +59,7 @@ open class Router : AbstractVerticle() {
                 try {
                     handle(sender, packet)
                 } catch (e: Exception) {
-                    logger.error("Router 'handle()' failed.", e)
+                    logger.error(e) { "Router 'handle()' failed." }
                 }
             }
         }

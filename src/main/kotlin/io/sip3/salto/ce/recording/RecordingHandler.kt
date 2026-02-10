@@ -85,7 +85,7 @@ open class RecordingHandler : AbstractVerticle() {
                 val packet = event.body()
                 handle(packet)
             } catch (e: Exception) {
-                logger.error("RecordingHandler 'handle()' failed.", e)
+                logger.error(e) { "RecordingHandler 'handle()' failed." }
             }
         }
 

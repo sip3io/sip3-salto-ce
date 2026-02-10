@@ -140,7 +140,7 @@ open class SipTransactionHandler : AbstractVerticle() {
                     val (packet, message) = event.body()
                     handle(packet, message)
                 } catch (e: Exception) {
-                    logger.error("SipTransactionHandler 'handle()' failed.", e)
+                    logger.error(e) { "SipTransactionHandler 'handle()' failed." }
                 }
             }
         }
