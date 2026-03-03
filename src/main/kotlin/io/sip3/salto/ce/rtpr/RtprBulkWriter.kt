@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.rtpr
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.domain.payload.RtpReportPayload
 import io.sip3.commons.util.format
 import io.sip3.commons.vertx.annotations.Instance
@@ -30,7 +31,6 @@ import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import kotlin.coroutines.CoroutineContext
 

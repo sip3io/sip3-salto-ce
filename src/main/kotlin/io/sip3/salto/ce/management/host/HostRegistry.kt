@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.management.host
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.mongo.MongoClient
 import io.vertx.core.Future
 import io.vertx.core.Promise
@@ -24,7 +25,6 @@ import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.MongoClientUpdateResult
 import io.vertx.kotlin.ext.mongo.updateOptionsOf
-import mu.KotlinLogging
 import org.apache.commons.net.util.SubnetUtils
 
 /**

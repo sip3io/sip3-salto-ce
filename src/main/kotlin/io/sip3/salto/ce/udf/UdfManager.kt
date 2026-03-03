@@ -16,13 +16,13 @@
 
 package io.sip3.salto.ce.udf
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
 import io.vertx.kotlin.coroutines.coAwait
 import io.vertx.kotlin.coroutines.dispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import mu.KotlinLogging
 import java.io.File
 import kotlin.coroutines.CoroutineContext
 
@@ -74,7 +74,7 @@ class UdfManager(val vertx: Vertx) {
                     logger.info { "Deploying new UDF. File: `$file`" }
                     deploymentId = vertx.deployVerticle(file.absolutePath, DEPLOYMENT_OPTIONS).coAwait()
                 } catch (e: Exception) {
-                    logger.error("Vertx 'deployVerticle()' failed. File: $file", e)
+                    logger.error(e) { "Vertx 'deployVerticle()' failed. File: $file" }
                 }
             }
 
@@ -85,7 +85,7 @@ class UdfManager(val vertx: Vertx) {
                             logger.info { "Removing the old UDF. File: `$file`, " }
                             vertx.undeploy(deployment.id).coAwait()
                         } catch (e: Exception) {
-                            logger.error("Vertx 'undeploy()' failed. File: $file", e)
+                            logger.error(e) { "Vertx 'undeploy()' failed. File: $file" }
                         }
                     }
                 }
@@ -101,7 +101,7 @@ class UdfManager(val vertx: Vertx) {
                 logger.info { "Removing an expired UDF. File: `$file`, " }
                 vertx.undeploy(deployment.id).coAwait()
             } catch (e: Exception) {
-                logger.error("Vertx 'undeploy()' failed. File: $file", e)
+                logger.error(e) { "Vertx 'undeploy()' failed. File: $file" }
             }
             deployments.remove(file)
         }

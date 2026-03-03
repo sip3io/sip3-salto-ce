@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.decoder
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
@@ -26,7 +27,6 @@ import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
-import mu.KotlinLogging
 
 /**
  * Decodes packets in HEP2 and HEP3 protocols
@@ -57,7 +57,7 @@ class HepDecoder : AbstractVerticle() {
                 val (sender, buffer) = event.body()
                 decodeHep2(sender, buffer)
             } catch (e: Exception) {
-                logger.error("HepDecoder 'decodeHep2()' failed.", e)
+                logger.error(e) { "HepDecoder 'decodeHep2()' failed." }
             }
         }
 
@@ -66,7 +66,7 @@ class HepDecoder : AbstractVerticle() {
                 val (sender, buffer) = event.body()
                 decodeHep3(sender, buffer)
             } catch (e: Exception) {
-                logger.error("HepDecoder 'decodeHep3()' failed.", e)
+                logger.error(e) { "HepDecoder 'decodeHep3()' failed." }
             }
         }
     }
@@ -74,7 +74,7 @@ class HepDecoder : AbstractVerticle() {
     fun decodeHep2(sender: Address, buffer: Buffer) {
         val packetLength = buffer.length()
         if (packetLength < 31) {
-            logger.warn("HEP2 payload is to short: $packetLength")
+            logger.warn { "HEP2 payload is to short: $packetLength" }
             return
         }
 

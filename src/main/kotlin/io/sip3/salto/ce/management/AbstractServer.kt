@@ -16,11 +16,11 @@
 
 package io.sip3.salto.ce.management
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.vertx.util.localRequest
 import io.sip3.salto.ce.RoutesCE
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import mu.KotlinLogging
 import java.net.URI
 
 /**

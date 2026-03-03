@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.media
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.domain.media.MediaControl
 import io.sip3.commons.domain.media.Recording
 import io.sip3.commons.domain.media.SdpSession
@@ -27,7 +28,6 @@ import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.sip.SipTransaction
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import mu.KotlinLogging
 
 /**
  * Manages media feature

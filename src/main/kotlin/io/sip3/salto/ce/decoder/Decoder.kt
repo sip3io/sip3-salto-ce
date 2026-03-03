@@ -16,18 +16,19 @@
 
 package io.sip3.salto.ce.decoder
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.buffer.ByteBufUtil
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.byteBuf
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
 import io.sip3.salto.ce.domain.Packet
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
-import mu.KotlinLogging
 import java.io.ByteArrayInputStream
 import java.util.zip.InflaterInputStream
 
@@ -53,7 +54,7 @@ class Decoder : AbstractVerticle() {
                 decode(sender, buffer)
             } catch (e: Exception) {
                 logger.error(e) { "Decoder 'decode()' failed."}
-                logger.debug { "Packet buffer:\n${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
+                logger.debug { "Packet buffer:\n${ByteBufUtil.prettyHexDump(buffer.byteBuf())}" }
             }
         }
     }

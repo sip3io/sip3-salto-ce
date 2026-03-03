@@ -16,11 +16,11 @@
 
 package io.sip3.salto.ce.server
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.datagram.DatagramSocketOptions
-import mu.KotlinLogging
 import java.net.URI
 
 /**

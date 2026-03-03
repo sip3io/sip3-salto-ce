@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.router
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.domain.payload.RawPayload
@@ -29,7 +30,6 @@ import io.sip3.salto.ce.management.host.HostRegistry
 import io.sip3.salto.ce.udf.UdfExecutor
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
-import mu.KotlinLogging
 
 /**
  * Routes packets by `protocolCode`
@@ -59,7 +59,7 @@ open class Router : AbstractVerticle() {
                 try {
                     handle(sender, packet)
                 } catch (e: Exception) {
-                    logger.error("Router 'handle()' failed.", e)
+                    logger.error(e) { "Router 'handle()' failed." }
                 }
             }
         }

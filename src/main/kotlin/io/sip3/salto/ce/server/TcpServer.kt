@@ -16,13 +16,14 @@
 
 package io.sip3.salto.ce.server
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.netty.buffer.ByteBufUtil
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
+import io.sip3.commons.vertx.util.byteBuf
 import io.sip3.salto.ce.domain.Address
 import io.vertx.core.net.NetServerOptions
 import io.vertx.core.parsetools.RecordParser
-import mu.KotlinLogging
 import java.net.URI
 
 /**
@@ -62,7 +63,7 @@ open class TcpServer : AbstractServer() {
                         onRawPacket(sender, buffer)
                     } catch (e: Exception) {
                         logger.error(e) { "Server 'onRawPacket()' failed." }
-                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
+                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf())}" }
                     }
                 }
 
@@ -71,7 +72,7 @@ open class TcpServer : AbstractServer() {
                         parser.handle(buffer)
                     } catch (e: Exception) {
                         logger.error(e) { "RecordParser 'handle()' failed." }
-                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf)}" }
+                        logger.debug { "Sender: $sender, buffer: ${ByteBufUtil.prettyHexDump(buffer.byteBuf())}" }
                     }
                 }
             }

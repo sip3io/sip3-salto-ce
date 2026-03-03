@@ -18,6 +18,7 @@ package io.sip3.salto.ce.sip
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.CallIDParser
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.SipMethods
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
@@ -30,7 +31,6 @@ import io.sip3.salto.ce.udf.UdfExecutor
 import io.sip3.salto.ce.util.*
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import mu.KotlinLogging
 import java.time.format.DateTimeFormatter
 import javax.sip.header.ExtensionHeader
 import kotlin.math.abs

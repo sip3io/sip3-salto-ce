@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.mongo
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.mongo.MongoClient
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.salto.ce.RoutesCE
@@ -24,7 +25,6 @@ import io.vertx.core.json.JsonObject
 import io.vertx.ext.mongo.BulkOperation
 import io.vertx.ext.mongo.BulkWriteOptions
 import io.vertx.ext.mongo.WriteOption
-import mu.KotlinLogging
 
 /**
  * Sends bulks of operations to MongoDB
@@ -86,12 +86,12 @@ open class MongoBulkWriter : AbstractVerticle() {
 
     private fun flushToDatabase() {
         operations.forEach { (collection, bulkOperations) ->
-            client.bulkWriteWithOptions(collection, bulkOperations, bulkWriteOptions) { asr ->
-                if (asr.failed()) {
-                    logger.error(asr.cause()) { "MongoClient 'bulkWriteWithOptions()' failed." }
+            client.bulkWriteWithOptions(collection, bulkOperations, bulkWriteOptions)
+                .onFailure { e ->
+                    logger.error(e) { "MongoClient 'bulkWriteWithOptions()' failed." }
                 }
-            }
         }
+
         operations.clear()
         size = 0
     }

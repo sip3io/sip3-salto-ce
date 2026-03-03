@@ -16,6 +16,7 @@
 
 package io.sip3.salto.ce.sdp
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.domain.media.Codec
 import io.sip3.commons.domain.media.MediaAddress
 import io.sip3.commons.domain.media.SdpSession
@@ -32,7 +33,6 @@ import io.sip3.salto.ce.util.ptime
 import io.sip3.salto.ce.util.sessionDescription
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.json.JsonObject
-import mu.KotlinLogging
 import org.restcomm.media.sdp.fields.MediaDescriptionField
 
 /**
@@ -56,7 +56,7 @@ class SdpHandler : AbstractVerticle() {
                 val config = event.body()
                 readCodecs(config)
             } catch (e: Exception) {
-                logger.error("SdpHandler `readCodecs()` failed.", e)
+                logger.error(e) { "SdpHandler `readCodecs()` failed." }
             }
         }
 
@@ -66,7 +66,7 @@ class SdpHandler : AbstractVerticle() {
                 val sdpSession = handle(transaction)
                 event.localReply(sdpSession)
             } catch (e: Exception) {
-                logger.error("SdpHandler 'handle()' failed.", e)
+                logger.error(e) { "SdpHandler 'handle()' failed." }
                 event.fail(500, e.message)
             }
         }

@@ -16,12 +16,12 @@
 
 package io.sip3.salto.ce.management.component
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.mongo.MongoClient
 import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.ext.mongo.updateOptionsOf
-import mu.KotlinLogging
 
 /**
  * Handles SIP3 components
