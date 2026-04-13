@@ -147,7 +147,7 @@
             <dependencies>
                 <dependency>
                     <groupId>io.vertx</groupId>
-                    <artifactId>vertx-launcher-application</artifactId>
+                    <artifactId>vertx-launcher-legacy-cli</artifactId>
                 </dependency>
             </dependencies>
             <build>
