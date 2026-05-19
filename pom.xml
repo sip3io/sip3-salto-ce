@@ -15,6 +15,10 @@
         <version>2026.1.1-SNAPSHOT</version>
     </parent>
 
+    <properties>
+        <groovy.version>5.0.6</groovy.version>
+    </properties>
+
     <dependencies>
         <!-- SIP3 -->
         <dependency>
@@ -31,6 +35,18 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-lang-groovy</artifactId>
+        </dependency>
+
+        <!-- Groovy -->
+        <dependency>
+            <groupId>org.apache.groovy</groupId>
+            <artifactId>groovy</artifactId>
+            <version>${groovy.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.groovy</groupId>
+            <artifactId>groovy-json</artifactId>
+            <version>${groovy.version}</version>
         </dependency>
 
         <!-- Mongo -->
