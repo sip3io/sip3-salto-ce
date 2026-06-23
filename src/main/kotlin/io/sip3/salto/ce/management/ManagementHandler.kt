@@ -18,6 +18,7 @@ package io.sip3.salto.ce.management
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sip3.commons.domain.media.MediaControl
+import io.sip3.commons.util.BootstrapDeployment
 import io.sip3.commons.vertx.annotations.ConditionalOnProperty
 import io.sip3.commons.vertx.annotations.Instance
 import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
@@ -125,7 +126,7 @@ open class ManagementHandler : AbstractVerticle() {
             }
         }
 
-        saltoComponent = Component(deploymentID(), name, "salto").apply {
+        saltoComponent = Component(BootstrapDeployment.id(), name, "salto").apply {
             config = config()
             version = config().getString("version")
             remoteUpdatedAt = updatedAt
@@ -252,7 +253,7 @@ open class ManagementHandler : AbstractVerticle() {
 
     open fun shutdown(payload: JsonObject) {
         val deploymentId = payload.getString("deployment_id")
-        if (deploymentId == saltoComponent.deploymentId) {
+        if (deploymentId == BootstrapDeployment.id()) {
             val exitCode = payload.getInteger("exit_code") ?: -1
             logger.warn { "Shutting down the process with exit code: $exitCode" }
             vertx.closeAndExitProcess(exitCode)
