@@ -39,13 +39,13 @@ import org.restcomm.media.sdp.fields.MediaDescriptionField
  * Handles SIP Transactions with SDP
  */
 @Instance
-class SdpHandler : AbstractVerticle() {
+open class SdpHandler : AbstractVerticle() {
 
     private val logger = KotlinLogging.logger {}
 
-    private lateinit var hostRegistry: HostRegistry
-
     private var codecs = mapOf<String, Codec>()
+
+    protected lateinit var hostRegistry: HostRegistry
 
     override fun start() {
         hostRegistry = HostRegistry.getInstance(vertx, config())
@@ -72,7 +72,7 @@ class SdpHandler : AbstractVerticle() {
         }
     }
 
-    private fun readCodecs(config: JsonObject) {
+    open fun readCodecs(config: JsonObject) {
         val tmpCodecs = mutableMapOf<String, Codec>()
         config.getJsonArray("codecs")?.map { codecObject ->
             codecObject as JsonObject
@@ -105,7 +105,7 @@ class SdpHandler : AbstractVerticle() {
         codecs = tmpCodecs
     }
 
-    private fun handle(transaction: SipTransaction): SdpSession? {
+    open fun handle(transaction: SipTransaction): SdpSession? {
         logger.debug { "Execute handle(). TransactionId: ${transaction.id}" }
         val session = SdpSessionDescription().apply {
             srcAddr = transaction.srcAddr
@@ -135,7 +135,7 @@ class SdpHandler : AbstractVerticle() {
         }
     }
 
-    private fun defineCodecs(session: SdpSessionDescription) {
+    open fun defineCodecs(session: SdpSessionDescription) {
         val request = session.request
         val response = session.response
 
@@ -166,7 +166,7 @@ class SdpHandler : AbstractVerticle() {
         }
     }
 
-    private class SdpSessionDescription {
+    class SdpSessionDescription {
 
         companion object {
 
@@ -209,6 +209,10 @@ class SdpHandler : AbstractVerticle() {
                 codecs = this@SdpSessionDescription.codecs
                 ptime = this@SdpSessionDescription.ptime
             }
+        }
+
+        override fun toString(): String {
+            return "SdpSession(srcAddr=$srcAddr, dstAddr=$dstAddr, callId=$callId, codecs=$codecs)"
         }
     }
 }
