@@ -35,6 +35,8 @@ open class UdpServer : AbstractServer() {
     private lateinit var uri: URI
     private var bufferSize: Int? = null
 
+    override val protoTag = "udp"
+
     override fun readConfig() {
         config().getJsonObject("server")?.let { server ->
             val config = server.getJsonObject("udp") ?: server
