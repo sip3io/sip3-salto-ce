@@ -118,6 +118,8 @@ class ServerTestImpl : AbstractServer() {
 
     lateinit var server: String
 
+    override val protoTag = "test"
+
     override fun readConfig() {
         a = config().getString("a")
         b = config().getString("b")

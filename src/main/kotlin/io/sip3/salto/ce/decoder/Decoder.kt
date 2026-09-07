@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.decoder
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Counter
 import io.netty.buffer.ByteBufUtil
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.micrometer.Metrics
@@ -45,9 +46,10 @@ class Decoder : AbstractVerticle() {
         const val HEADER_LENGTH = 4
     }
 
-    private val packetsDecoded = Metrics.counter("packets_decoded", mapOf("proto" to "sip3"))
+    private lateinit var packetsDecoded: Counter
 
     override fun start() {
+        packetsDecoded = Metrics.counter(vertx, "packets_decoded", mapOf("proto" to "sip3"))
         vertx.eventBus().localConsumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
             val (sender, buffer) = event.body()
             try {

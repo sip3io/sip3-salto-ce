@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Counter
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
@@ -38,9 +39,10 @@ abstract class AbstractServer : AbstractVerticle() {
         val PROTO_HEP2 = byteArrayOf(0x02, 0x10, 0x02)
     }
 
-    private val packetsReceived = Metrics.counter("packets_received")
+    private lateinit var packetsReceived: Counter
 
     override fun start() {
+        packetsReceived = Metrics.counter(vertx, "packets_received", mapOf("proto" to protoTag))
         readConfig()
         startServer()
     }
@@ -48,6 +50,7 @@ abstract class AbstractServer : AbstractVerticle() {
     abstract fun readConfig()
 
     abstract fun startServer()
+    abstract val protoTag: String
 
     open fun onRawPacket(sender: Address, buffer: Buffer) {
         packetsReceived.increment()

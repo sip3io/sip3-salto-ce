@@ -19,6 +19,7 @@ package io.sip3.salto.ce.sip
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.CallIDParser
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Counter
 import io.sip3.commons.SipMethods
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.format
@@ -55,12 +56,14 @@ open class SipMessageHandler : AbstractVerticle() {
     private var extensionHeaders = mutableSetOf<String>()
     private var allowEmptyUser = false
 
-    private val packetsProcessed = Metrics.counter("packets_processed", mapOf("proto" to "sip"))
+    private lateinit var packetsProcessed: Counter
 
     private lateinit var parser: SipMessageParser
     private lateinit var udfExecutor: UdfExecutor
 
     override fun start() {
+        packetsProcessed = Metrics.counter(vertx, "packets_processed", mapOf("proto" to "sip"))
+
         config().getJsonObject("vertx")?.getInteger("instances")?.let {
             instances = it
         }

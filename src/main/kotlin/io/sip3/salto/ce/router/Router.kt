@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.router
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Counter
 import io.sip3.commons.PacketTypes
 import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.domain.payload.RawPayload
@@ -44,7 +45,7 @@ open class Router : AbstractVerticle() {
         const val PROTO_HEP3 = "HEP3"
     }
 
-    val packetsRouted = Metrics.counter("packets_routed")
+    lateinit var packetsRouted: Counter
 
     lateinit var udfExecutor: UdfExecutor
     private lateinit var hostRegistry: HostRegistry
@@ -53,6 +54,8 @@ open class Router : AbstractVerticle() {
         udfExecutor = UdfExecutor(vertx)
         hostRegistry = HostRegistry.getInstance(vertx, config())
 
+        packetsRouted = Metrics.counter(vertx, "packets_routed")
+        
         vertx.eventBus().localConsumer<Pair<Address, List<Packet>>>(RoutesCE.router) { event ->
             val (sender, packets) = event.body()
             packets.forEach { packet ->

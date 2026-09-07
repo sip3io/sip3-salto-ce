@@ -17,6 +17,7 @@
 package io.sip3.salto.ce.decoder
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Counter
 import io.sip3.commons.ProtocolCodes
 import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.util.IpUtil
@@ -45,9 +46,11 @@ class HepDecoder : AbstractVerticle() {
 
     private var rtcpEnabled = false
 
-    private val packetsDecoded = Metrics.counter("packets_decoded", mapOf("proto" to "hep"))
+    private lateinit var packetsDecoded: Counter
 
     override fun start() {
+        packetsDecoded = Metrics.counter(vertx, "packets_decoded", mapOf("proto" to "hep"))
+
         config().getJsonObject("hep")?.getJsonObject("rtcp")?.getBoolean("enabled")?.let {
             rtcpEnabled = it
         }

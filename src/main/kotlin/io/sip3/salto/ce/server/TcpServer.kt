@@ -39,6 +39,8 @@ open class TcpServer : AbstractServer() {
     private var bufferSize: Int? = null
     private var delimiter = "\r\n\r\n3PIS\r\n\r\n"
 
+    override val protoTag = "tcp"
+
     override fun readConfig() {
         config().getJsonObject("server")?.let { server ->
             val config = server.getJsonObject("tcp") ?: server
