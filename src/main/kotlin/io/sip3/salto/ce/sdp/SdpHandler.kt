@@ -44,11 +44,18 @@ open class SdpHandler : AbstractVerticle() {
     private val logger = KotlinLogging.logger {}
 
     private var codecs = mapOf<String, Codec>()
+    protected lateinit var parser: SessionDescriptionParser
 
     protected lateinit var hostRegistry: HostRegistry
 
     override fun start() {
         hostRegistry = HostRegistry.getInstance(vertx, config())
+
+        val sdpFields = config().getJsonObject("media")
+            ?.getJsonObject("sdp")
+            ?.getJsonArray("fields")
+            ?.map { it as String } ?: emptyList()
+        parser = SessionDescriptionParser(sdpFields)
 
         readCodecs(config())
         vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
@@ -112,13 +119,13 @@ open class SdpHandler : AbstractVerticle() {
             dstAddr = transaction.dstAddr
             callId = transaction.callId
             try {
-                request = transaction.request?.sessionDescription()?.getMediaDescription("audio")
+                request = transaction.request?.sessionDescription(parser)?.getMediaDescription("audio")
             } catch (e: Exception) {
                 logger.debug(e) { "Couldn't parse SDP. Message: ${transaction.request}" }
             }
 
             try {
-                response = transaction.response?.sessionDescription()?.getMediaDescription("audio")
+                response = transaction.response?.sessionDescription(parser)?.getMediaDescription("audio")
             } catch (e: Exception) {
                 logger.debug(e) { "Couldn't parse SDP. Message: ${transaction.response}" }
             }

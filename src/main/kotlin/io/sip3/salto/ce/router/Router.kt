@@ -98,6 +98,8 @@ open class Router : AbstractVerticle() {
                         put("dst_addr", dst.addr)
                         put("dst_port", dst.port)
                         dst.host?.let { put("dst_host", it) }
+
+                        put("protocol_code", packet.protocolCode)
                     })
                 }
             },
