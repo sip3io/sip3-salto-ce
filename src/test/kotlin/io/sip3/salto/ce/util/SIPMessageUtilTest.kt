@@ -18,6 +18,7 @@ package io.sip3.salto.ce.util
 
 import gov.nist.javax.sip.message.SIPMessage
 import gov.nist.javax.sip.parser.StringMsgParser
+import io.sip3.salto.ce.sdp.SessionDescriptionParser
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -297,13 +298,14 @@ class SIPMessageUtilTest {
 
     @Test
     fun `Check sessionDescription() method`() {
-        assertNotNull(REQUEST.sessionDescription())
-        assertNotNull(RESPONSE_183.sessionDescription())
-        assertNotNull(RESPONSE_200.sessionDescription())
-        assertNotNull(REQUEST_MULTIPART.sessionDescription())
+        val parser = SessionDescriptionParser()
+        assertNotNull(REQUEST.sessionDescription(parser))
+        assertNotNull(RESPONSE_183.sessionDescription(parser))
+        assertNotNull(RESPONSE_200.sessionDescription(parser))
+        assertNotNull(REQUEST_MULTIPART.sessionDescription(parser))
 
-        assertNull(RESPONSE_100.sessionDescription())
-        assertNotNull(REQUEST_T38.sessionDescription())
+        assertNull(RESPONSE_100.sessionDescription(parser))
+        assertNotNull(REQUEST_T38.sessionDescription(parser))
     }
 
     @Test

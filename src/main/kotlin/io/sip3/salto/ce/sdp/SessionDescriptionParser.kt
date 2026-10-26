@@ -16,20 +16,35 @@
 
 package io.sip3.salto.ce.sdp
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.restcomm.media.sdp.SessionDescription
 import org.restcomm.media.sdp.SessionDescriptionParser
 
-object SessionDescriptionParser {
+class SessionDescriptionParser(sdpFields: Collection<String> = emptySet()) {
 
-    val REGEX_EXCLUDE = Regex("(?m)^m=image.*(?:\\r?\\n)?")
-    val REGEX_TCP = Regex("(?m)^(a=candidate:.*)TCP(.*)\$")
-    val REGEX_PRFLX = Regex("(?m)^(a=candidate:.*)prflx(.*)\$")
+    val logger = KotlinLogging.logger {}
 
-    fun parse(text: String?): SessionDescription {
-        return SessionDescriptionParser.parse(
-            text?.replace(REGEX_EXCLUDE, "")
-                ?.replace(REGEX_TCP, "$1tcp$2")
-                ?.replace(REGEX_PRFLX, "$1host$2")
+    companion object {
+        val DEFAULT_FIELDS = setOf(
+            "m=audio",
+            "c",
+            "a=rtcp",
+            "a=rtcp-mux",
+            "a=ptime"
         )
+    }
+
+    private val fields = DEFAULT_FIELDS + sdpFields
+
+    fun parse(text: String?): SessionDescription? {
+        return try {
+            text?.lineSequence()
+                ?.filter { fields.any { prefix -> it.startsWith(prefix, ignoreCase = true) } }
+                ?.joinToString("\n")
+                .let { SessionDescriptionParser.parse(it) }
+        } catch (e: Exception) {
+            logger.debug(e) { "parse() failed. Text: $text" }
+            null
+        }
     }
 }
