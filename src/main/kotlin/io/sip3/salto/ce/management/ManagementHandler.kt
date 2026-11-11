@@ -25,6 +25,7 @@ import io.sip3.commons.vertx.collections.PeriodicallyExpiringHashMap
 import io.sip3.commons.vertx.util.closeAndExitProcess
 import io.sip3.commons.vertx.util.localPublish
 import io.sip3.salto.ce.RoutesCE
+import io.sip3.salto.ce.domain.Component
 import io.sip3.salto.ce.management.component.ComponentRegistry
 import io.sip3.salto.ce.management.host.HostRegistry
 import io.vertx.core.AbstractVerticle
@@ -86,10 +87,7 @@ open class ManagementHandler : AbstractVerticle() {
         components = PeriodicallyExpiringHashMap.Builder<String, Component>()
             .delay(expirationDelay)
             .expireAt { _, component -> component.updatedAt + expirationTimeout }
-            .onExpire { _, component ->
-                logger.info { "Expired: $component" }
-                if (component.mediaEnabled) mediaEnabledComponentsCounter--
-            }
+            .onExpire { _, component -> expire(component) }
             .build(vertx)
 
         vertx.eventBus().localConsumer<JsonObject>(RoutesCE.config_change) { event ->
@@ -126,7 +124,7 @@ open class ManagementHandler : AbstractVerticle() {
             }
         }
 
-        saltoComponent = Component(BootstrapDeployment.id(), name, "salto").apply {
+        saltoComponent = Component(BootstrapDeployment.id(), name, Component.TYPE_SALTO).apply {
             config = config()
             version = config().getString("version")
             remoteUpdatedAt = updatedAt
@@ -161,30 +159,32 @@ open class ManagementHandler : AbstractVerticle() {
                 val componentName = config?.getString("name") ?: deploymentId
                 val component = components.getOrPut(deploymentId) {
                     logger.info { "Registered from `$uri`: $payload" }
-                    return@getOrPut Component(deploymentId, componentName, "captain")
+                    return@getOrPut Component(deploymentId, componentName, Component.TYPE_CAPTAIN).apply {
+                        this.uri = uri
+                        if (config != null) {
+                            this.config = config
+                            config.getString("version")?.let {
+                                this.version = it
+                            }
+
+                            config.getJsonObject("host")?.let {
+                                hostRegistry.saveAndRemoveDuplicates(it)
+                            }
+                        }
+
+                        val rtpOrRtcpEnabled = (config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false)
+                                || (config?.getJsonObject("rtcp")?.getBoolean("enabled") ?: false)
+
+                        if (mediaEnabled != rtpOrRtcpEnabled) {
+                            mediaEnabled = rtpOrRtcpEnabled
+                            if (mediaEnabled) mediaEnabledComponentsCounter++ else mediaEnabledComponentsCounter--
+                        }
+                    }.also {
+                        vertx.eventBus().localPublish(RoutesCE.component, Pair(it, Component.EVENT_ADDED))
+                    }
                 }.apply {
                     updatedAt = now
                     remoteUpdatedAt = payload.getLong("timestamp")
-                    this.uri = uri
-
-                    if (config != null) {
-                        this.config = config
-                        config.getString("version")?.let {
-                            this.version = it
-                        }
-
-                        config.getJsonObject("host")?.let {
-                            hostRegistry.saveAndRemoveDuplicates(it)
-                        }
-                    }
-
-                    val rtpOrRtcpEnabled = (config?.getJsonObject("rtp")?.getBoolean("enabled") ?: false)
-                            || (config?.getJsonObject("rtcp")?.getBoolean("enabled") ?: false)
-
-                    if (mediaEnabled != rtpOrRtcpEnabled) {
-                        mediaEnabled = rtpOrRtcpEnabled
-                        if (mediaEnabled) mediaEnabledComponentsCounter++ else mediaEnabledComponentsCounter--
-                    }
                 }
 
                 save(component)
@@ -249,6 +249,13 @@ open class ManagementHandler : AbstractVerticle() {
 
     open fun getComponentConfig(name: String): JsonObject? {
         return null
+    }
+
+    private fun expire(component: Component) {
+        logger.info { "Expired: $component" }
+        if (component.mediaEnabled) mediaEnabledComponentsCounter--
+
+        vertx.eventBus().localPublish(RoutesCE.component, Pair(component, Component.EVENT_EXPIRED))
     }
 
     open fun shutdown(payload: JsonObject) {
@@ -390,23 +397,5 @@ open class ManagementHandler : AbstractVerticle() {
     private fun mongoConnectedTo(mongoConfig: JsonObject): String {
         val mongoUri = URI(mongoConfig.getString("uri"))
         return "${mongoUri.scheme}://${mongoUri.authority}/${mongoConfig.getString("db")}"
-    }
-
-    open class Component(val deploymentId: String, val name: String, val type: String) {
-
-        var registeredAt = System.currentTimeMillis()
-        var updatedAt: Long = System.currentTimeMillis()
-        var remoteUpdatedAt: Long = 0L
-
-        lateinit var uri: URI
-        var version: String? = null
-        var config = JsonObject()
-
-        var mediaEnabled = false
-        var host: String? = null
-
-        override fun toString(): String {
-            return "Component(deploymentId=$deploymentId, name=$name, uri=$uri)"
-        }
     }
 }

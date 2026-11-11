@@ -17,13 +17,16 @@
 package io.sip3.salto.ce.server
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.domain.Component
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.coroutines.coAwait
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import java.net.URI
 import java.nio.charset.Charset
 
 class UdpServerTest : VertxTest() {
@@ -47,6 +50,11 @@ class UdpServerTest : VertxTest() {
                 })
             },
             execute = {
+                val component = Component("test", "test", "captain").apply {
+                    uri = URI("http://127.0.0.1:3457")
+                }
+                vertx.eventBus().localSend(RoutesCE.component, Pair(component, Component.EVENT_ADDED))
+
                 vertx.setPeriodic(100L, 100L) {
                     vertx.createDatagramSocket().send(MESSAGE_1, port, "127.0.0.1")
                 }
@@ -77,6 +85,11 @@ class UdpServerTest : VertxTest() {
                 })
             },
             execute = {
+                val component = Component("test", "test", "captain").apply {
+                    uri = URI("http://127.0.0.1:3457")
+                }
+                vertx.eventBus().localSend(RoutesCE.component, Pair(component, Component.EVENT_ADDED))
+
                 vertx.createDatagramSocket()
                     .send(Buffer.buffer(MESSAGE_2), port, "127.0.0.1").coAwait()
             },
@@ -105,6 +118,11 @@ class UdpServerTest : VertxTest() {
                 })
             },
             execute = {
+                val component = Component("test", "test", "captain").apply {
+                    uri = URI("http://127.0.0.1:3457")
+                }
+                vertx.eventBus().localSend(RoutesCE.component, Pair(component, Component.EVENT_ADDED))
+
                 vertx.createDatagramSocket()
                     .send(Buffer.buffer(MESSAGE_3), port, "127.0.0.1").coAwait()
             },

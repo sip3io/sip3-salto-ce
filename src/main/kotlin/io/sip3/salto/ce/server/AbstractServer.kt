@@ -22,6 +22,7 @@ import io.sip3.commons.micrometer.Metrics
 import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.domain.Component
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
 
@@ -40,9 +41,17 @@ abstract class AbstractServer : AbstractVerticle() {
     }
 
     private lateinit var packetsReceived: Counter
+    private var components = mutableSetOf<String>()
+    open var componentLimit = 2
 
     override fun start() {
         packetsReceived = Metrics.counter(vertx, "packets_received", mapOf("proto" to protoTag))
+
+        vertx.eventBus().localConsumer<Pair<Component, String>>(RoutesCE.component) { event ->
+            val (component, eventType) = event.body()
+            handle(component, eventType)
+        }
+
         readConfig()
         startServer()
     }
@@ -52,6 +61,23 @@ abstract class AbstractServer : AbstractVerticle() {
     abstract fun startServer()
     abstract val protoTag: String
 
+    open fun handle(component: Component, eventType: String) {
+        if (component.type != Component.TYPE_CAPTAIN) return
+
+        //todo: remove
+        logger.info { "TODO: BEFORE count: ${components.size},  ${component.name} -> $eventType" }
+
+        val addr = component.uri.host
+        when (eventType) {
+            Component.EVENT_ADDED -> if (components.size < componentLimit) components.add(addr)
+            Component.EVENT_EXPIRED -> components.remove(addr)
+            else -> logger.debug { "Unknown event type $eventType for component $component" }
+        }
+
+    //todo: remove
+        logger.info { "TODO: AFTER count: ${components.size},  ${component.name} -> $eventType" }
+    }
+
     open fun onRawPacket(sender: Address, buffer: Buffer) {
         packetsReceived.increment()
 
@@ -59,7 +85,9 @@ abstract class AbstractServer : AbstractVerticle() {
 
         // SIP3 and HEP3
         when (buffer.getString(0, 4)) {
-            PROTO_SIP3 -> vertx.eventBus().localSend(RoutesCE.sip3, Pair(sender, buffer))
+            PROTO_SIP3 -> if (sender.addr in components) {
+                vertx.eventBus().localSend(RoutesCE.sip3, Pair(sender, buffer))
+            }
             PROTO_HEP3 -> vertx.eventBus().localSend(RoutesCE.hep3, Pair(sender, buffer))
             else -> {
                 // HEP2
