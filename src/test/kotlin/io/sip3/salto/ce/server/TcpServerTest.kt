@@ -17,14 +17,17 @@
 package io.sip3.salto.ce.server
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.domain.Component
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
 import io.vertx.kotlin.core.net.netClientOptionsOf
 import io.vertx.kotlin.coroutines.coAwait
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import java.net.URI
 import java.nio.charset.Charset
 
 class TcpServerTest : VertxTest() {
@@ -48,6 +51,10 @@ class TcpServerTest : VertxTest() {
                 })
             },
             execute = {
+                val component = Component("test", "test", "captain").apply {
+                    uri = URI("http://127.0.0.1:3457")
+                }
+                vertx.eventBus().localSend(RoutesCE.component, Pair(component, Component.EVENT_ADDED))
                 vertx.createNetClient(NET_CLIENT_OPTIONS)
                     .connect(port, "127.0.0.1").coAwait()
                     .write(Buffer.buffer(MESSAGE_1).appendString("\r\n\r\n3PIS\r\n\r\n"))
@@ -77,6 +84,11 @@ class TcpServerTest : VertxTest() {
                 })
             },
             execute = {
+                val component = Component("test", "test", "captain").apply {
+                    uri = URI("http://127.0.0.1:3457")
+                }
+                vertx.eventBus().localSend(RoutesCE.component, Pair(component, Component.EVENT_ADDED))
+
                 vertx.createNetClient(NET_CLIENT_OPTIONS)
                     .connect(port, "127.0.0.1").coAwait()
                     .write(Buffer.buffer(EXTRA_LONG_MESSAGE).appendString("\r\n\r\n3PIS\r\n\r\n"))

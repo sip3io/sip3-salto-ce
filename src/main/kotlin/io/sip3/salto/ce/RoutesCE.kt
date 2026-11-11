@@ -49,6 +49,7 @@ interface RoutesCE : Routes {
 
     // Management
     val management get() = "management"
+    val component get() = "component"
 
     // Recording
     val rec get() = "rec"

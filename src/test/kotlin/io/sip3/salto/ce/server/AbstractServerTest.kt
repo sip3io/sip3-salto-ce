@@ -17,12 +17,15 @@
 package io.sip3.salto.ce.server
 
 import io.sip3.commons.vertx.test.VertxTest
+import io.sip3.commons.vertx.util.localSend
 import io.sip3.salto.ce.RoutesCE
 import io.sip3.salto.ce.domain.Address
+import io.sip3.salto.ce.domain.Component
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.net.URI
 import java.nio.charset.Charset
 
 class AbstractServerTest : VertxTest() {
@@ -44,7 +47,12 @@ class AbstractServerTest : VertxTest() {
                     put("message", MESSAGE_1)
                 })
             },
-            execute = { },
+            execute = {
+                val component = Component("test", "test", "captain").apply {
+                    uri = URI("http://127.0.1.2:3457")
+                }
+                vertx.eventBus().localSend(RoutesCE.component, Pair(component, Component.EVENT_ADDED))
+            },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.sip3) { event ->
                     val (sender, buffer) = event.body()
@@ -69,7 +77,12 @@ class AbstractServerTest : VertxTest() {
                     put("message", MESSAGE_2)
                 })
             },
-            execute = { },
+            execute = {
+                val component = Component("test", "test", "captain").apply {
+                    uri = URI("http://127.0.1.2:3457")
+                }
+                vertx.eventBus().localSend(RoutesCE.component, Pair(component, Component.EVENT_ADDED))
+            },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep3) { event ->
                     val (sender, buffer) = event.body()
@@ -94,7 +107,12 @@ class AbstractServerTest : VertxTest() {
                     put("message", MESSAGE_3)
                 })
             },
-            execute = { },
+            execute = {
+                val component = Component("test", "test", "captain").apply {
+                    uri = URI("http://127.0.1.2:3457")
+                }
+                vertx.eventBus().localSend(RoutesCE.component, Pair(component, Component.EVENT_ADDED))
+            },
             assert = {
                 vertx.eventBus().consumer<Pair<Address, Buffer>>(RoutesCE.hep2) { event ->
                     val (sender, buffer) = event.body()
