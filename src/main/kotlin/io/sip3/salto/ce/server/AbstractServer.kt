@@ -64,18 +64,12 @@ abstract class AbstractServer : AbstractVerticle() {
     open fun handle(component: Component, eventType: String) {
         if (component.type != Component.TYPE_CAPTAIN) return
 
-        //todo: remove
-        logger.info { "TODO: BEFORE count: ${components.size},  ${component.name} -> $eventType" }
-
         val addr = component.uri.host
         when (eventType) {
             Component.EVENT_ADDED -> if (components.size < componentLimit) components.add(addr)
             Component.EVENT_EXPIRED -> components.remove(addr)
             else -> logger.debug { "Unknown event type $eventType for component $component" }
         }
-
-    //todo: remove
-        logger.info { "TODO: AFTER count: ${components.size},  ${component.name} -> $eventType" }
     }
 
     open fun onRawPacket(sender: Address, buffer: Buffer) {
